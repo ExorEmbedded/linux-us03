@@ -253,7 +253,24 @@
 			};
 		};
 	};
-/*
+
+	seeprom0:seeprom0@54 {
+		compatible = "atmel,24c02";
+		reg = <0x54>;
+	};
+
+	seeprom1:seeprom0@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+	};
+	
+	m41t83:m41t83@68 {
+		compatible = "stm,m41t83";
+		reg = <0x68>;
+	};
+
+	
+	/*
 	egalax_ts@04 {
 		compatible = "eeti,egalax_ts";
 		reg = <0x04>;

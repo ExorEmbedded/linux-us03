@@ -38,11 +38,6 @@
 			default-state = "off";
 		};
 
-		led@3 {
-			label = "us03:usbrst:usr0";
-			gpios = <&gpio5 0 0>;
-			default-state = "on";
-		};
 	};
 
 	memory {

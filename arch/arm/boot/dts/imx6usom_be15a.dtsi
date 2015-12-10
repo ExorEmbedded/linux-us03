@@ -22,6 +22,9 @@
 		mmc0 = &usdhc2;
 		mmc2 = &usdhc3;
 		mmc1 = &usdhc4;
+		i2c2 = &i2c1;
+		i2c1 = &i2c2;
+		i2c0 = &i2c3;
 	};
 
 	leds {

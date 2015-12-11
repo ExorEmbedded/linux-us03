@@ -80,15 +80,6 @@
 			gpio = <&gpio5 00 0>;
 			enable-active-high;
 		};
-
-		reg_audio: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "wm8962-supply";
-			gpio = <&gpio4 10 0>;
-			enable-active-high;
-		};
-
 		reg_sensor: regulator@3 {
 			compatible = "regulator-fixed";
 			reg = <3>;
@@ -138,18 +129,21 @@
 };
 
 &ecspi1 {
-	fsl,spi-num-chipselects = <1>;
-	cs-gpios = <&gpio4 9 0>;
+	fsl,spi-num-chipselects = <4>;
+	cs-gpios = <&gpio5 25 0>, /* CS0 */
+	           <&gpio4 10 0>, /* CS1 */
+	           <&gpio4 11 0>, /* CS2 */
+	           <&gpio4 12 0>; /* CS3 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	status = "disabled";
+	status = "okay";
 
 	flash: m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "st,m25p32";
 		spi-max-frequency = <20000000>;
-		reg = <0>;
+		reg = <3>;
 	};
 };
 
@@ -319,9 +313,13 @@
 		
 		pinctrl_ecspi1: ecspi1grp {
 			fsl,pins = <
-				MX6QDL_PAD_KEY_COL1__ECSPI1_MISO	0x100b1
-				MX6QDL_PAD_KEY_ROW0__ECSPI1_MOSI	0x100b1
-				MX6QDL_PAD_KEY_COL0__ECSPI1_SCLK	0x100b1
+				MX6QDL_PAD_EIM_D16__ECSPI1_SCLK  0x1b0b1 /* SCLK */
+				MX6QDL_PAD_EIM_D17__ECSPI1_MISO  0x1b0b1 /* MISO */
+				MX6QDL_PAD_EIM_D18__ECSPI1_MOSI  0x1b0b1 /* MOSI */
+				MX6QDL_PAD_KEY_COL3__GPIO4_IO12  0x1b0b1 /* CS3  */
+				MX6QDL_PAD_KEY_ROW2__GPIO4_IO11  0x1b0b1 /* CS2  */
+				MX6QDL_PAD_KEY_COL2__GPIO4_IO10  0x1b0b1 /* CS1  */
+				MX6QDL_PAD_CSI0_DAT7__GPIO5_IO25 0x1b0b1 /* CS0  */
 			>;
 		};
 

@@ -113,13 +113,21 @@
 		status = "okay";
 	};
 
-	backlight {
+	pwm_bl00: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 50000>;
 		brightness-levels = <0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
 		default-brightness-level = <25>;
 		enable-gpios = <&gpio7 0 0>;
 		status = "okay";
+	};
+
+	working_hours {
+	  compatible = "working_hours";
+	  eeprom = <&seeprom0>;
+	  backlight = <&pwm_bl00>;
+	  rtcnvram = <&m41t83>;
+	  status = "okay";
 	};
 };
 
@@ -268,7 +276,7 @@
 		reg = <0x54>;
 	};
 
-	seeprom1:seeprom0@50 {
+	seeprom1:seeprom1@50 {
 		compatible = "atmel,24c02";
 		reg = <0x50>;
 	};

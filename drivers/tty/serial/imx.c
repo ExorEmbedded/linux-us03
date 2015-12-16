@@ -257,7 +257,8 @@ struct imx_port {
 	unsigned int            saved_reg[11];
 #define DMA_TX_IS_WORKING 1
 	unsigned long		flags;
-	int			rts_gpio; /* GPIO used as tx_en line for RS485 operation */
+	int			rts_gpio;      /* GPIO used as tx_en line for RS485 operation */
+	int			be15mode_gpio; /* GPIO used as mode selection between RS485 (1) and RS422 (0) on BE15 carriers */
 	struct 			serial_rs485 rs485;
 };
 
@@ -289,14 +290,25 @@ void imx_config_rs485(struct imx_port *sport)
 {
 	printk("%s -> (MCK) \n", __func__) ;
 
-	printk("--------- Setting UART /dev/ttymxc%d with the pin %d to RS485\n", sport->port.line, sport->rts_gpio);
+	printk("--------- Setting UART /dev/ttymxc%d mode...\n", sport->port.line);
 	printk("--------- SER_RS485_ENABLED=%d \n", (sport->rs485.flags & SER_RS485_ENABLED));
 
 	if (sport->rts_gpio >= 0)
 	{
 	  if (sport->rs485.flags & SER_RS485_ENABLED)
 	  {
+	    if(sport->rs485.flags & SER_RS485_RX_DURING_TX)
+	    {
+		printk("Setting UART to RS422\n");
+		if(sport->be15mode_gpio >= 0)
+		  gpio_set_value(sport->be15mode_gpio, 0);
+	    }
+	    else
+	    {
 		printk("Setting UART to RS485\n");
+		if(sport->be15mode_gpio >= 0)
+		  gpio_set_value(sport->be15mode_gpio, 1);
+	    }
 	  }
 	  else
 	  {
@@ -2151,12 +2163,12 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	
 	sport->rs485.flags = 0;
 	
-	//Get rts-gpio line (used for tx enable)
+	//Get rts-gpio line (used for tx enable 1=active)
 	sport->rts_gpio = -EINVAL;
-	ret = of_get_named_gpio(np, "rts-gpio", 0); // IMX_GPIO_NR(3, 29);
+	ret = of_get_named_gpio(np, "rts-gpio", 0); 
 	if (ret >= 0 && gpio_is_valid(ret)) 
 	{
-		printk("Setting UART /dev/ttymxc%d with the pin %d to RS485\n", sport->port.line, ret);
+		printk("Setting UART /dev/ttymxc%d with the pin %d as rts-gpio\n", sport->port.line, ret);
 		sport->rts_gpio = ret;
 
 		ret = gpio_request(sport->rts_gpio, "rts-gpio");
@@ -2168,6 +2180,23 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 		  return ret;
 	}
 
+	//Get be15mode-gpio line (used for mode selection between RS485 and RS422 on BE15 carriers 0=RS422 1=RS485)
+	sport->be15mode_gpio = -EINVAL;
+	ret = of_get_named_gpio(np, "be15mode-gpio", 0); // IMX_GPIO_NR(3, 29);
+	if (ret >= 0 && gpio_is_valid(ret)) 
+	{
+		printk("Setting UART /dev/ttymxc%d with the pin %d as be15mode-gpio\n", sport->port.line, ret);
+		sport->be15mode_gpio = ret;
+
+		ret = gpio_request(sport->be15mode_gpio, "be15mode-gpio");
+		if(ret < 0)
+		  return ret;
+		
+		ret = gpio_direction_output(sport->be15mode_gpio, 0);
+		if(ret < 0)
+		  return ret;
+	}
+	
 	sport->devdata = of_id->data;
 	return 0;
 }

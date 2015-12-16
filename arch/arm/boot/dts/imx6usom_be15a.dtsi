@@ -418,7 +418,7 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D26__UART2_TX_DATA	0x1b0b1
 				MX6QDL_PAD_EIM_D27__UART2_RX_DATA	0x1b0b1
-				MX6QDL_PAD_EIM_D29__UART2_RTS_B		0x1b0b1
+				MX6QDL_PAD_EIM_D29__GPIO3_IO29		0x1b0b1
 				MX6QDL_PAD_EIM_D28__GPIO3_IO28		0x1b0b1
 			>;
 		};
@@ -427,7 +427,7 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
 				MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
-				MX6QDL_PAD_EIM_D31__UART3_RTS_B		0x1b0b1
+				MX6QDL_PAD_EIM_D31__GPIO3_IO31		0x1b0b1
 				MX6QDL_PAD_EIM_D23__GPIO3_IO23		0x1b0b1
 			>;
 		};
@@ -504,24 +504,32 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
+	rts-gpio = <&gpio3 29 0>;
+	be15mode-gpio = <&gpio3 28 0>;
+	fsl,uart-has-rtscts;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
+	rts-gpio = <&gpio3 31 0>;
+	be15mode-gpio = <&gpio3 23 0>;
+	fsl,uart-has-rtscts;
 	status = "okay";
 };
 
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
+	fsl,uart-has-rtscts;
 	status = "okay";
 };
 

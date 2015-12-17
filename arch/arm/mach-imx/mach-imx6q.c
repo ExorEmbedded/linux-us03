@@ -312,7 +312,7 @@ static void __init imx6q_1588_init(void)
 	if (!IS_ERR(gpr))
 		regmap_update_bits(gpr, IOMUXC_GPR1,
 				IMX6Q_GPR1_ENET_CLK_SEL_MASK,
-				IMX6Q_GPR1_ENET_CLK_SEL_ANATOP);
+				0); /* IMX6Q_GPR1_ENET_CLK_SEL_ANATOP */
 	else
 		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
 

@@ -417,7 +417,10 @@ static int tsc2004_get_pendown_state_gpio(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct tsc2004 *ts = i2c_get_clientdata(client);
 
-	return !gpio_get_value(ts->gpio);
+	if(ts)
+	  return !gpio_get_value(ts->gpio);
+	else
+	  return 0;
 }
 
 struct tsc2004_platform_data* tsc2004_get_devtree_pdata(struct i2c_client *client)

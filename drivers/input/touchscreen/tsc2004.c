@@ -36,6 +36,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/delay.h>
 
 #define TS_POLL_DELAY			10 /* ms delay between samples */
 #define TS_POLL_PERIOD			10 /* ms delay between samples */
@@ -159,6 +160,7 @@ struct tsc2004 {
 	bool			pendown;
 	int			irq;
 	unsigned 		gpio;
+	unsigned                reset_gpio;
 
 	int			(*get_pendown_state)(struct device *);
 	void			(*clear_penirq)(void);
@@ -199,11 +201,34 @@ static inline int tsc2004_write_cmd(struct tsc2004 *tsc, u8 value)
 	return i2c_smbus_write_byte(tsc->client, value);
 }
 
+/* Performs the suggested initial controller reset sequence as per TI doc. SBAA193
+ */
+static void tsc2004_reset(struct tsc2004* tsc)
+{
+  unsigned short s_addr = tsc->client->addr;
+  
+  if (gpio_is_valid(tsc->reset_gpio))
+  { //HW reset sequence
+    gpio_set_value_cansleep(tsc->reset_gpio, 0);
+    usleep_range(5000, 10000);
+    gpio_set_value_cansleep(tsc->reset_gpio, 1);
+    usleep_range(5000, 10000);
+  }
+  
+  //Suggested SW sequence to exit from TI custom test mode (if the chip entered erroneously)
+  tsc2004_write_cmd(tsc, 0x82);
+  usleep_range(5000, 10000);
+  tsc->client->addr &= 0xfe;
+  tsc2004_write_cmd(tsc, 0x82);
+  usleep_range(5000, 10000);
+  tsc->client->addr = s_addr;
+}
+
 static int tsc2004_prepare_for_reading(struct tsc2004 *ts)
 {
 	int err;
 	int cmd, data;
-
+	
 	/* Reset the TSC, configure for 12 bit */
 	cmd = TSC2004_CMD1(MEAS_X_Y_Z1_Z2, MODE_12BIT, SWRST_TRUE);
 	err = tsc2004_write_cmd(ts, cmd);
@@ -471,6 +496,25 @@ struct tsc2004_platform_data* tsc2004_get_devtree_pdata(struct i2c_client *clien
 	  dev_err(&client->dev, "Unable to set GPIO interrupt line as input ret=%d\n",ret);
 	  return NULL;
 	}
+	
+	// Get Reset GPIO
+	pdata->reset_gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
+	if (gpio_is_valid(pdata->reset_gpio))
+	{
+	  ret = gpio_request(pdata->reset_gpio, "touch_rst");
+	  if(ret)
+	  {
+	    dev_err(&client->dev, "Unable to request GPIO reset line gpio=%d ret=%d\n",pdata->reset_gpio, ret);
+	    return NULL;
+	  }
+
+	  ret = gpio_direction_output(pdata->reset_gpio,1);
+	  if(ret)
+	  {
+	    dev_err(&client->dev, "Unable to set GPIO reset line as output ret=%d\n",ret);
+	    return NULL;
+	  }
+	}
 
 	pdata->model = 2004;
 	return pdata;
@@ -518,6 +562,7 @@ static int tsc2004_probe(struct i2c_client *client,
 	#ifdef CONFIG_OF
 	ts->irq = gpio_to_irq(pdata->gpio);
 	ts->gpio = pdata->gpio;
+	ts->reset_gpio = pdata->reset_gpio;
 	#endif
 
 	snprintf(ts->phys, sizeof(ts->phys),
@@ -543,6 +588,9 @@ static int tsc2004_probe(struct i2c_client *client,
 		dev_err(&client->dev, "irq %d busy?\n", ts->irq);
 		goto err_free_mem;
 	}
+	
+	/* Initial touch controller reset */
+	tsc2004_reset(ts);
 
 	/* Prepare for touch readings */
 	err = tsc2004_prepare_for_reading(ts);

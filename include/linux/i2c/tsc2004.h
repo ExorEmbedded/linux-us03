@@ -8,6 +8,7 @@ struct tsc2004_platform_data {
 	u16	x_plate_ohms;
 
 	unsigned gpio;
+	unsigned reset_gpio;
 
 	int	(*get_pendown_state)(struct device *);
 	void	(*clear_penirq)(void);		/* If needed, clear 2nd level

@@ -509,9 +509,9 @@
 };
 
 &gpc {
-	/* use ldo-bypass, u-boot will check it and configure */
-	fsl,ldo-bypass = <1>;
-	fsl,wdog-reset = <2>;
+	/* use ldo-enable and wdt1 for board reset */
+	fsl,ldo-bypass = <0>;
+	fsl,wdog-reset = <1>;
 };
 
 &hdmi_core {
@@ -603,7 +603,7 @@
 };
 
 &wdog1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &wdog2 {

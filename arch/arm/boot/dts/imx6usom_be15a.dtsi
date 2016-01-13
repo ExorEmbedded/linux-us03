@@ -317,6 +317,7 @@
 				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00 0x0000b0b0  /* backlight enable */
 				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x0000b0b0   /* touch intr */
 				MX6QDL_PAD_NANDF_D3__GPIO2_IO03 0x0000b0b0 /* tsc2004 touch reset */
+				MX6QDL_PAD_NANDF_D7__GPIO2_IO07 0x0000b0b0 /* PCI-E reset */
 			>;
 		};
 
@@ -533,9 +534,9 @@
 };
 
 &pcie {
-	power-on-gpio = <&gpio3 19 0>;
-	reset-gpio = <&gpio7 12 0>;
-	status = "disabled";
+	/*power-on-gpio = <&gpio3 19 0>;*/
+	reset-gpio = <&gpio2 7 0>;
+	status = "okay";
 };
 
 &pwm1 {

@@ -38,8 +38,11 @@
 #include <linux/of_gpio.h>
 #include <linux/delay.h>
 
-#define TS_POLL_DELAY			10 /* ms delay between samples */
-#define TS_POLL_PERIOD			10 /* ms delay between samples */
+#define TS_POLL_DELAY			15 /* ms delay between samples */
+#define TS_POLL_PERIOD			15 /* ms delay between samples */
+
+#define TS_FUZZ_XY			16 /* Fuzz range for the x,y coords. */
+#define TS_FUZZ_Z			4  /* Fuzz range for the z/pressure coord. */
 
 /* Control byte 0 */
 #define TSC2004_CMD0(addr, pnd, rw) ((addr<<3)|(pnd<<1)|rw)
@@ -156,13 +159,13 @@ struct tsc2004 {
 
 	u16			model;
 	u16			x_plate_ohms;
+	u16			max_rt;
 
 	bool			pendown;
 	int			irq;
 	unsigned 		gpio;
 	unsigned                reset_gpio;
 
-	int			(*get_pendown_state)(struct device *);
 	void			(*clear_penirq)(void);
 };
 
@@ -177,11 +180,7 @@ static inline int tsc2004_read_word_data(struct tsc2004 *tsc, u8 cmd)
 		return data;
 	}
 
-	/* The protocol and raw data format from i2c interface:
-	 * S Addr Wr [A] Comm [A] S Addr Rd [A] [DataLow] A [DataHigh] NA P
-	 * Where DataLow has [D11-D4], DataHigh has [D3-D0 << 4 | Dummy 4bit].
-	 */
-	val = swab16(data) >> 4;
+	val = swab16(data);
 
 	dev_dbg(&tsc->client->dev, "data: 0x%x, val: 0x%x\n", data, val);
 
@@ -304,6 +303,10 @@ static u32 tsc2004_calculate_pressure(struct tsc2004 *tsc, struct ts_event *tc)
 	/* range filtering */
 	if (tc->x == MAX_12BIT)
 		tc->x = 0;
+	
+	if (tc->x < TS_FUZZ_XY)
+		tc->x = 0;
+	
 
 	if (likely(tc->x && tc->z1)) {
 		/* compute touch pressure resistance using equation #1 */
@@ -314,7 +317,7 @@ static u32 tsc2004_calculate_pressure(struct tsc2004 *tsc, struct ts_event *tc)
 		rt = (rt + 2047) >> 12;
 	}
 
-	return rt;
+	return rt; 
 }
 
 static void tsc2004_send_up_event(struct tsc2004 *tsc)
@@ -335,47 +338,24 @@ static void tsc2004_work(struct work_struct *work)
 	struct ts_event tc;
 	u32 rt;
 
-	/*
-	 * NOTE: We can't rely on the pressure to determine the pen down
-	 * state, even though this controller has a pressure sensor.
-	 * The pressure value can fluctuate for quite a while after
-	 * lifting the pen and in some cases may not even settle at the
-	 * expected value.
-	 *
-	 * The only safe way to check for the pen up condition is in the
-	 * work function by reading the pen signal state (it's a GPIO
-	 * and IRQ). Unfortunately such callback is not always available,
-	 * in that case we have rely on the pressure anyway.
-	 */
-	if (ts->get_pendown_state) {
-		if (unlikely(!ts->get_pendown_state(&ts->client->dev))) {
-			tsc2004_send_up_event(ts);
-			ts->pendown = false;
-			goto out;
-		}
-		dev_dbg(&ts->client->dev, "pen is still down\n");
-	}
-
 	tsc2004_read_values(ts, &tc);
 
 	rt = tsc2004_calculate_pressure(ts, &tc);
-	if (rt > MAX_12BIT) {
-		/*
-		 * Sample found inconsistent by debouncing or pressure is
-		 * beyond the maximum. Don't report it to user space,
-		 * repeat at least once more the measurement.
-		 */
+	
+	//If the calculated pressure > max_rt, means the sample is not stable, so just skip the sample, without making any notification
+	if (rt > ts->max_rt) 
+	{
 		dev_dbg(&ts->client->dev, "ignored pressure %d\n", rt);
 		goto out;
 
 	}
 
-	if (rt) {
+	if (rt) 
+	{	// The calculated pressure is > 0 and <= max_rt ... the touch is beeing pressed and this is a valid sample.
 		struct input_dev *input = ts->input;
 
 		if (!ts->pendown) {
 			dev_dbg(&ts->client->dev, "DOWN\n");
-
 			input_report_key(input, BTN_TOUCH, 1);
 			ts->pendown = true;
 		}
@@ -386,23 +366,18 @@ static void tsc2004_work(struct work_struct *work)
 
 		input_sync(input);
 
-		dev_dbg(&ts->client->dev, "point(%4d,%4d), pressure (%4u)\n",
-			tc.x, tc.y, rt);
+		dev_dbg(&ts->client->dev, "point(%4d,%4d), pressure (%4u)\n", tc.x, tc.y, rt);
 
-	} else if (!ts->get_pendown_state && ts->pendown) {
-		/*
-		 * We don't have callback to check pendown state, so we
-		 * have to assume that since pressure reported is 0 the
-		 * pen was lifted up.
-		 */
+	} 
+	else if (ts->pendown) 
+	{	// pressure computation returned 0 => touch not pressed
 		tsc2004_send_up_event(ts);
 		ts->pendown = false;
 	}
 
  out:
 	if (ts->pendown)
-		schedule_delayed_work(&ts->work,
-				      msecs_to_jiffies(TS_POLL_PERIOD));
+		schedule_delayed_work(&ts->work, msecs_to_jiffies(TS_POLL_PERIOD));
 	else
 		enable_irq(ts->irq);
 }
@@ -411,11 +386,8 @@ static irqreturn_t tsc2004_irq(int irq, void *handle)
 {
 	struct tsc2004 *ts = handle;
 
-	if (!ts->get_pendown_state || likely(ts->get_pendown_state(&ts->client->dev))) {
-		disable_irq_nosync(ts->irq);
-		schedule_delayed_work(&ts->work,
-				      msecs_to_jiffies(TS_POLL_DELAY));
-	}
+	disable_irq_nosync(ts->irq);
+	schedule_delayed_work(&ts->work, msecs_to_jiffies(TS_POLL_DELAY));
 
 	if (ts->clear_penirq)
 		ts->clear_penirq();
@@ -437,17 +409,6 @@ static void tsc2004_free_irq(struct tsc2004 *ts)
 }
 
 #ifdef CONFIG_OF
-static int tsc2004_get_pendown_state_gpio(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct tsc2004 *ts = i2c_get_clientdata(client);
-
-	if(ts)
-	  return !gpio_get_value(ts->gpio);
-	else
-	  return 0;
-}
-
 struct tsc2004_platform_data* tsc2004_get_devtree_pdata(struct i2c_client *client)
 {
 	struct tsc2004_platform_data* pdata;
@@ -475,9 +436,7 @@ struct tsc2004_platform_data* tsc2004_get_devtree_pdata(struct i2c_client *clien
 	
 	pdata->gpio = of_get_named_gpio_flags(np, "intr-gpio", 0, &flags);
 
-	if (gpio_is_valid(pdata->gpio))
-		pdata->get_pendown_state = tsc2004_get_pendown_state_gpio;
-	else
+	if (!gpio_is_valid(pdata->gpio))
 	{
 	  dev_err(&client->dev, "GPIO not specified in DT (of_get_gpio returned %d)\n", pdata->gpio);
 	  return NULL;
@@ -557,7 +516,7 @@ static int tsc2004_probe(struct i2c_client *client,
 
 	ts->model             = pdata->model;
 	ts->x_plate_ohms      = pdata->x_plate_ohms;
-	ts->get_pendown_state = pdata->get_pendown_state;
+	ts->max_rt            = (3 * pdata->x_plate_ohms) / 2; //Assume the pressure threshold to be 1.5 times the x plate resistance. 
 	ts->clear_penirq      = pdata->clear_penirq;
 	#ifdef CONFIG_OF
 	ts->irq = gpio_to_irq(pdata->gpio);
@@ -575,9 +534,9 @@ static int tsc2004_probe(struct i2c_client *client,
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
-	input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
-	input_set_abs_params(input_dev, ABS_PRESSURE, 0, MAX_12BIT, 0, 0);
+	input_set_abs_params(input_dev, ABS_X, 0, MAX_12BIT, TS_FUZZ_XY, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, TS_FUZZ_XY, 0);
+	input_set_abs_params(input_dev, ABS_PRESSURE, 0, MAX_12BIT, TS_FUZZ_Z, 0);
 
 	if (pdata->init_platform_hw)
 		pdata->init_platform_hw();

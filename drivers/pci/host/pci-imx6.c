@@ -474,10 +474,12 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 	 * started in Gen2 mode, there is a possibility the devices on the
 	 * bus will not be detected at all.  This happens with PCIe switches.
 	 */
+	usleep_range(4000,5000);
 	tmp = readl(pp->dbi_base + PCIE_RC_LCR);
 	tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
 	tmp |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN1;
 	writel(tmp, pp->dbi_base + PCIE_RC_LCR);
+	usleep_range(4000,5000);
 
 	/* Start LTSSM. */
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
@@ -488,11 +490,13 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 	if (ret)
 		goto out;
 
+#if 0	
 	/* Allow Gen2 mode after the link is up. */
 	tmp = readl(pp->dbi_base + PCIE_RC_LCR);
 	tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
 	tmp |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN2;
 	writel(tmp, pp->dbi_base + PCIE_RC_LCR);
+#endif
 
 	/*
 	 * Start Directed Speed Change so the best possible speed both link
@@ -628,6 +632,8 @@ static int imx6_pcie_link_up(struct pcie_port *pp)
 		 */
 		udelay(10);
 	}
+
+#if 0	
 	/*
 	 * From L0, initiate MAC entry to gen2 if EP/RC supports gen2.
 	 * Wait 2ms (LTSSM timeout is 24ms, PHY lock is ~5us in gen2).
@@ -644,10 +650,11 @@ static int imx6_pcie_link_up(struct pcie_port *pp)
 	if ((debug_r0 & 0x3f) != 0x0d)
 		return 0;
 
-	dev_err(pp->dev, "transition to gen2 is stuck, reset PHY!\n");
+	dev_err(pp->dev, "transition to gen2 is stuck, reset PHY!\n"); 
 	dev_dbg(pp->dev, "debug_r0=%08x debug_r1=%08x\n", debug_r0, rc);
 
 	imx6_pcie_reset_phy(pp);
+#endif
 
 	return 0;
 }

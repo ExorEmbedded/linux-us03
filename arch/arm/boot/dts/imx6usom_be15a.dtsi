@@ -44,12 +44,6 @@
 			gpios = <&gpio3 2 0>;
 			default-state = "off";
 		};
-		
-		led@3 {
-			label = "us03:en_vdd:usr0";
-			gpios = <&gpio7 1 0>;
-			default-state = "on";
-		};
 	};
 
 	memory {
@@ -110,6 +104,7 @@
 		default_ifmt = "RGB565";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu1>;
+		enable-gpios = <&gpio7 1 0>;
 		status = "okay";
 	};
 
@@ -117,7 +112,7 @@
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 50000>;
 		brightness-levels = <0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
-		default-brightness-level = <25>;
+		default-brightness-level = <0>;
 		enable-gpios = <&gpio7 0 0>;
 		status = "okay";
 	};
@@ -315,6 +310,7 @@
 				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x80000000
 				MX6QDL_PAD_EIM_WAIT__GPIO5_IO00 0x0000b0b0  /* USB host reset */
 				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00 0x0000b0b0  /* backlight enable */
+				MX6QDL_PAD_SD3_DAT4__GPIO7_IO01 0x0000b0b0  /* en_vdd */
 				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x0000b0b0   /* touch intr */
 				MX6QDL_PAD_NANDF_D3__GPIO2_IO03 0x0000b0b0 /* tsc2004 touch reset */
 				MX6QDL_PAD_NANDF_D7__GPIO2_IO07 0x0000b0b0 /* PCI-E reset */
@@ -325,7 +321,6 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_DA1__GPIO3_IO01  0x0000b0b0
 				MX6QDL_PAD_EIM_DA2__GPIO3_IO02  0x0000b0b0
-				MX6QDL_PAD_SD3_DAT4__GPIO7_IO01 0x0000b0b0
 			>;
 		};
 		

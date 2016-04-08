@@ -235,6 +235,8 @@ struct imx_port {
 	wait_queue_head_t	dma_wait;
 	int			rts_gpio;      /* GPIO used as tx_en line for RS485 operation */
 	int			be15mode_gpio; /* GPIO used as mode selection between RS485 (1) and RS422 (0) on BE15 carriers */
+	int 			mode_gpio;     /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
+	int                     rxen_gpio;     /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
 	struct 			serial_rs485 rs485;
 };
 
@@ -248,10 +250,24 @@ static void imx_rs485_stop_tx(struct imx_port *sport)
 {
 	if ((sport->rts_gpio >= 0) && (sport->rs485.flags & SER_RS485_ENABLED))
 		gpio_set_value(sport->rts_gpio, 0);
+	
+	if ((sport->rs485.flags & SER_RS485_ENABLED) && !(sport->rs485.flags & SER_RS485_RX_DURING_TX)) 
+	{
+	  //RX enable by using the prg phy dedicated gpio pin
+	  if (gpio_is_valid(sport->rxen_gpio)) 
+	    gpio_set_value(sport->rxen_gpio, 1);
+	}
 }
 
 static void imx_rs485_start_tx(struct imx_port *sport)
 {
+	if ((sport->rs485.flags & SER_RS485_ENABLED) && !(sport->rs485.flags & SER_RS485_RX_DURING_TX))
+	{
+	  //RX disable by using the prg phy dedicated gpio pin
+	  if (gpio_is_valid(sport->rxen_gpio)) 
+	    gpio_set_value(sport->rxen_gpio, 0);
+	}
+  
 	if ((sport->rts_gpio >= 0) && (sport->rs485.flags & SER_RS485_ENABLED))
 		gpio_set_value(sport->rts_gpio, 1);
 }
@@ -286,6 +302,19 @@ void imx_config_rs485(struct imx_port *sport)
 	  }
 	  gpio_set_value(sport->rts_gpio, 0);
 	}
+	
+	// If we have a programmable phy, set the mode accordingly
+	if (gpio_is_valid(sport->mode_gpio)) 
+	{
+	  if(sport->rs485.flags & SER_RS485_ENABLED)
+	    gpio_set_value(sport->mode_gpio, 1);
+	  else
+	    gpio_set_value(sport->mode_gpio, 0);
+	}
+
+	//RX enable by using the prg phy dedicated gpio pin
+	if (gpio_is_valid(sport->rxen_gpio)) 
+	  gpio_set_value(sport->rxen_gpio, 1);
 	
 	if (sport->have_rtscts) 
 	{
@@ -685,8 +714,21 @@ static void imx_start_tx(struct uart_port *port)
                  temp = readl(port->membase + UCR4);
                  temp |= UCR4_TCEN;
                  writel(temp, port->membase + UCR4);
-         }
- 
+	  
+	}
+	else
+	{
+	  /*
+	   * If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
+	   */
+	  if (gpio_is_valid(sport->mode_gpio))
+	    if (gpio_is_valid(sport->rts_gpio)) 
+	    {
+	      if (gpio_get_value(sport->rts_gpio) == 0)
+		gpio_set_value(sport->rts_gpio, 1);
+	    }
+	}
+         
 	if (!sport->dma_is_enabled) {
 		temp = readl(sport->port.membase + UCR1);
 		writel(temp | UCR1_TXMPTYEN, sport->port.membase + UCR1);
@@ -1965,6 +2007,41 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 		  return ret;
 		
 		ret = gpio_direction_output(sport->be15mode_gpio, 0);
+		if(ret < 0)
+		  return ret;
+	}
+	
+		
+	// Get mode-gpio line, which is used to switch from RS485 <-> RS232 on programmable phys
+	sport->mode_gpio = -EINVAL;
+	ret = of_get_named_gpio(np, "mode-gpio", 0);
+	if (ret >= 0 && gpio_is_valid(ret)) 
+	{
+		printk("Setting UART /dev/ttymxc%d with the pin %d as mode-gpio\n", sport->port.line, ret);
+		sport->mode_gpio = ret;
+
+		ret = gpio_request(sport->mode_gpio, "mode-gpio");
+		if(ret < 0)
+		  return ret;
+		
+		ret = gpio_direction_output(sport->mode_gpio, 0);
+		if(ret < 0)
+		  return ret;
+	}
+
+	// Get rxen-gpio, which is used to enable/disable the rx on programmable phys
+	sport->rxen_gpio = -EINVAL;
+	ret = of_get_named_gpio(np, "rxen-gpio", 0);
+	if (ret >= 0 && gpio_is_valid(ret)) 
+	{
+		printk("Setting UART /dev/ttymxc%d with the pin %d as rxen-gpio\n", sport->port.line, ret);
+		sport->rxen_gpio = ret;
+
+		ret = gpio_request(sport->rxen_gpio, "rxen-gpio");
+		if(ret < 0)
+		  return ret;
+		
+		ret = gpio_direction_output(sport->rxen_gpio, 1);
 		if(ret < 0)
 		  return ret;
 	}

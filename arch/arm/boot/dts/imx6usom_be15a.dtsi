@@ -543,6 +543,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	fsl,uart-has-rtscts;
+	fsl,dte-mode;
 	status = "okay";
 };
 
@@ -568,6 +569,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
 	fsl,uart-has-rtscts;
+	fsl,dte-mode;
 	status = "okay";
 };
 

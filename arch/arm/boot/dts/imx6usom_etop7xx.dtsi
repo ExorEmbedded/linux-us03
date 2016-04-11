@@ -537,7 +537,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	fsl,uart-has-rtscts;
-//	fsl,dte-mode;
 	rts-gpio = <&gpio3 14 0>;
 	mode-gpio = <&gpio3 15 0>;
 	rxen-gpio = <&gpio6 31 0>;
@@ -548,7 +547,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
 	fsl,uart-has-rtscts;
-	fsl,dte-mode;
 	status = "disabled";
 };
 
@@ -556,7 +554,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
 	fsl,uart-has-rtscts;
-	fsl,dte-mode;
 	status = "disabled";
 };
 

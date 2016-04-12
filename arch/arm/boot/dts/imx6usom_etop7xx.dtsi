@@ -130,6 +130,13 @@
 	soc-supply = <&sw1c_reg>;
 };
 
+&clks {
+	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+	                  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+	                  <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>;
+};
+
 &ecspi1 {
 	fsl,spi-num-chipselects = <5>;
 	cs-gpios = <&gpio5 25 0>, /* CS0 */

@@ -556,6 +556,32 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 1,
         .brightness_max = 80,
     },         
+		/* 52: Innolux G101ICE-L01 LVDS 24 bit 1280x800 */
+    {
+        .dispid    = 52,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 71100, 
+        .pclk_inv  = 0,
+        
+        .hs_fp     = 30, 
+        .hs_bp     = 30, 
+        .hs_w      = 100, 
+        .hs_inv    = 0,
+        
+        .vs_fp     = 3, 
+        .vs_bp     = 10, 
+        .vs_w      = 10, 
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 1,
+        .brightness_max = 100,
+    },         
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

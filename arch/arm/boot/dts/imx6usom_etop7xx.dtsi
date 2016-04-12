@@ -132,11 +132,12 @@
 };
 
 &ecspi1 {
-	fsl,spi-num-chipselects = <4>;
+	fsl,spi-num-chipselects = <5>;
 	cs-gpios = <&gpio5 25 0>, /* CS0 */
 	           <&gpio4 10 0>, /* CS1 */
 	           <&gpio4 11 0>, /* CS2 */
-	           <&gpio4 12 0>; /* CS3 */
+	           <&gpio4 12 0>, /* CS3 */
+	           <&gpio5 19 0>; /* CS4 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
@@ -148,6 +149,35 @@
 		pagesize = <64>;
 		size = <65536>;
 		address-width = <16>;
+	};
+
+	flash0: n25q256a@4 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "m25p80";
+		reg = <4>;      /* chip select */
+		spi-max-frequency = <20000000>;
+		m25p,fast-read;
+		enable-gpios = <&gpio5 21 0>;
+		page-size = <256>; 
+		block-size = <16>; /* 2^16, 64KB */
+		read-delay = <4>;  /* delay value in read data capture register */
+		cdns,tshsl-ns = <50>;
+		cdns,tsd2d-ns = <50>;
+		cdns,tchsh-ns = <4>;
+		cdns,tslch-ns = <4>;
+
+		partition@qspi-fpga1 {
+		/* 10MB for raw FPGA1 image. */
+		label = "fpga1";
+		reg = <0x0 0xa00000>;
+		};
+
+		partition@qspi-fpga2 {
+		/* 10MB for raw FPGA2 image. */
+		label = "fpga2";
+		reg = <0xa00000 0xa00000>;
+		};
 	};
 	
 };
@@ -326,13 +356,15 @@
 		
 		pinctrl_ecspi1: ecspi1grp {
 			fsl,pins = <
-				MX6QDL_PAD_EIM_D16__ECSPI1_SCLK  0x1b0b1 /* SCLK */
-				MX6QDL_PAD_EIM_D17__ECSPI1_MISO  0x1b0b1 /* MISO */
-				MX6QDL_PAD_EIM_D18__ECSPI1_MOSI  0x1b0b1 /* MOSI */
-				MX6QDL_PAD_KEY_COL3__GPIO4_IO12  0x1b0b1 /* CS3  */
-				MX6QDL_PAD_KEY_ROW2__GPIO4_IO11  0x1b0b1 /* CS2  */
-				MX6QDL_PAD_KEY_COL2__GPIO4_IO10  0x1b0b1 /* CS1  */
-				MX6QDL_PAD_CSI0_DAT7__GPIO5_IO25 0x1b0b1 /* CS0  */
+				MX6QDL_PAD_EIM_D16__ECSPI1_SCLK   0x1b0b1 /* SCLK */
+				MX6QDL_PAD_EIM_D17__ECSPI1_MISO   0x1b0b1 /* MISO */
+				MX6QDL_PAD_EIM_D18__ECSPI1_MOSI   0x1b0b1 /* MOSI */
+				MX6QDL_PAD_KEY_COL3__GPIO4_IO12   0x1b0b1 /* CS3  */
+				MX6QDL_PAD_KEY_ROW2__GPIO4_IO11   0x1b0b1 /* CS2  */
+				MX6QDL_PAD_KEY_COL2__GPIO4_IO10   0x1b0b1 /* CS1  */
+				MX6QDL_PAD_CSI0_DAT7__GPIO5_IO25  0x1b0b1 /* CS0  */
+				MX6QDL_PAD_CSI0_MCLK__GPIO5_IO19  0x1b0b1 /* CS4  */
+				MX6QDL_PAD_CSI0_VSYNC__GPIO5_IO21 0x1b0b1 /* enable gpio for FPGA SPI Flash */
 			>;
 		};
 

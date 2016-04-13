@@ -116,6 +116,11 @@
 		enable-gpios = <&gpio7 0 0>;
 		status = "okay";
 	};
+	
+	beeper {
+	  compatible = "pwm-beeper";
+	  pwms = <&pwm3 0 50000 0>;
+	};
 
 	working_hours {
 	  compatible = "working_hours";
@@ -424,6 +429,12 @@
 			>;
 		};
 
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_DAT1__PWM3_OUT		0x1b0b1
+			>;
+		};
+		
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD3_DAT7__UART1_TX_DATA	0x1b0b1
@@ -536,6 +547,12 @@
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
 	status = "okay";
 };
 

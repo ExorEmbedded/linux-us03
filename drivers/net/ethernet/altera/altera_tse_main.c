@@ -1646,12 +1646,26 @@ module_platform_driver(altera_tse_driver);
 #include <linux/irq.h>
 #include <linux/slab.h>
 
+#define TSE_BUFFER_BASE      (0x000000)
+#define TSE_BUFFER_SIZE      (0x8000)
+#define TSE_DESCRIPTORS_BASE (0x10000)
+#define TSE_DESCRIPTORS_SIZE (0x2000)
+#define TSE_REGISTERS_BASE   (0x12000)
+#define TSE_SGDMA_TX_BASE    (0x12400)
+#define TSE_SGDMA_RX_BASE    (0x12800)
+
 /* Probe function to initialize one instance of the TSE ove PCIe core
  */
 static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-  int rc;
+  int rc = -ENODEV;
   void* iobase;
+  struct net_device *ndev;
+  int ret = -ENODEV;
+  resource_size_t res_start;
+  resource_size_t res_end;
+  struct altera_tse_private *priv;
+  //  const unsigned char *macaddr;
   
   printk("*** altera_tse_pciedev_probe\n");
   
@@ -1659,14 +1673,14 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   rc = pci_enable_device(pdev);
   if (rc)
   {
-    printk(KERN_ERR "altera_tse_pciedev_probe: failed to enable the PCIe device.\n");
+    printk("altera_tse_pciedev_probe: failed to enable the PCIe device.\n");
     return rc;
   }
   
   // Check if BAR 0 is correctly mapped
   if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) 
   {
-    printk(KERN_ERR "altera_tse_pciedev_probe: Incorrect BAR configuration.\n");
+    printk("altera_tse_pciedev_probe: Incorrect BAR configuration.\n");
     rc = -ENODEV;
     goto err_check_bar_mapping;
   }
@@ -1675,7 +1689,7 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   rc = pci_request_region(pdev, 0, ALTERA_TSE_RESOURCE_NAME);
   if (rc) 
   {
-    printk(KERN_ERR "altera_tse_pciedev_probe: pci_request_regions() failed.\n");
+    printk("altera_tse_pciedev_probe: pci_request_regions() failed.\n");
     goto err_request_regions;
   } 
   
@@ -1683,25 +1697,177 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   iobase = pci_iomap(pdev, 0, 0);
   if (!iobase) 
   {
-    printk(KERN_ERR "altera_tse_pciedev_probe: pci_iomap() failed\n");
+    printk("altera_tse_pciedev_probe: pci_iomap() failed\n");
+    rc = -ENODEV;
     goto err_iomap0;
-  }  
+  }
   
-  //Now try to read the first 8 32bit registers of the TSE core
-  for(rc=0;rc<8;rc++)
-    printk("regoffs = 0x%x    val=0x%x\n",(long)(iobase + 0x12000 + rc*4),ioread32(iobase + 0x12000 + rc*4));
+  // Set private data structure
+  ndev = alloc_etherdev(sizeof(struct altera_tse_private));
+  if (!ndev) 
+  {
+    printk("altera_tse_pciedev_probe: Could not allocate network device\n");
+    rc = -ENODEV;
+    goto err_eth_alloc;
+  }
+  
+  SET_NETDEV_DEV(ndev, &pdev->dev);
+  priv = netdev_priv(ndev);
+  priv->device = &pdev->dev;
+  priv->dev = ndev;
+  priv->msg_enable = netif_msg_init(debug, default_msg_level);
+  
+  // DMA configuration (Actually only SGDMA is supported for the PCIe)
+  priv->dmaops = (struct altera_dmaops*) &altera_dtype_sgdma;
+  if (priv->dmaops && priv->dmaops->altera_dtype == ALTERA_DTYPE_SGDMA) 
+  {
+    /* Start of that memory is for transmit descriptors */
+    priv->tx_dma_desc = iobase + TSE_BUFFER_BASE;
     
+    /* First half is for tx descriptors, other half for tx */
+    priv->txdescmem = (TSE_BUFFER_SIZE)/2;
+    priv->txdescmem_busaddr = (dma_addr_t)TSE_BUFFER_BASE;
+    
+    priv->rx_dma_desc = (void __iomem *)((uintptr_t)(priv->tx_dma_desc + priv->txdescmem));
+    priv->rxdescmem = (TSE_BUFFER_SIZE)/2;
+    priv->rxdescmem_busaddr = (dma_addr_t)TSE_BUFFER_BASE;
+    priv->rxdescmem_busaddr += priv->txdescmem;
+  }
+  
+  if (!dma_set_mask(priv->device, DMA_BIT_MASK(priv->dmaops->dmamask)))
+    dma_set_coherent_mask(priv->device, DMA_BIT_MASK(priv->dmaops->dmamask));
+  else if (!dma_set_mask(priv->device, DMA_BIT_MASK(32)))
+    dma_set_coherent_mask(priv->device, DMA_BIT_MASK(32));
+  else
+  {
+    rc = -ENODEV;
+    goto err_free_netdev;
+  }
+  
+  // Setup TSE MAC resources
+  priv->mac_dev = iobase + TSE_REGISTERS_BASE;
+  res_start = TSE_REGISTERS_BASE;
+  res_end = TSE_REGISTERS_BASE + 0x400;
+  
+  //xSGDMA Rx Dispatcher address space
+  priv->rx_dma_csr = iobase + TSE_SGDMA_RX_BASE;
+  
+  //xSGDMA Tx Dispatcher address space
+  priv->tx_dma_csr = iobase + TSE_SGDMA_TX_BASE;
+  
+  //Map MSI interrupts for TX and RX IRQ
+  rc = pci_enable_msi_block(pdev, 4);
+  if(rc)
+  {
+    printk("altera_tse_pciedev_probe: Could not enable the MSI interrupts\n");
+    goto err_free_netdev;
+  }
+  
+  priv->rx_irq = pdev-> irq + 2;
+  priv->tx_irq = pdev-> irq + 3;
+  
+  //Rx and Tx FIFO depths
+  priv->rx_fifo_depth = 2048;
+  priv->tx_fifo_depth = 2048;
+  
+  //Misc datas
+  priv->hash_filter = 0;
+  priv->added_unicast = 1;
+  priv->max_mtu = ETH_DATA_LEN;
+  priv->rx_dma_buf_sz = ALTERA_RXDMABUFFER_SIZE;
+  
+  //Get default MAC address
+  // TODO: Add support for using the MAC addres stored in I2C SEEPROM
+#if 0  
+  macaddr = of_get_mac_address(pdev->dev.of_node);
+  if (macaddr)
+    ether_addr_copy(ndev->dev_addr, macaddr);
+  else
+#endif
+  eth_hw_addr_random(ndev);
+  
+  // get phy addr and create mdio (autodetect phy address)
+  priv->phy_iface = PHY_INTERFACE_MODE_RMII;
+  priv->phy_addr = POLL_PHY;
+  rc = altera_tse_mdio_create(ndev, atomic_add_return(1, &instance_count));
+  if(rc)
+  {
+    printk("altera_tse_pciedev_probe: Could not attach phy\n");
+    goto err_free_netdev;
+  }
+  
+  // initialize netdev
+  ndev->mem_start = res_start;
+  ndev->mem_end = res_end;
+  ndev->netdev_ops = &altera_tse_netdev_ops;
+  altera_tse_set_ethtool_ops(ndev);
+  
+  altera_tse_netdev_ops.ndo_set_rx_mode = tse_set_rx_mode;
+  
+  if (priv->hash_filter)
+    altera_tse_netdev_ops.ndo_set_rx_mode = tse_set_rx_mode_hashfilter;
+  
+  // Scatter/gather IO is not supported, so it is turned off
+  ndev->hw_features &= ~NETIF_F_SG;
+  ndev->features |= ndev->hw_features | NETIF_F_HIGHDMA;
+  
+  /* VLAN offloading of tagging, stripping and filtering is not
+   * supported by hardware, but driver will accommodate the
+   * extra 4-byte VLAN tag for processing by upper layers
+   */
+  ndev->features |= NETIF_F_HW_VLAN_CTAG_RX;
+  
+  // setup NAPI interface 
+  netif_napi_add(ndev, &priv->napi, tse_poll, NAPI_POLL_WEIGHT);
+  spin_lock_init(&priv->mac_cfg_lock);
+  spin_lock_init(&priv->tx_lock);
+  spin_lock_init(&priv->rxdma_irq_lock);
+  
+  rc = register_netdev(ndev);
+  if (rc) 
+  {
+    printk("altera_tse_pciedev_probe: failed to register TSE net device\n");
+    goto err_register_netdev;
+  }
+  
+  dev_set_drvdata(&pdev->dev,ndev);
+  priv->revision = ioread32(&priv->mac_dev->megacore_revision);
+  printk("TSE PCIe MAC revision: 0x%x\n",priv->revision);
+  
+  if (netif_msg_probe(priv))
+    dev_info(&pdev->dev, "Altera TSE MAC version %d.%d at 0x%08lx irq %d/%d\n",
+	     (priv->revision >> 8) & 0xff,
+	     priv->revision & 0xff,
+	     (unsigned long) res_start, priv->rx_irq,
+	     priv->tx_irq);
+  
+   rc = init_phy(ndev);
+  if (rc != 0) 
+  {
+    printk("altera_tse_pciedev_probe: Cannot attach to PHY (error: %d)\n", ret);
+    goto err_init_phy;
+  }
+
+  // Probe OK
   return 0;
 
+err_init_phy:
+  unregister_netdev(ndev);
+err_register_netdev:
+  netif_napi_del(&priv->napi);
+  altera_tse_mdio_destroy(ndev);
+err_free_netdev:
+  free_netdev(ndev);  
+err_eth_alloc:
+  pci_iounmap(pdev, iobase);
 err_iomap0:
   pci_release_regions(pdev);
-  
 err_request_regions:  
 err_check_bar_mapping:  
   pci_disable_device(pdev);
-  
+
   return rc;
-}
+}  
 
 /*
  * Remove one instance of the TSE over PCIe core

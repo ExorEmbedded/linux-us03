@@ -1266,6 +1266,7 @@ static struct net_device_ops altera_tse_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
+#ifndef CONFIG_ALTERA_TSE_PCIE
 static int request_and_map(struct platform_device *pdev, const char *name,
 			   struct resource **res, void __iomem **ptr)
 {
@@ -1569,7 +1570,7 @@ static int altera_tse_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
+#endif //CONFIG_ALTERA_TSE_PCIE
 static const struct altera_dmaops altera_dtype_sgdma = {
 	.altera_dtype = ALTERA_DTYPE_SGDMA,
 	.dmamask = 32,
@@ -1608,6 +1609,7 @@ static const struct altera_dmaops altera_dtype_msgdma = {
 	.start_rxdma = msgdma_start_rxdma,
 };
 
+#ifndef CONFIG_ALTERA_TSE_PCIE
 static const struct of_device_id altera_tse_ids[] = {
 	{ .compatible = "altr,tse-msgdma-1.0", .data = &altera_dtype_msgdma, },
 	{ .compatible = "altr,tse-1.0", .data = &altera_dtype_sgdma, },
@@ -1628,6 +1630,106 @@ static struct platform_driver altera_tse_driver = {
 };
 
 module_platform_driver(altera_tse_driver);
+#endif //CONFIG_ALTERA_TSE_PCIE
+
+#ifdef CONFIG_ALTERA_TSE_PCIE
+/**************************************************************************************************************************
+ * The following code is related to the TSE support through the PCI-e bus
+ **************************************************************************************************************************/
+#include <linux/pci.h>
+
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/pci.h>
+#include <linux/gpio.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/slab.h>
+
+/* Probe function to initialize one instance of the TSE ove PCIe core
+ */
+static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+  int rc;
+  void* iobase;
+  
+  printk("*** altera_tse_pciedev_probe\n");
+  
+  //Enable the PCIe device
+  rc = pci_enable_device(pdev);
+  if (rc)
+  {
+    printk(KERN_ERR "altera_tse_pciedev_probe: failed to enable the PCIe device.\n");
+    return rc;
+  }
+  
+  // Check if BAR 0 is correctly mapped
+  if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) 
+  {
+    printk(KERN_ERR "altera_tse_pciedev_probe: Incorrect BAR configuration.\n");
+    rc = -ENODEV;
+    goto err_check_bar_mapping;
+  }
+  
+  // Takes ownership of BAR0 region
+  rc = pci_request_region(pdev, 0, ALTERA_TSE_RESOURCE_NAME);
+  if (rc) 
+  {
+    printk(KERN_ERR "altera_tse_pciedev_probe: pci_request_regions() failed.\n");
+    goto err_request_regions;
+  } 
+  
+  // Maps BAR0 region to usable iospace
+  iobase = pci_iomap(pdev, 0, 0);
+  if (!iobase) 
+  {
+    printk(KERN_ERR "altera_tse_pciedev_probe: pci_iomap() failed\n");
+    goto err_iomap0;
+  }  
+  
+  //Now try to read the first 8 32bit registers of the TSE core
+  for(rc=0;rc<8;rc++)
+    printk("regoffs = 0x%x    val=0x%x\n",(long)(iobase + 0x12000 + rc*4),ioread32(iobase + 0x12000 + rc*4));
+    
+  return 0;
+
+err_iomap0:
+  pci_release_regions(pdev);
+  
+err_request_regions:  
+err_check_bar_mapping:  
+  pci_disable_device(pdev);
+  
+  return rc;
+}
+
+/*
+ * Remove one instance of the TSE over PCIe core
+ */
+static void altera_tse_pciedev_remove(struct pci_dev *pdev)
+{
+  printk("*** altera_tse_pciedev_remove\n");
+}
+
+static const struct pci_device_id altera_tse_pciedev_ids[] = {
+	{ PCI_DEVICE(0x1172, 0xe001) },
+	{ 0, }
+};
+
+MODULE_DEVICE_TABLE(pci, altera_tse_pciedev_ids);
+
+static struct pci_driver altera_tse_driver = {
+	.probe		= altera_tse_pciedev_probe,
+	.remove		= altera_tse_pciedev_remove,
+	.suspend	= NULL,
+	.resume		= NULL,
+	.name	= ALTERA_TSE_RESOURCE_NAME,
+	.id_table = altera_tse_pciedev_ids,
+};
+
+//This to register the PCI driver
+module_pci_driver(altera_tse_driver); 
+#endif //CONFIG_ALTERA_TSE_PCIE
 
 MODULE_AUTHOR("Altera Corporation");
 MODULE_DESCRIPTION("Altera Triple Speed Ethernet MAC driver");

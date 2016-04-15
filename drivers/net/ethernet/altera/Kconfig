@@ -7,3 +7,8 @@ config ALTERA_TSE
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called alteratse.
+config ALTERA_TSE_PCIE
+	bool "PCIe support for the Altera Triple-Speed Ethernet MAC"
+	depends on ALTERA_TSE
+	---help---
+	  This option builds the PCIe version of the Altera TSE driver.

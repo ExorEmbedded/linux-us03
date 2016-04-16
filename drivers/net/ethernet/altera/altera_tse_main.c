@@ -132,8 +132,9 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	struct altera_tse_private *priv = netdev_priv(dev);
 	int ret;
 	int i;
-	struct device_node *mdio_node = NULL;
 	struct mii_bus *mdio = NULL;
+#ifndef CONFIG_ALTERA_TSE_PCIE
+	struct device_node *mdio_node = NULL;
 	struct device_node *child_node = NULL;
 
 	for_each_child_of_node(priv->device->of_node, child_node) {
@@ -149,7 +150,7 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 		netdev_dbg(dev, "NO MDIO subnode\n");
 		return 0;
 	}
-
+#endif
 	mdio = mdiobus_alloc();
 	if (mdio == NULL) {
 		netdev_err(dev, "Error allocating MDIO bus\n");
@@ -171,8 +172,11 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 
 	mdio->priv = dev;
 	mdio->parent = priv->device;
-
+#ifndef CONFIG_ALTERA_TSE_PCIE
 	ret = of_mdiobus_register(mdio, mdio_node);
+#else
+	ret = mdiobus_register(mdio);
+#endif
 	if (ret != 0) {
 		netdev_err(dev, "Cannot register MDIO bus %s\n",
 			   mdio->id);
@@ -1653,6 +1657,8 @@ module_platform_driver(altera_tse_driver);
 #define TSE_REGISTERS_BASE   (0x12000)
 #define TSE_SGDMA_TX_BASE    (0x12400)
 #define TSE_SGDMA_RX_BASE    (0x12800)
+#define AVLMM2PCIE_IRQENA    (0x40050)
+#define AVLMM2PCIE_IRQIVR    (0x40060)
 
 /* Probe function to initialize one instance of the TSE ove PCIe core
  */
@@ -1666,8 +1672,10 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   resource_size_t res_end;
   struct altera_tse_private *priv;
   //  const unsigned char *macaddr;
+  static int c;
   
   printk("*** altera_tse_pciedev_probe\n");
+  if(c++ < 2) return -EPROBE_DEFER;
   
   //Enable the PCIe device
   rc = pci_enable_device(pdev);
@@ -1676,6 +1684,8 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
     printk("altera_tse_pciedev_probe: failed to enable the PCIe device.\n");
     return rc;
   }
+  
+  pci_set_master(pdev);
   
   // Check if BAR 0 is correctly mapped
   if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) 
@@ -1754,17 +1764,18 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   
   //xSGDMA Tx Dispatcher address space
   priv->tx_dma_csr = iobase + TSE_SGDMA_TX_BASE;
-  
-  //Map MSI interrupts for TX and RX IRQ
-  rc = pci_enable_msi_block(pdev, 4);
+  printk(" *** altera_tse_pciedev_probe: 1\n"); //!!!
+  //Enable MSI interrupt (single interrupt)
+  rc = pci_enable_msi(pdev);
   if(rc)
   {
     printk("altera_tse_pciedev_probe: Could not enable the MSI interrupts\n");
     goto err_free_netdev;
   }
   
-  priv->rx_irq = pdev-> irq + 2;
-  priv->tx_irq = pdev-> irq + 3;
+  priv->rx_irq = pdev-> irq;
+  priv->tx_irq = pdev-> irq;
+  printk(" *** altera_tse_pciedev_probe: 2\n"); //!!!
   
   //Rx and Tx FIFO depths
   priv->rx_fifo_depth = 2048;
@@ -1785,16 +1796,20 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   else
 #endif
   eth_hw_addr_random(ndev);
+  printk(" *** altera_tse_pciedev_probe: 3\n"); //!!!
   
   // get phy addr and create mdio (autodetect phy address)
   priv->phy_iface = PHY_INTERFACE_MODE_RMII;
   priv->phy_addr = POLL_PHY;
+  printk(" *** altera_tse_pciedev_probe: 4\n"); //!!!
+
   rc = altera_tse_mdio_create(ndev, atomic_add_return(1, &instance_count));
   if(rc)
   {
     printk("altera_tse_pciedev_probe: Could not attach phy\n");
     goto err_free_netdev;
   }
+  printk(" *** altera_tse_pciedev_probe: 5\n"); //!!!
   
   // initialize netdev
   ndev->mem_start = res_start;
@@ -1847,7 +1862,12 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
     printk("altera_tse_pciedev_probe: Cannot attach to PHY (error: %d)\n", ret);
     goto err_init_phy;
   }
-
+  
+  //Enable IRQ lines of the Avalon to PCIe FPGA bridge
+  iowrite32(0x0c, (iobase+AVLMM2PCIE_IRQENA));
+  rc=ioread32(iobase+AVLMM2PCIE_IRQENA);
+  printk(" *** altera_tse_pciedev_probe: 6 bridge enable Irqs = 0x%x\n",rc); //!!!
+  
   // Probe OK
   return 0;
 

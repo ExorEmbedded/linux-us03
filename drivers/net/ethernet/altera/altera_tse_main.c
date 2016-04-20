@@ -52,6 +52,7 @@
 #include "altera_sgdma.h"
 #include "altera_msgdma.h"
 
+void* iobase;
 static atomic_t instance_count = ATOMIC_INIT(~0);
 /* Module parameters */
 static int debug = -1;
@@ -62,12 +63,12 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 					NETIF_MSG_LINK | NETIF_MSG_IFUP |
 					NETIF_MSG_IFDOWN);
 
-#define RX_DESCRIPTORS 64
+#define RX_DESCRIPTORS 8
 static int dma_rx_num = RX_DESCRIPTORS;
 module_param(dma_rx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_rx_num, "Number of descriptors in the RX list");
 
-#define TX_DESCRIPTORS 64
+#define TX_DESCRIPTORS 8
 static int dma_tx_num = TX_DESCRIPTORS;
 module_param(dma_tx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
@@ -1168,7 +1169,7 @@ static int tse_open(struct net_device *dev)
 			   priv->rx_irq);
 		goto init_error;
 	}
-
+#ifndef CONFIG_ALTERA_TSE_PCIE
 	/* Register TX interrupt */
 	ret = request_irq(priv->tx_irq, altera_isr, IRQF_SHARED,
 			  dev->name, dev);
@@ -1177,6 +1178,7 @@ static int tse_open(struct net_device *dev)
 			   priv->tx_irq);
 		goto tx_request_irq_error;
 	}
+#endif	
 
 	/* Enable DMA interrupts */
 	spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
@@ -1659,6 +1661,7 @@ module_platform_driver(altera_tse_driver);
 #define TSE_SGDMA_RX_BASE    (0x12800)
 #define AVLMM2PCIE_IRQENA    (0x40050)
 #define AVLMM2PCIE_IRQIVR    (0x40060)
+#define AVLMM2PCIE_IRQISR    (0x40040)
 
 /* Probe function to initialize one instance of the TSE ove PCIe core
  */
@@ -1684,8 +1687,6 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
     printk("altera_tse_pciedev_probe: failed to enable the PCIe device.\n");
     return rc;
   }
-  
-  pci_set_master(pdev);
   
   // Check if BAR 0 is correctly mapped
   if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) 
@@ -1732,15 +1733,15 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   if (priv->dmaops && priv->dmaops->altera_dtype == ALTERA_DTYPE_SGDMA) 
   {
     /* Start of that memory is for transmit descriptors */
-    priv->tx_dma_desc = iobase + TSE_BUFFER_BASE;
+    priv->tx_dma_desc = iobase + TSE_DESCRIPTORS_BASE;
     
     /* First half is for tx descriptors, other half for tx */
-    priv->txdescmem = (TSE_BUFFER_SIZE)/2;
-    priv->txdescmem_busaddr = (dma_addr_t)TSE_BUFFER_BASE;
+    priv->txdescmem = (TSE_DESCRIPTORS_SIZE)/2;
+    priv->txdescmem_busaddr = (dma_addr_t)TSE_DESCRIPTORS_BASE;
     
     priv->rx_dma_desc = (void __iomem *)((uintptr_t)(priv->tx_dma_desc + priv->txdescmem));
-    priv->rxdescmem = (TSE_BUFFER_SIZE)/2;
-    priv->rxdescmem_busaddr = (dma_addr_t)TSE_BUFFER_BASE;
+    priv->rxdescmem = (TSE_DESCRIPTORS_SIZE)/2;
+    priv->rxdescmem_busaddr = (dma_addr_t)TSE_DESCRIPTORS_BASE;
     priv->rxdescmem_busaddr += priv->txdescmem;
   }
   
@@ -1766,6 +1767,7 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   priv->tx_dma_csr = iobase + TSE_SGDMA_TX_BASE;
   printk(" *** altera_tse_pciedev_probe: 1\n"); //!!!
   //Enable MSI interrupt (single interrupt)
+  pci_set_master(pdev);
   rc = pci_enable_msi(pdev);
   if(rc)
   {
@@ -1778,8 +1780,8 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   printk(" *** altera_tse_pciedev_probe: 2\n"); //!!!
   
   //Rx and Tx FIFO depths
-  priv->rx_fifo_depth = 2048;
-  priv->tx_fifo_depth = 2048;
+  priv->rx_fifo_depth = 4*2048;
+  priv->tx_fifo_depth = 4*2048;
   
   //Misc datas
   priv->hash_filter = 0;

@@ -52,6 +52,18 @@
 #include "altera_sgdma.h"
 #include "altera_msgdma.h"
 
+
+#define TSE_BUFFER_BASE      (0x000000)
+#define TSE_BUFFER_SIZE      (0x8000)
+#define TSE_DESCRIPTORS_BASE (0x10000)
+#define TSE_DESCRIPTORS_SIZE (0x2000)
+#define TSE_REGISTERS_BASE   (0x12000)
+#define TSE_SGDMA_TX_BASE    (0x12400)
+#define TSE_SGDMA_RX_BASE    (0x12800)
+#define AVLMM2PCIE_IRQENA    (0x40050)
+#define AVLMM2PCIE_IRQIVR    (0x40060)
+#define AVLMM2PCIE_IRQISR    (0x40040)
+
 void* iobase;
 static atomic_t instance_count = ATOMIC_INIT(~0);
 /* Module parameters */
@@ -215,21 +227,27 @@ static void altera_tse_mdio_destroy(struct net_device *dev)
 }
 
 static int tse_init_rx_buffer(struct altera_tse_private *priv,
-			      struct tse_buffer *rxbuffer, int len)
+			      struct tse_buffer *rxbuffer, int len, int entry)
 {
 	rxbuffer->skb = netdev_alloc_skb_ip_align(priv->dev, len);
+	
 	if (!rxbuffer->skb)
 		return -ENOMEM;
-
+#ifndef CONFIG_ALTERA_TSE_PCIE
 	rxbuffer->dma_addr = dma_map_single(priv->device, rxbuffer->skb->data,
 						len,
 						DMA_FROM_DEVICE);
+	
 
 	if (dma_mapping_error(priv->device, rxbuffer->dma_addr)) {
 		netdev_err(priv->dev, "%s: DMA mapping error\n", __func__);
 		dev_kfree_skb_any(rxbuffer->skb);
 		return -EINVAL;
 	}
+#else
+	//The RX SGDMA will place data to the internal buffer 
+	rxbuffer->dma_addr = dma_map_single(priv->device, priv->rxinternalbuf + (2048*entry), len, DMA_FROM_DEVICE);
+#endif
 	rxbuffer->dma_addr &= (dma_addr_t)~3;
 	rxbuffer->len = len;
 	return 0;
@@ -274,11 +292,10 @@ static void tse_free_tx_buffer(struct altera_tse_private *priv,
 
 static int alloc_init_skbufs(struct altera_tse_private *priv)
 {
-	unsigned int rx_descs = priv->rx_ring_size;
-	unsigned int tx_descs = priv->tx_ring_size;
 	int ret = -ENOMEM;
 	int i;
-
+	unsigned int rx_descs = priv->rx_ring_size;
+	unsigned int tx_descs = priv->tx_ring_size;
 	/* Create Rx ring buffer */
 	priv->rx_ring = kcalloc(rx_descs, sizeof(struct tse_buffer),
 				GFP_KERNEL);
@@ -297,7 +314,7 @@ static int alloc_init_skbufs(struct altera_tse_private *priv)
 	/* Init Rx ring */
 	for (i = 0; i < rx_descs; i++) {
 		ret = tse_init_rx_buffer(priv, &priv->rx_ring[i],
-					 priv->rx_dma_buf_sz);
+					 priv->rx_dma_buf_sz, i);
 		if (ret)
 			goto err_init_rx_buffers;
 	}
@@ -346,7 +363,7 @@ static inline void tse_rx_refill(struct altera_tse_private *priv)
 		entry = priv->rx_prod % rxsize;
 		if (likely(priv->rx_ring[entry].skb == NULL)) {
 			ret = tse_init_rx_buffer(priv, &priv->rx_ring[entry],
-				priv->rx_dma_buf_sz);
+				priv->rx_dma_buf_sz, entry);
 			if (unlikely(ret != 0))
 				break;
 			priv->dmaops->add_rx_desc(priv, &priv->rx_ring[entry]);
@@ -425,6 +442,10 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 
 		dma_unmap_single(priv->device, priv->rx_ring[entry].dma_addr,
 				 priv->rx_ring[entry].len, DMA_FROM_DEVICE);
+#ifdef CONFIG_ALTERA_TSE_PCIE
+		//NO DMA over PCIe: need to manually copy data from internal buffer to skb->data
+		memcpy(skb->data, priv->rxinternalbuf + 2048*entry,pktlength);
+#endif
 
 		if (netif_msg_pktdata(priv)) {
 			netdev_info(priv->dev, "frame received %d bytes\n",
@@ -579,7 +600,10 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int nopaged_len = skb_headlen(skb);
 	enum netdev_tx ret = NETDEV_TX_OK;
 	dma_addr_t dma_addr;
-
+#ifdef CONFIG_ALTERA_TSE_PCIE
+	unsigned char* internalpktaddr;
+#endif
+	
 	spin_lock_bh(&priv->tx_lock);
 
 	if (unlikely(tse_tx_avail(priv) < nfrags + 1)) {
@@ -597,9 +621,17 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Map the first skb fragment */
 	entry = priv->tx_prod % txsize;
 	buffer = &priv->tx_ring[entry];
-
+#ifndef CONFIG_ALTERA_TSE_PCIE
 	dma_addr = dma_map_single(priv->device, skb->data, nopaged_len,
 				  DMA_TO_DEVICE);
+#else
+	//The TX SGDMA will take data from the internal buffer
+	internalpktaddr = priv->txinternalbuf + (2048 * entry);
+	dma_addr = dma_map_single(priv->device, internalpktaddr, nopaged_len,
+				  DMA_TO_DEVICE);
+	//No DMA over PCIe: need to manually copy data from skb to internal buffer
+	memcpy(internalpktaddr, skb->data, nopaged_len);
+#endif
 	if (dma_mapping_error(priv->device, dma_addr)) {
 		netdev_err(priv->dev, "%s: DMA mapping error\n", __func__);
 		ret = NETDEV_TX_OK;
@@ -1205,9 +1237,10 @@ static int tse_open(struct net_device *dev)
 	spin_unlock(&priv->mac_cfg_lock);
 
 	return 0;
-
+#ifndef CONFIG_ALTERA_TSE_PCIE
 tx_request_irq_error:
 	free_irq(priv->rx_irq, dev);
+#endif
 init_error:
 	free_skbufs(dev);
 alloc_skbuf_error:
@@ -1652,23 +1685,11 @@ module_platform_driver(altera_tse_driver);
 #include <linux/irq.h>
 #include <linux/slab.h>
 
-#define TSE_BUFFER_BASE      (0x000000)
-#define TSE_BUFFER_SIZE      (0x8000)
-#define TSE_DESCRIPTORS_BASE (0x10000)
-#define TSE_DESCRIPTORS_SIZE (0x2000)
-#define TSE_REGISTERS_BASE   (0x12000)
-#define TSE_SGDMA_TX_BASE    (0x12400)
-#define TSE_SGDMA_RX_BASE    (0x12800)
-#define AVLMM2PCIE_IRQENA    (0x40050)
-#define AVLMM2PCIE_IRQIVR    (0x40060)
-#define AVLMM2PCIE_IRQISR    (0x40040)
-
 /* Probe function to initialize one instance of the TSE ove PCIe core
  */
 static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
   int rc = -ENODEV;
-  void* iobase;
   struct net_device *ndev;
   int ret = -ENODEV;
   resource_size_t res_start;
@@ -1774,6 +1795,10 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
     printk("altera_tse_pciedev_probe: Could not enable the MSI interrupts\n");
     goto err_free_netdev;
   }
+  
+  //Tx and Rx internal buffers
+  priv->rxinternalbuf = iobase + TSE_BUFFER_BASE;
+  priv->txinternalbuf = iobase + TSE_BUFFER_BASE + TSE_BUFFER_SIZE/2;
   
   priv->rx_irq = pdev-> irq;
   priv->tx_irq = pdev-> irq;

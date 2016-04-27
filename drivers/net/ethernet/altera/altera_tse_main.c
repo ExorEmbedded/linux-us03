@@ -52,7 +52,8 @@
 #include "altera_sgdma.h"
 #include "altera_msgdma.h"
 
-
+#define PCIE_USE_MSGDMA      1
+#ifndef PCIE_USE_MSGDMA
 #define TSE_BUFFER_BASE      (0x000000)
 #define TSE_BUFFER_SIZE      (0x8000)
 #define TSE_DESCRIPTORS_BASE (0x10000)
@@ -63,6 +64,20 @@
 #define AVLMM2PCIE_IRQENA    (0x40050)
 #define AVLMM2PCIE_IRQIVR    (0x40060)
 #define AVLMM2PCIE_IRQISR    (0x40040)
+#else
+#define TSE_BUFFER_BASE      (0x000000)
+#define TSE_BUFFER_SIZE      (0x8000)
+#define TSE_TX_DESC_BASE     (0x12400)
+#define TSE_RX_DESC_BASE     (0x12440)
+#define TSE_DESCRIPTORS_SIZE (0x20)
+#define TSE_REGISTERS_BASE   (0x12000)
+#define TSE_SGDMA_TX_BASE    (0x12420)
+#define TSE_SGDMA_RX_BASE    (0x12460)
+#define TSE_RESP_BASE        (0x12480)
+#define AVLMM2PCIE_IRQENA    (0x40050)
+#define AVLMM2PCIE_IRQIVR    (0x40060)
+#define AVLMM2PCIE_IRQISR    (0x40040)
+#endif
 
 void* iobase;
 static atomic_t instance_count = ATOMIC_INIT(~0);
@@ -417,7 +432,7 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 		 * IP payload alignment. Status returned by get_rx_status()
 		 * contains DMA transfer length. Packet is 2 bytes shorter.
 		 */
-		pktlength -= 2;
+		//!!!pktlength -= 2;
 
 		count++;
 		next_entry = (++priv->rx_cons) % priv->rx_ring_size;
@@ -1748,8 +1763,9 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   priv->device = &pdev->dev;
   priv->dev = ndev;
   priv->msg_enable = netif_msg_init(debug, default_msg_level);
-  
-  // DMA configuration (Actually only SGDMA is supported for the PCIe)
+
+#ifndef PCIE_USE_MSGDMA  
+  // DMA configuration (SGDMA option)
   priv->dmaops = (struct altera_dmaops*) &altera_dtype_sgdma;
   if (priv->dmaops && priv->dmaops->altera_dtype == ALTERA_DTYPE_SGDMA) 
   {
@@ -1765,7 +1781,21 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
     priv->rxdescmem_busaddr = (dma_addr_t)TSE_DESCRIPTORS_BASE;
     priv->rxdescmem_busaddr += priv->txdescmem;
   }
-  
+#else
+  // DMA configuration (MSGDMA option)
+  priv->dmaops = (struct altera_dmaops*) &altera_dtype_msgdma;
+  priv->rx_dma_resp = iobase + TSE_RESP_BASE;
+
+  /* Start of that memory is for transmit descriptors */
+  priv->tx_dma_desc = iobase + TSE_TX_DESC_BASE;
+  priv->txdescmem = (TSE_DESCRIPTORS_SIZE);
+  priv->txdescmem_busaddr = (dma_addr_t)TSE_TX_DESC_BASE;
+    
+  priv->rx_dma_desc = iobase + TSE_RX_DESC_BASE;
+  priv->rxdescmem = (TSE_DESCRIPTORS_SIZE);
+  priv->rxdescmem_busaddr = (dma_addr_t)TSE_RX_DESC_BASE;
+#endif
+
   if (!dma_set_mask(priv->device, DMA_BIT_MASK(priv->dmaops->dmamask)))
     dma_set_coherent_mask(priv->device, DMA_BIT_MASK(priv->dmaops->dmamask));
   else if (!dma_set_mask(priv->device, DMA_BIT_MASK(32)))
@@ -1805,8 +1835,8 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   printk(" *** altera_tse_pciedev_probe: 2\n"); //!!!
   
   //Rx and Tx FIFO depths
-  priv->rx_fifo_depth = 4*2048;
-  priv->tx_fifo_depth = 4*2048;
+  priv->rx_fifo_depth = 2048;
+  priv->tx_fifo_depth = 2048;
   
   //Misc datas
   priv->hash_filter = 0;

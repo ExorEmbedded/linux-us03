@@ -281,6 +281,7 @@ void imx_config_rs485(struct imx_port *sport)
 
 	if (sport->rts_gpio >= 0)
 	{
+  	  gpio_set_value(sport->rts_gpio, 0);
 	  if (sport->rs485.flags & SER_RS485_ENABLED)
 	  {
 	    if(sport->rs485.flags & SER_RS485_RX_DURING_TX)
@@ -299,8 +300,12 @@ void imx_config_rs485(struct imx_port *sport)
 	  else
 	  {
 		printk("Setting UART to RS232\n");
+		/*
+		* If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
+		*/
+		if (gpio_is_valid(sport->mode_gpio))
+		  gpio_set_value(sport->rts_gpio, 1);
 	  }
-	  gpio_set_value(sport->rts_gpio, 0);
 	}
 	
 	// If we have a programmable phy, set the mode accordingly
@@ -319,7 +324,8 @@ void imx_config_rs485(struct imx_port *sport)
 	if (sport->have_rtscts) 
 	{
 		printk("UART have RTS/CTS\n");
-		writel(readl(sport->port.membase + UCR2) & ~UCR2_CTSC, sport->port.membase + UCR2);
+		if (sport->rs485.flags & SER_RS485_ENABLED)
+		  writel(readl(sport->port.membase + UCR2) & ~UCR2_CTSC, sport->port.membase + UCR2);
 	} 
 	else
 	{
@@ -957,9 +963,9 @@ static void imx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
         if (!(sport->rs485.flags & SER_RS485_ENABLED)) {
                 temp = readl(sport->port.membase + UCR2);
-                temp &= ~(UCR2_CTS | UCR2_CTSC);
+                temp &= ~(UCR2_CTS);
 	if (mctrl & TIOCM_RTS)
-		temp |= UCR2_CTS | UCR2_CTSC;
+		temp |= UCR2_CTS;
 
 	writel(temp, sport->port.membase + UCR2);
         }
@@ -1516,8 +1522,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	old_txrxen = readl(sport->port.membase + UCR2);
 	writel(old_txrxen & ~(UCR2_TXEN | UCR2_RXEN),
 			sport->port.membase + UCR2);
-	old_txrxen &= (UCR2_TXEN | UCR2_RXEN);
-
+	old_txrxen &= (UCR2_CTS | UCR2_TXEN | UCR2_RXEN);
 	/* custom-baudrate handling */
 	div = sport->port.uartclk / (baud * 16);
 	if (baud == 38400 && quot != div)

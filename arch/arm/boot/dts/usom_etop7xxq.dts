@@ -24,15 +24,15 @@
 	status = "okay";
 };
 
-&cpu0 {
-	arm-supply = <&reg_arm>;
-	soc-supply = <&reg_soc>;
-};
+//&cpu0 {
+//	arm-supply = <&reg_arm>;
+//	soc-supply = <&reg_soc>;
+//};
 
-&gpc {
-	/* use ldo-enable, u-boot will check it and configure */
-	fsl,ldo-bypass = <0>;
-	/* watchdog select of reset source */
-	fsl,wdog-reset = <1>;
-};
+//&gpc {
+//	/* use ldo-enable, u-boot will check it and configure */
+//	fsl,ldo-bypass = <0>;
+//	/* watchdog select of reset source */
+//	fsl,wdog-reset = <1>;
+//};
 

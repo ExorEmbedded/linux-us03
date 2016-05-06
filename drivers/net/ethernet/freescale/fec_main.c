@@ -1948,7 +1948,14 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 	}
 	else
 		phy_dev->supported &= PHY_BASIC_FEATURES;
-
+	
+	if (fep->phy_node)
+	  if (of_get_property(fep->phy_node, "fsl,disable-gigabit", NULL))
+	  {
+	    phy_dev->supported &= ~SUPPORTED_1000baseT_Half; 
+	    phy_dev->supported &= ~SUPPORTED_1000baseT_Full; 
+	  }
+	  
 	phy_dev->advertising = phy_dev->supported;
 
 	fep->phy_dev = phy_dev;

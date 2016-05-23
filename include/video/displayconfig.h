@@ -46,8 +46,9 @@
  *
  * 1.7			GP              23.05.16    Added display code #56: Innolux G156BGE-L01 LVDS 24 bit 1366x768 for serie 700
  *                                                  Added display code #57: Innolux G215HVN01 LVDS 24 bit 1920x1080 for serie 700
+ *                                                  Added display code #58: DataImage 7" LVDS 24 bit 800x480 for serie 700
  * 
- * NEXT AVAILABLE DISPLAY CODE: 58
+ * NEXT AVAILABLE DISPLAY CODE: 59
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -653,7 +654,7 @@ static struct t_DisplayParams displayconfig[] = {
         .rezy      = 1080, 
         .bpp       = 24,
         
-        .pclk_freq = 72000,  // 
+        .pclk_freq = 72000,  // DUAL LVDS dispaly: this is the freq. of one single channel
         .pclk_inv  = 0,
         
         .hs_fp     = 40, 
@@ -664,6 +665,32 @@ static struct t_DisplayParams displayconfig[] = {
         .vs_fp     = 5, 
         .vs_bp     = 5, 
         .vs_w      = 30, 
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 250,
+        .brightness_min = 10,
+        .brightness_max = 100,
+    },              
+    /* 58: DataImage 7" LVDS 24 bit 800x480 */
+    {
+        .dispid    = 58,
+        .rezx      = 800, 
+        .rezy      = 480, 
+        .bpp       = 24,
+        
+        .pclk_freq = 33200,  
+        .pclk_inv  = 0,
+        
+        .hs_fp     = 28, 
+        .hs_bp     = 28, 
+        .hs_w      = 100, 
+        .hs_inv    = 0,
+        
+        .vs_fp     = 10, 
+        .vs_bp     = 10, 
+        .vs_w      = 25, 
         .vs_inv    = 0,
         
         .blank_inv      = 0,

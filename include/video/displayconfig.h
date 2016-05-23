@@ -43,7 +43,11 @@
  *                                      in order to generate pclk freq lower than 12MHz with proper accurancy!
  *																			As the eSMART04 has been certified with 12MHz pixel clock setting, this is kept also for future fixes into the OS driver.
  * 1.6			GP              13.04.16    Added display code #55: Innolux G101ICE-L01 LVDS 24 bit 1280x800 for serie 700
- * NEXT AVAILABLE DISPLAY CODE: 56
+ *
+ * 1.7			GP              23.05.16    Added display code #56: Innolux G156BGE-L01 LVDS 24 bit 1366x768 for serie 700
+ *                                                  Added display code #57: Innolux G215HVN01 LVDS 24 bit 1920x1080 for serie 700
+ * 
+ * NEXT AVAILABLE DISPLAY CODE: 58
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -614,6 +618,58 @@ static struct t_DisplayParams displayconfig[] = {
         
         .pwmfreq        = 200,
         .brightness_min = 1,
+        .brightness_max = 100,
+    },              
+    /* 56: Innolux G156BGE-L01 LVDS 24 bit 1366x768 */
+    {
+        .dispid    = 56,
+        .rezx      = 1366, 
+        .rezy      = 768, 
+        .bpp       = 24,
+        
+        .pclk_freq = 76000, 
+        .pclk_inv  = 0,
+        
+        .hs_fp     = 47, 
+        .hs_bp     = 47, 
+        .hs_w      = 100, 
+        .hs_inv    = 0,
+        
+        .vs_fp     = 9, 
+        .vs_bp     = 9, 
+        .vs_w      = 20, 
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 10,
+        .brightness_max = 100,
+    },              
+    /* 57: Innolux G215HVN01 DUAL LVDS 24 bit 1920x1080 */
+    {
+        .dispid    = 57,
+        .rezx      = 1920, 
+        .rezy      = 1080, 
+        .bpp       = 24,
+        
+        .pclk_freq = 72000,  // 
+        .pclk_inv  = 0,
+        
+        .hs_fp     = 40, 
+        .hs_bp     = 40, 
+        .hs_w      = 120, 
+        .hs_inv    = 0,
+        
+        .vs_fp     = 5, 
+        .vs_bp     = 5, 
+        .vs_w      = 30, 
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 250,
+        .brightness_min = 10,
         .brightness_max = 100,
     },              
     /* END OF LIST */

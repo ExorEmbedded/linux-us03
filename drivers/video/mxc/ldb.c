@@ -350,6 +350,36 @@ int dispid_get_videomode(struct videomode* vm, int dispid)
   return 0;
 }
 
+/*
+ * Returns if DUAL LVDS mode is used, based on the resulting frame refresh frequency
+ */
+bool dispid_get_splitmode(int dispid)
+{
+  int i=0;
+  int frefresh;
+  
+  // Scan the display array to search for the required dispid
+  if(dispid == NODISPLAY)
+    return false;
+  
+  while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
+    i++;
+  
+  if(displayconfig[i].dispid == NODISPLAY)
+    return false;
+  
+  frefresh = (1000 * displayconfig[i].pclk_freq)/((displayconfig[i].rezx + displayconfig[i].hs_bp + displayconfig[i].hs_fp + displayconfig[i].hs_w) * 
+                                                  (displayconfig[i].rezy + displayconfig[i].vs_bp + displayconfig[i].vs_fp + displayconfig[i].vs_w) +1);  
+  
+  printk("dispid_get_splitmode frefresh=%d\n",frefresh);
+  
+  //A refresh rate < 40Hza indicates dual LVDS interface
+  if(frefresh < 40)
+    return true;
+  
+  return false;
+}
+
 /*----------------------------------------------------------------------------------------------------------------*
  *----------------------------------------------------------------------------------------------------------------*/
 static int ldb_init(struct mxc_dispdrv_handle *mddh,
@@ -784,7 +814,9 @@ static int ldb_probe(struct platform_device *pdev)
 	if (!ext_ref && ldb_info->ext_bgref_cap)
 		ldb->ctrl |= LDB_BGREF_RMODE_INT;
 
-	ldb->spl_mode = of_property_read_bool(np, "split-mode");
+	//ldb->spl_mode = of_property_read_bool(np, "split-mode");
+	//Split mode (DUAL LVDS) is enabled, based on the displayconfig params.
+	ldb->spl_mode =	dispid_get_splitmode(hw_dispid);
 	if (ldb->spl_mode) {
 		if (ldb_info->split_cap) {
 			ldb->ctrl |= LDB_SPLIT_MODE_EN;
@@ -794,7 +826,7 @@ static int ldb_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 	}
-
+	
 	ldb->dual_mode = of_property_read_bool(np, "dual-mode");
 	if (ldb->dual_mode) {
 		if (ldb_info->dual_cap) {
@@ -904,6 +936,9 @@ static int ldb_probe(struct platform_device *pdev)
 			return -EINVAL;
 		
 		dispid_get_videomode(&chan->vm, hw_dispid); //Override the DTB timings, if a valid hw_dispid is mapped to the displayconfig.h file.
+		// If DUAL LVDS mode, the effective pixelclock is doubled
+		if (ldb->spl_mode)
+		  chan->vm.pixelclock *= 2;
 
 		sprintf(clkname, "ldb_di%d", i);
 		ldb->ldb_di_clk[i] = devm_clk_get(dev, clkname);

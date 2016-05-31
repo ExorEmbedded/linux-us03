@@ -50,6 +50,7 @@
 #include <linux/uaccess.h>
 
 #include "mxc_dispdrv.h"
+#include <video/displayconfig.h>
 
 /*
  * Driver name
@@ -583,6 +584,32 @@ static int mxcfb_set_par(struct fb_info *fbi)
 
 	if (!mxc_fbi->overlay) {
 		uint32_t out_pixel_fmt;
+		extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+		int i = 0;
+		
+		/*
+		 * If the hw_dispid maps to a valid display, the corresponding sync polarities take the precedence
+		 */
+		if(hw_dispid != NODISPLAY)
+		  while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != hw_dispid))
+		    i++;
+		  
+		if(displayconfig[i].dispid != NODISPLAY)
+		{
+		  fbi->var.sync = 0;
+		  
+		  if(displayconfig[i].hs_inv == 0)
+		    fbi->var.sync |= FB_SYNC_HOR_HIGH_ACT;
+		  
+		  if(displayconfig[i].vs_inv == 0)
+		    fbi->var.sync |= FB_SYNC_VERT_HIGH_ACT;
+		  
+		  if(displayconfig[i].blank_inv != 0)
+		    fbi->var.sync |= FB_SYNC_OE_LOW_ACT;
+		  
+		  if(displayconfig[i].pclk_inv == 0)
+		    fbi->var.sync |= FB_SYNC_CLK_LAT_FALL;
+		}
 
 		memset(&sig_cfg, 0, sizeof(sig_cfg));
 		if (fbi->var.vmode & FB_VMODE_INTERLACED)

@@ -566,8 +566,8 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	rts-gpio = <&gpio3 29 0>;
-	be15mode-gpio = <&gpio3 28 0>;
+	be15mode-gpio = <&gpio3 29 0>;
+	rts-gpio = <&gpio3 28 0>;
 	fsl,uart-has-rtscts;
 	status = "okay";
 };
@@ -575,8 +575,8 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
-	rts-gpio = <&gpio3 31 0>;
-	be15mode-gpio = <&gpio3 23 0>;
+	be15mode-gpio = <&gpio3 31 0>;
+	rts-gpio = <&gpio3 23 0>;
 	fsl,uart-has-rtscts;
 	status = "okay";
 };

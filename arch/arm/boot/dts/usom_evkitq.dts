@@ -1,0 +1,38 @@
+/*
+ * Copyright (C) 2016 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a. (starting from the usom_be15a.dts file)
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6q.dtsi"
+#include "imx6usom_evkit.dtsi"
+
+/ {
+	model = "US03 EvalKIT i.MX6 Quad Board";
+	compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
+};
+
+&mxcfb1 {
+	status = "okay";
+};
+
+//&cpu0 {
+//	arm-supply = <&reg_arm>;
+//	soc-supply = <&reg_soc>;
+//};
+
+//&gpc {
+//	/* use ldo-enable, u-boot will check it and configure */
+//	fsl,ldo-bypass = <0>;
+//	/* watchdog select of reset source */
+//	fsl,wdog-reset = <1>;
+//};
+

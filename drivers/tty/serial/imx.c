@@ -233,10 +233,11 @@ struct imx_port {
 	unsigned int		tx_bytes;
 	unsigned int		dma_tx_nents;
 	wait_queue_head_t	dma_wait;
-	int			rts_gpio;      /* GPIO used as tx_en line for RS485 operation */
-	int			be15mode_gpio; /* GPIO used as mode selection between RS485 (1) and RS422 (0) on BE15 carriers */
-	int 			mode_gpio;     /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
-	int                     rxen_gpio;     /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
+	int			rts_gpio;         /* GPIO used as tx_en line for RS485 operation */
+	int			be15mode_gpio;    /* GPIO used as mode selection between RS485 (1) and RS422 (0) on BE15 carriers */
+	int 			mode_gpio;        /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
+	int                     rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
+	unsigned int            is_plugin_module; /* If set, indicates the uart lines are routed to a plugin module slot, so control signals are handled accordingly */
 	struct 			serial_rs485 rs485;
 };
 
@@ -250,6 +251,10 @@ static void imx_rs485_stop_tx(struct imx_port *sport)
 {
 	if ((sport->rts_gpio >= 0) && (sport->rs485.flags & SER_RS485_ENABLED))
 		gpio_set_value(sport->rts_gpio, 0);
+
+	if(sport->is_plugin_module == 1)
+	  if ((sport->rts_gpio < 0) && (sport->rs485.flags & SER_RS485_ENABLED))
+	    writel(readl(sport->port.membase + UCR2) & ~UCR2_CTS, sport->port.membase + UCR2);
 	
 	if ((sport->rs485.flags & SER_RS485_ENABLED) && !(sport->rs485.flags & SER_RS485_RX_DURING_TX)) 
 	{
@@ -270,6 +275,10 @@ static void imx_rs485_start_tx(struct imx_port *sport)
   
 	if ((sport->rts_gpio >= 0) && (sport->rs485.flags & SER_RS485_ENABLED))
 		gpio_set_value(sport->rts_gpio, 1);
+	
+	if(sport->is_plugin_module == 1)
+	  if ((sport->rts_gpio < 0) && (sport->rs485.flags & SER_RS485_ENABLED))
+	    writel(readl(sport->port.membase + UCR2) | UCR2_CTS, sport->port.membase + UCR2);
 }
 
 void imx_config_rs485(struct imx_port *sport)
@@ -326,6 +335,10 @@ void imx_config_rs485(struct imx_port *sport)
 		printk("UART have RTS/CTS\n");
 		if (sport->rs485.flags & SER_RS485_ENABLED)
 		  writel(readl(sport->port.membase + UCR2) & ~UCR2_CTSC, sport->port.membase + UCR2);
+		
+		if(sport->is_plugin_module == 1)
+		  if ((sport->rts_gpio < 0) && (sport->rs485.flags & SER_RS485_ENABLED))
+		    writel(readl(sport->port.membase + UCR2) & ~UCR2_CTS, sport->port.membase + UCR2);
 	} 
 	else
 	{
@@ -710,17 +723,9 @@ static void imx_start_tx(struct uart_port *port)
 	{
 		imx_rs485_start_tx(sport);
                  /* enable transmitter and shifter empty irq */
-                 temp = readl(port->membase + UCR2);
-                 if (sport->rs485.flags & SER_RS485_RTS_ON_SEND)
-                         temp &= ~UCR2_CTS;
-                 else
-                         temp |= UCR2_CTS;
-                 writel(temp, port->membase + UCR2);
- 
                  temp = readl(port->membase + UCR4);
                  temp |= UCR4_TCEN;
                  writel(temp, port->membase + UCR4);
-	  
 	}
 	else
 	{
@@ -1977,6 +1982,10 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	if (of_get_property(np, "fsl,uart-has-rtscts", NULL))
 		sport->have_rtscts = 1;
 
+	sport->is_plugin_module = 0;
+	if (of_get_property(np, "is-plugin-module", NULL))
+		sport->is_plugin_module = 1;
+	
 	if (of_get_property(np, "fsl,dte-mode", NULL))
 		sport->dte_mode = 1;
 	

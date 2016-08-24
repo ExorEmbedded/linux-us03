@@ -129,6 +129,42 @@
 	  rtcnvram = <&m41t83>;
 	  status = "okay";
 	};
+
+	plxx0: plugin0 {
+	  compatible = "exor,plxx_manager";
+	  eeprom = <&plxxseeprom>;
+	  ioexp = <&plxxioexp>;
+	  sel-gpio = <&gpio7 5 0>;
+	  index = <0>;
+	  status = "okay";
+	};
+
+	plxx1: plugin1 {
+	  compatible = "exor,plxx_manager";
+	  eeprom = <&plxxseeprom>;
+	  ioexp = <&plxxioexp>;
+	  sel-gpio = <&gpio7 7 0>;
+	  index = <1>;
+	  status = "okay";
+	};
+
+	plxx2: plugin2 {
+	  compatible = "exor,plxx_manager";
+	  eeprom = <&plxxseeprom>;
+	  ioexp = <&plxxioexp>;
+	  sel-gpio = <&gpio7 3 0>;
+	  index = <2>;
+	  status = "okay";
+	};
+
+	plxx3: plugin3 {
+	  compatible = "exor,plxx_manager";
+	  eeprom = <&plxxseeprom>;
+	  ioexp = <&plxxioexp>;
+	  sel-gpio = <&gpio7 4 0>;
+	  index = <3>;
+	  status = "okay";
+	};
 };
 
 &cpu0 {
@@ -306,6 +342,15 @@
 	  reset-gpio = <&gpio2 3 0>; /* GPIO2 3 as HW reset output */
 	};
 	
+	plxxseeprom:seeprom1@57 {
+		compatible = "atmel,24c02";
+		reg = <0x57>;
+	};
+
+	plxxioexp:ioexp1@41 {
+		compatible = "atmel,24c02";
+		reg = <0x41>;
+	};
 };
 
 &iomuxc {
@@ -324,6 +369,10 @@
 				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x0000b0b0   /* touch intr */
 				MX6QDL_PAD_NANDF_D3__GPIO2_IO03 0x0000b0b0 /* tsc2004 touch reset */
 				MX6QDL_PAD_NANDF_D7__GPIO2_IO07 0x0000b0b0 /* PCI-E reset */
+				MX6QDL_PAD_SD3_DAT1__GPIO7_IO05 0x0000b0b0 /* plugin sel #0 */
+				MX6QDL_PAD_SD3_DAT3__GPIO7_IO07 0x0000b0b0 /* plugin sel #1 */
+				MX6QDL_PAD_SD3_CLK__GPIO7_IO03 0x0000b0b0 /* plugin sel #2 */
+				MX6QDL_PAD_SD3_DAT0__GPIO7_IO04 0x0000b0b0 /* plugin sel #3 */
 			>;
 		};
 

@@ -141,6 +141,24 @@
 #define SEE_XILCODE_OFF    29          /* XIL code    */
 #define SEE_XILSUBCODE_OFF 30          /* XIL subcode */
 #define SEE_FUNCT_AREA_OFF 36          /* Function Area (bit-wide) */
-#define SEE_FACTORYSIZE	   64		   /* Length of the factory section */
+#define SEE_FACTORYSIZE	   64          /* Length of the factory section */
+#define SEE_MODULENAMELEN  16          /* Length of module name field */
+#define SEE_FUNCAREALEN    16          /* Length of function area */
+
+/*=======================================================================
+ * Most important bits inside the function flag area
+ *======================================================================= */
+#define CODESYS_ENABLE_FLAG  0
+#define CAN_PHYSICAL_IF_FLAG 1
+#define KNX_TPUART_IF_FLAG   2
+#define RS422_485_IF_FLAG    3  //PLCM04
+#define PLIO03_IO_BRD_FLAG   4
+#define PLIO06_IO_BRD_FLAG   5
+#define PROFIBUS_DP_FLAG     6  //PLCM06
+#define RS232_IF_FLAG        7  //PLCM03
+#define NMEA2000_ENABLE_FLAG 8
+#define PLIO07_IO_BRD_FLAG   9
+#define DUAL_CAN_PHYSICAL_IF_FLAG 10
+#define PLIO04_IO_BRD_FLAG   11
 
 #endif /* _I2CSEEPROMFACTORY */

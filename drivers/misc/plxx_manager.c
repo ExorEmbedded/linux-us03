@@ -37,6 +37,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <linux/plxx_manager.h>
 
 #define SEE_FUNCAREA_NBITS (SEE_FUNCAREALEN * 8)
 #define FULLEEPROMSIZE (256)
@@ -57,6 +58,55 @@ struct plxx_data
 };
 
 static int UpdatePluginData(struct plxx_data *data);
+
+/* External function to sen commands to the plxx_manager driver from other drivers.
+ * Commands are actually implemented only for setting FullDuplex or HalfDuplex mode
+ * of the RS422/485 plugin modules
+ */
+int plxx_manager_sendcmd(struct platform_device *pdev, unsigned int cmd)
+{
+    struct plxx_data *data = dev_get_drvdata(&pdev->dev);
+    struct memory_accessor* ioexp_macc = data->ioexp_macc;  
+    
+    if(data == NULL)
+      return -EPROBE_DEFER;
+    
+    /* only supporting the 2 following commands */
+    if ((cmd != RS422_485_IF_SETFD) &&  (cmd != RS422_485_IF_SETHD))
+      return -ENOTSUPP;
+    
+    mutex_lock(&plxx_lock);
+    if(!data->f_updated)
+    {
+      UpdatePluginData(data);
+      data->f_updated = true;
+    }
+    
+    gpio_set_value(data->sel_gpio, 1);                      //Select the plugin I2C bus
+    msleep(1);
+    
+    // If we have a RS485/422 plugin module (bit #3 in func. area) perform the command
+    if(data->eeprom[SEE_FUNCT_AREA_OFF] & (0x01 << RS422_485_IF_FLAG))
+    {
+      u8 tmp;
+      tmp=0x0e;
+      ioexp_macc->write(ioexp_macc, &tmp, 3, sizeof(u8));
+      msleep(1);
+      if(cmd == RS422_485_IF_SETFD)
+	tmp = 0x00;
+      else
+	tmp = 0x01;
+      
+      printk("plxx_manager_sendcmd cmd=0x%x\n",cmd);
+      ioexp_macc->write(ioexp_macc, &tmp, 1, sizeof(u8));
+    }
+    
+    gpio_set_value(data->sel_gpio, 0);                      //Deselect the plugin I2C bus
+    msleep(1);
+    mutex_unlock(&plxx_lock);
+    return 0;
+}
+EXPORT_SYMBOL(plxx_manager_sendcmd);
 
 /*
  * static helper function for parsing the DTB tree
@@ -405,7 +455,6 @@ static int UpdatePluginData(struct plxx_data *data)
   int ret = 0;
   int n;
   struct memory_accessor* macc = data->seeprom_macc;  
-  struct memory_accessor* ioexp_macc = data->ioexp_macc;  
 
   gpio_set_value(data->sel_gpio, 1);                      //Select the plugin I2C bus
   msleep(1);
@@ -448,16 +497,6 @@ static int UpdatePluginData(struct plxx_data *data)
       memset(data->eeprom, 0, SEE_FACTORYSIZE);
     }
     
-    // If we have a RS485/422 plugin module (bit #3 in func. area) set it to full duplex
-    if(data->eeprom[SEE_FUNCT_AREA_OFF] & (0x01 << RS422_485_IF_FLAG))
-    {
-      u8 tmp;
-      tmp=0x0e;
-      ioexp_macc->write(ioexp_macc, &tmp, 3, sizeof(u8));
-      msleep(1);
-      tmp=0x00;
-      ioexp_macc->write(ioexp_macc, &tmp, 1, sizeof(u8));
-    }
   }
   gpio_set_value(data->sel_gpio, 0);                      //Deselect the plugin I2C bus
   return ret;

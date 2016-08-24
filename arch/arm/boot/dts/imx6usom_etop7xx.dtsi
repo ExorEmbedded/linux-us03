@@ -663,6 +663,8 @@
 	fsl,uart-has-rtscts;
 	status = "okay";
 	is-plugin-module;
+	plugin1 = <&plxx0>;
+	plugin2 = <&plxx1>;
 };
 
 &uart3 {
@@ -671,6 +673,8 @@
 	fsl,uart-has-rtscts;
 	status = "okay";
 	is-plugin-module;
+	plugin1 = <&plxx2>;
+	plugin2 = <&plxx3>;
 };
 
 &usbh1 {

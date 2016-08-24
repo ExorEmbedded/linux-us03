@@ -60,6 +60,7 @@
 #include <asm/irq.h>
 #include <linux/platform_data/serial-imx.h>
 #include <linux/platform_data/dma-imx.h>
+#include <linux/plxx_manager.h>
 
 /* Register definitions */
 #define URXD0 0x0  /* Receiver Register */
@@ -239,6 +240,9 @@ struct imx_port {
 	int                     rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
 	unsigned int            is_plugin_module; /* If set, indicates the uart lines are routed to a plugin module slot, so control signals are handled accordingly */
 	struct 			serial_rs485 rs485;
+	struct platform_device* plugin1dev;
+	struct platform_device* plugin2dev;
+
 };
 
 struct imx_port_ucrs {
@@ -268,7 +272,7 @@ static void imx_rs485_start_tx(struct imx_port *sport)
 {
 	if ((sport->rs485.flags & SER_RS485_ENABLED) && !(sport->rs485.flags & SER_RS485_RX_DURING_TX))
 	{
-	  //RX disable by using the prg phy dedicated gpio pin
+	  //RX disable by using the prg phy dedicated gpio pin 
 	  if (gpio_is_valid(sport->rxen_gpio)) 
 	    gpio_set_value(sport->rxen_gpio, 0);
 	}
@@ -279,6 +283,7 @@ static void imx_rs485_start_tx(struct imx_port *sport)
 	if(sport->is_plugin_module == 1)
 	  if ((sport->rts_gpio < 0) && (sport->rs485.flags & SER_RS485_ENABLED))
 	    writel(readl(sport->port.membase + UCR2) | UCR2_CTS, sport->port.membase + UCR2);
+	  
 }
 
 void imx_config_rs485(struct imx_port *sport)
@@ -326,7 +331,7 @@ void imx_config_rs485(struct imx_port *sport)
 	    gpio_set_value(sport->mode_gpio, 0);
 	}
 
-	//RX enable by using the prg phy dedicated gpio pin
+	//RX enable by using the prg phy dedicated gpio pin 
 	if (gpio_is_valid(sport->rxen_gpio)) 
 	  gpio_set_value(sport->rxen_gpio, 1);
 	
@@ -357,6 +362,24 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 		if (copy_from_user(&(sport->rs485), (struct serial_rs485 *) arg, sizeof(struct serial_rs485)))	
 				return -EFAULT;
 		imx_config_rs485(sport);
+		
+		//Set duplex mode for RS485/422 plugin modules, according with RS485 or RS422 mode set
+		if(sport->is_plugin_module == 1)
+		  if (sport->rs485.flags & SER_RS485_ENABLED)
+		    if (!gpio_is_valid(sport->rxen_gpio)) 
+		    {
+		      unsigned int cmd;
+		      
+		      if(sport->rs485.flags & SER_RS485_RX_DURING_TX)
+			cmd = RS422_485_IF_SETFD;
+		      else
+			cmd = RS422_485_IF_SETHD;
+		      if(sport->plugin1dev) 
+			plxx_manager_sendcmd(sport->plugin1dev , cmd); 
+		      if(sport->plugin2dev) 
+			plxx_manager_sendcmd(sport->plugin2dev , cmd); 
+		    } 
+		
 		break;
 
 	case TIOCGRS485:
@@ -1967,6 +1990,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	const struct of_device_id *of_id =
 			of_match_device(imx_uart_dt_ids, &pdev->dev);
 	int ret;
+	struct device_node *plxxnp;
 
 	if (!np)
 		/* no device tree device */
@@ -2058,6 +2082,24 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 		ret = gpio_direction_output(sport->rxen_gpio, 1);
 		if(ret < 0)
 		  return ret;
+	}
+	
+	/* Get handle to plugin plxx manager drivers (if any) */
+	sport->plugin1dev = NULL;
+	sport->plugin2dev = NULL;
+	
+	plxxnp = of_parse_phandle(np, "plugin1", 0);
+	if (plxxnp) 
+	{
+	  sport->plugin1dev = of_find_device_by_node(plxxnp);
+	  of_node_put(plxxnp);
+	}
+
+	plxxnp = of_parse_phandle(np, "plugin2", 0);
+	if (plxxnp) 
+	{
+	  sport->plugin2dev = of_find_device_by_node(plxxnp);
+	  of_node_put(plxxnp);
 	}
 	
 	sport->devdata = of_id->data;

@@ -182,6 +182,18 @@
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
+	spidev0: spi0@0 {
+		compatible = "spidev";
+		reg = <0>;
+		spi-max-frequency = <3000000>;
+	};
+
+	spidev1: spi0@1 {
+		compatible = "spidev";
+		reg = <1>;
+		spi-max-frequency = <3000000>;
+	};
+
 	fram: at25@3 {
 		compatible = "atmel,at25", "st,m95256";
 		reg = <3>;
@@ -191,6 +203,27 @@
 		address-width = <16>;
 	};
 	
+};
+
+&ecspi2 {
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio2 26 0>, /* CS0 */
+	           <&gpio2 27 0>; /* CS1 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	status = "okay";
+
+	spidev2: spi0@0 {
+		compatible = "spidev";
+		reg = <0>;
+		spi-max-frequency = <3000000>;
+	};
+
+	spidev3: spi0@1 {
+		compatible = "spidev";
+		reg = <1>;
+		spi-max-frequency = <3000000>;
+	};
 };
 
 &fec {
@@ -394,7 +427,17 @@
 				MX6QDL_PAD_CSI0_DAT7__GPIO5_IO25 0x1b0b1 /* CS0  */
 			>;
 		};
-
+		
+		pinctrl_ecspi2: ecspi2grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_CS0__ECSPI2_SCLK   0x1b0b1 /* SCLK */
+				MX6QDL_PAD_EIM_OE__ECSPI2_MISO    0x1b0b1 /* MISO */
+				MX6QDL_PAD_EIM_CS1__ECSPI2_MOSI   0x1b0b1 /* MOSI */
+				MX6QDL_PAD_EIM_RW__GPIO2_IO26     0x1b0b1 /* CS0  */
+				MX6QDL_PAD_EIM_LBA__GPIO2_IO27    0x1b0b1 /* CS1  */
+			>;
+		};
+		
 		pinctrl_enet: enetgrp {
    			fsl,pins = <
    				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0

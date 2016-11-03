@@ -169,6 +169,8 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	usom_etop7xx.dtb \
 	usom_etop7xxq.dtb \
 	usom_evkitq.dtb \
+	usom_jsmart.dtb \
+	usom_jsmartq.dtb \
 	imx6q-arm2.dtb \
 	imx6q-cubox-i.dtb \
 	imx6q-phytec-pbab01.dtb \

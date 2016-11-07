@@ -314,7 +314,7 @@
 			fsl,pins = <
 				MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x80000000
 				MX6QDL_PAD_NANDF_ALE__GPIO6_IO08 0x80000000
-				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x80000000
+				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x0001b0b0 
 				MX6QDL_PAD_EIM_WAIT__GPIO5_IO00 0x0000b0b0  /* USB host reset */
 				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00 0x0000b0b0  /* backlight enable */
 				MX6QDL_PAD_SD3_DAT4__GPIO7_IO01 0x0000b0b0  /* en_vdd */
@@ -325,9 +325,8 @@
 				MX6QDL_PAD_SD3_DAT3__GPIO7_IO07 0x0000b0b0 /* plugin sel #1 */
 				MX6QDL_PAD_SD3_CLK__GPIO7_IO03 0x0000b0b0 /* plugin sel #2 */
 				MX6QDL_PAD_SD3_DAT0__GPIO7_IO04 0x0000b0b0 /* plugin sel #3 */
-				MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x80000000 /*USB OTG port */
-				MX6QDL_PAD_EIM_D21__USB_OTG_OC 0x80000000 /*USB OTG port */
-				MX6QDL_PAD_EIM_D22__USB_OTG_PWR 0x80000000 /*USB OTG port */
+				MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x0001b0b0 /*USB OTG port */
+				MX6QDL_PAD_EIM_D21__USB_OTG_OC 0x0001b0b0 /*USB OTG port */
 				>;
 		};
 
@@ -509,7 +508,7 @@
 
 &usbotg {
 	vbus-supply = <&reg_usb_otg_vbus>;
-	disable-over-current;
+	dr_mode = "otg";
 	status = "okay";
 };
 

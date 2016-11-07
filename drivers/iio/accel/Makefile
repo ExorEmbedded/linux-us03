@@ -13,3 +13,4 @@ st_accel-$(CONFIG_IIO_BUFFER) += st_accel_buffer.o
 
 obj-$(CONFIG_IIO_ST_ACCEL_I2C_3AXIS) += st_accel_i2c.o
 obj-$(CONFIG_IIO_ST_ACCEL_SPI_3AXIS) += st_accel_spi.o
+obj-$(CONFIG_SENSORS_LIS331DLH) +=lis331dlh.o

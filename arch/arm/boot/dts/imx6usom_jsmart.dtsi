@@ -303,6 +303,13 @@
 		compatible = "stm,m41t83";
 		reg = <0x68>;
 	};
+
+	lis331dlh@18 {
+	  /* Accelerometer */
+	  compatible = "lis331dlh";
+	  reg = <0x18>;
+	};
+	
 };
 
 &iomuxc {

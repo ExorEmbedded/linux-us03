@@ -65,4 +65,11 @@ config KXSD9
 	  Say yes here to build support for the Kionix KXSD9 accelerometer.
 	  Currently this only supports the device via an SPI interface.
 
+config SENSORS_LIS331DLH
+        tristate "STMicro LIS331DLH driver"
+        depends on I2C
+        help
+          Driver for STMicro LIS331DLH
+
+
 endmenu

@@ -309,6 +309,12 @@
 	  compatible = "lis331dlh";
 	  reg = <0x18>;
 	};
+
+	lps331ap@5c {
+	  /* Pressure sensor LPS331AP */
+	  compatible = "st,lps331ap-press";
+	  reg = <0x5c>;
+	};
 	
 };
 

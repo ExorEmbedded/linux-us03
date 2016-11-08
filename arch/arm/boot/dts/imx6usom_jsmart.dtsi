@@ -315,7 +315,12 @@
 	  compatible = "st,lps331ap-press";
 	  reg = <0x5c>;
 	};
-	
+
+	htu21d@40 {
+	  /* Temperature/humidity */
+	  compatible = "htu21";
+	  reg = <0x40>;
+	};
 };
 
 &iomuxc {

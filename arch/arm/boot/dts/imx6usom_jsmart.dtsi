@@ -96,7 +96,7 @@
 		status = "disabled";
 	};
 	
-	lcd@0 {
+	ttllcd0: lcd@0 {
 		compatible = "fsl,lcd";
 		ipu_id = <0>;
 		disp_id = <0>;

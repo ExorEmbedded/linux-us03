@@ -226,6 +226,20 @@ static int mcp320x_remove(struct spi_device *spi)
 	return 0;
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id mcp320x_dt_ids[] = {
+	{
+		.compatible = "mcp3204",
+		.data = &mcp3208_chip_infos[mcp3204],
+	}, {
+		.compatible = "mcp3208",
+		.data = &mcp3208_chip_infos[mcp3208],
+	}, {
+	}
+};
+MODULE_DEVICE_TABLE(of, mcp320x_dt_ids);
+#endif
+
 static const struct spi_device_id mcp320x_id[] = {
 	{ "mcp3204", mcp3204 },
 	{ "mcp3208", mcp3208 },

@@ -44,6 +44,18 @@
 			gpios = <&gpio3 2 0>;
 			default-state = "off";
 		};
+
+		led@3 {
+			label = "us03:sel_a3a4";
+			gpios = <&gpio1 5 0>;
+			default-state = "on";
+		};
+		
+		led@4 {
+			label = "us03:sel_low_high";
+			gpios = <&gpio3 3 0>;
+			default-state = "off";
+		};
 	};
 
 	memory {
@@ -160,6 +172,12 @@
 		pagesize = <64>;
 		size = <65536>;
 		address-width = <16>;
+	};
+
+	adcus: mcp3204@2 {
+		compatible = "mcp3204";
+		reg = <2>;
+		spi-max-frequency = <500000>;
 	};
 };
 
@@ -374,6 +392,8 @@
 				MX6QDL_PAD_SD3_DAT0__GPIO7_IO04 0x0000b0b0 /* plugin sel #3 */
 				MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x0001b0b0 /*USB OTG port */
 				MX6QDL_PAD_EIM_D21__USB_OTG_OC 0x0001b0b0 /*USB OTG port */
+				MX6QDL_PAD_GPIO_5__GPIO1_IO05 0x0000b0b0 /* sel_a3a4 */
+				MX6QDL_PAD_EIM_DA3__GPIO3_IO03 0x0000b0b0 /* sel_low_high */
 				>;
 		};
 

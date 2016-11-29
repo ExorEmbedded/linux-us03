@@ -180,24 +180,26 @@
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
-//	fram: at25@3 {
-//		compatible = "atmel,at25", "st,m95256";
-//		reg = <3>;
-//		spi-max-frequency = <20000000>;
-//		pagesize = <64>;
-//		size = <65536>;
-//		address-width = <16>;
-//	};
+/* USOM SPI DEVICES */
+	fram: at25@3 {
+        /* CS3 FRAM */
+	    compatible = "atmel,at25", "st,m95256";
+	    reg = <3>;
+	    spi-max-frequency = <20000000>;
+	    pagesize = <64>;
+	    size = <65536>;
+	    address-width = <16>;
+	};
 
 /* CARRIER SPI DEVICES */
-  spidev0: spi0@0 {
-	  /* TJA1145 /dev/spidev1.0 */
-    compatible = "spidev";
-    reg = <0>;
-    //spi-cpha;
-    spi-cpol;
-    spi-max-frequency = <500000>;
-  };
+	spidev0: spi0@0 {
+	    /* CS0 TJA1145 /dev/spidev1.0 */
+	    compatible = "spidev";
+	    reg = <0>;
+	    spi-cpha;
+	    //spi-cpol;
+	    spi-max-frequency = <500000>;
+	};
 };
 
 &fec {

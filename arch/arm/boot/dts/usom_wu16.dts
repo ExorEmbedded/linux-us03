@@ -65,6 +65,72 @@
 		};
 	};
 
+	gpio_buttons: gpio_buttons@0 {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			label = "R1";
+			linux,code = <59>; /* KEY_F1 */
+			gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
+		};
+
+		button@2 {
+			label = "R2";
+			linux,code = <60>; /* KEY_F2 */
+			gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
+		};
+
+		button@3 {
+			label = "R3";
+			linux,code = <61>; /* KEY_F3 */
+			gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
+		};
+
+		button@4 {
+			label = "R4";
+			linux,code = <62>; /* KEY_F4 */
+			gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
+		};
+
+		button@5 {
+			label = "R5";
+			linux,code = <63>; /* KEY_F5 */
+			gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
+		};
+
+		button@6 {
+			label = "L1";
+			linux,code = <64>; /* KEY_F6 */
+			gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
+		};
+
+		button@7 {
+			label = "L2";
+			linux,code = <65>; /* KEY_F7 */
+			gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
+		};
+
+		button@8 {
+			label = "L3";
+			linux,code = <66>; /* KEY_F8 */
+			gpios = <&gpio7 7 GPIO_ACTIVE_LOW>;
+		};
+
+		button@9 {
+			label = "L4";
+			linux,code = <67>; /* KEY_F9 */
+			gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
+		};
+
+		button@10 {
+			label = "L5";
+			linux,code = <68>; /* KEY_F10 */
+			gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	memory {
 		reg = <0x10000000 0x40000000>;
 	};
@@ -379,14 +445,22 @@
 				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x0000b0b0   /* touch intr */
 				MX6QDL_PAD_NANDF_D3__GPIO2_IO03 0x0000b0b0 /* tsc2004 touch reset */
 				MX6QDL_PAD_NANDF_D7__GPIO2_IO07 0x0000b0b0 /* PCI-E reset */
-				MX6QDL_PAD_SD3_DAT1__GPIO7_IO05 0x0000b0b0 /* plugin sel #0 */
-				MX6QDL_PAD_SD3_DAT3__GPIO7_IO07 0x0000b0b0 /* plugin sel #1 */
-				MX6QDL_PAD_SD3_CLK__GPIO7_IO03 0x0000b0b0 /* plugin sel #2 */
-				MX6QDL_PAD_SD3_DAT0__GPIO7_IO04 0x0000b0b0 /* plugin sel #3 */
 				MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x0001b0b0 /*USB OTG port */
 				MX6QDL_PAD_EIM_D21__USB_OTG_OC 0x0001b0b0 /*USB OTG port */
 				MX6QDL_PAD_GPIO_5__GPIO1_IO05 0x0000b0b0 /* sel_a3a4 */
 				MX6QDL_PAD_EIM_DA3__GPIO3_IO03 0x0000b0b0 /* sel_low_high */
+
+				MX6QDL_PAD_SD3_CLK__GPIO7_IO03    0x0001B0B1  /* KEY_RR1 - GPIO7_03 */
+				MX6QDL_PAD_EIM_DA13__GPIO3_IO13   0x0001B0B1  /* KEY_RR2 - GPIO3_13 */
+				MX6QDL_PAD_EIM_DA10__GPIO3_IO10   0x0001B0B1  /* KEY_RR3 - GPIO3_10 */
+				MX6QDL_PAD_EIM_DA12__GPIO3_IO12   0x0001B0B1  /* KEY_RR4 - GPIO3_12 */
+				MX6QDL_PAD_EIM_DA6__GPIO3_IO06    0x0001B0B1  /* KEY_RR5 - GPIO3_06 */
+
+				MX6QDL_PAD_SD3_DAT1__GPIO7_IO05   0x0001B0B1  /* KEY_LL1 - GPIO7_05 */
+				MX6QDL_PAD_SD3_DAT2__GPIO7_IO06   0x0001B0B1  /* KEY_LL2 - GPIO7_06 */
+				MX6QDL_PAD_SD3_DAT3__GPIO7_IO07   0x0001B0B1  /* KEY_LL3 - GPIO7_07 */
+				MX6QDL_PAD_SD3_CMD__GPIO7_IO02    0x0001B0B1  /* KEY_LL4 - GPIO7_02 */
+				MX6QDL_PAD_SD3_DAT0__GPIO7_IO04   0x0001B0B1  /* KEY_LL5 - GPIO7_04 */
 				>;
 		};
 

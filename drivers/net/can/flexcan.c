@@ -38,6 +38,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
@@ -230,6 +232,7 @@ struct flexcan_priv {
 	struct regulator *reg_xceiver;
 	struct flexcan_stop_mode stm;
 	int id;
+  u32 stb_gpio;
 };
 
 static struct flexcan_devtype_data fsl_p1010_devtype_data = {
@@ -1202,6 +1205,8 @@ static int flexcan_probe(struct platform_device *pdev)
 	int err, irq;
 	u32 clock_freq = 0;
 	int wakeup = 1;
+	enum of_gpio_flags flags;
+	int ret;
 
 	if (pdev->dev.of_node)
 		of_property_read_u32(pdev->dev.of_node,
@@ -1290,6 +1295,28 @@ static int flexcan_probe(struct platform_device *pdev)
 	}
 
 	device_set_wakeup_capable(&pdev->dev, wakeup);
+
+
+  /*****************************************************/
+    /*
+    * Stand-By gpio
+    */
+    priv->stb_gpio = of_get_named_gpio_flags(pdev->dev.of_node, "stb-gpio", 0,  &flags);
+    if (priv->stb_gpio == -EPROBE_DEFER)
+      return -EPROBE_DEFER;
+
+    dev_info( &pdev->dev, "request GPIO (stb_gpio) = %d \n", priv->stb_gpio );
+    if (gpio_is_valid( priv->stb_gpio ))
+    {
+      ret = gpio_request_one( priv->stb_gpio, flags, "stbgpio");
+      if (ret < 0)
+        dev_err( &pdev->dev, "failed to request GPIO %d: %d\n", priv->stb_gpio, ret);
+
+      gpio_set_value_cansleep(priv->stb_gpio, 1);
+    }
+  /*****************************************************/
+
+
 
 	dev_info(&pdev->dev, "device registered (reg_base=%p, irq=%d)\n",
 		 priv->base, dev->irq);

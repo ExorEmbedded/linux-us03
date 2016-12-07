@@ -248,7 +248,7 @@
 
 /* CARRIER SPI DEVICES */
 	spidev0: spi0@0 {
-	    /* CS0 TJA1145 /dev/spidev1.0 */
+	    /* CS0 TJA1145 /dev/spidev0.0 */
 	    compatible = "spidev";
 	    reg = <0>;
 	    spi-cpha;
@@ -456,10 +456,12 @@
 
 				MX6QDL_PAD_EIM_CS0__GPIO2_IO23    0x0001B0B1  /* EN12    - GPIO2_23 */
 				MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26  0x0001B0B1  /* EN34    - GPIO5_26 */
-				MX6QDL_PAD_RGMII_RD3__GPIO6_IO29  0x80000000  /* XOUT1   - GPIO6_29 */
-				MX6QDL_PAD_RGMII_RD2__GPIO6_IO28  0x80000000  /* XOUT2   - GPIO6_28 */
-				MX6QDL_PAD_RGMII_RD1__GPIO6_IO27  0x80000000  /* XOUT3   - GPIO6_27 */
-				MX6QDL_PAD_RGMII_RD0__GPIO6_IO25  0x80000000  /* XOUT4   - GPIO6_25 */
+
+				MX6QDL_PAD_EIM_D25__GPIO3_IO25    0x0001B0B1  /* XOUT1   - GPIO3_25 */
+				MX6QDL_PAD_EIM_D31__GPIO3_IO31    0x0001B0B1  /* XOUT2   - GPIO3_31 */
+				MX6QDL_PAD_EIM_D23__GPIO3_IO23    0x0001B0B1  /* XOUT3   - GPIO3_23 */
+				MX6QDL_PAD_EIM_D24__GPIO3_IO24    0x0001B0B1  /* XOUT4   - GPIO3_24 */
+
 				MX6QDL_PAD_EIM_DA3__GPIO3_IO03    0x0001B0B1  /* FLT12   - GPIO3_03 */
 				MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27  0x0001B0B1  /* FLT34   - GPIO5_27 */
 			>;
@@ -587,6 +589,22 @@
 				MX6QDL_PAD_SD4_DAT7__SD4_DATA7		0x17059
 			>;
 		};
+
+		pinctrl_flexcan1: flexcan1grp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_8__FLEXCAN1_RX		0x1b020
+				MX6QDL_PAD_GPIO_7__FLEXCAN1_TX		0x1b020
+			>;
+		};
+
+		pinctrl_flexcan2: flexcan2grp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_ROW4__FLEXCAN2_RX	0x1b020
+				MX6QDL_PAD_KEY_COL4__FLEXCAN2_TX	0x1b020
+				MX6QDL_PAD_EIM_DA8__GPIO3_IO08    0x1b0b1
+			>;
+		};
+
 	};
 };
 
@@ -594,6 +612,19 @@
 	/* use ldo-enable and wdt1 for board reset */
 	fsl,ldo-bypass = <0>;
 	fsl,wdog-reset = <1>;
+};
+
+&flexcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	status = "okay";
+};
+
+&flexcan2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan2>;
+	stb-gpio = <&gpio3 8 0>;
+	status = "okay";
 };
 
 &hdmi_core {

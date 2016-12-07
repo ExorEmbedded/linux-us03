@@ -242,7 +242,7 @@ struct imx_port {
 	struct 			serial_rs485 rs485;
 	struct platform_device* plugin1dev;
 	struct platform_device* plugin2dev;
-
+	int                     mode_two_lines_only;
 };
 
 struct imx_port_ucrs {
@@ -758,8 +758,15 @@ static void imx_start_tx(struct uart_port *port)
 	  if (gpio_is_valid(sport->mode_gpio))
 	    if (gpio_is_valid(sport->rts_gpio)) 
 	    {
-	      if (gpio_get_value(sport->rts_gpio) == 0)
-		gpio_set_value(sport->rts_gpio, 1);
+		if(sport->mode_two_lines_only)
+		{
+		    if (gpio_get_value(sport->rts_gpio) == 1)
+			gpio_set_value(sport->rts_gpio, 0);
+		} else {
+		    if (gpio_get_value(sport->rts_gpio) == 0)
+			gpio_set_value(sport->rts_gpio, 1);
+		}
+
 	    }
 	}
          
@@ -2103,6 +2110,14 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	}
 	
 	sport->devdata = of_id->data;
+
+	if (of_property_read_bool(np, "mode-two-lines-only"))
+	{
+	    sport->mode_two_lines_only = 1;
+	    printk("Setting UART /dev/ttymxc%d with two wires serial mode \n", sport->port.line );
+	} else {
+	    sport->mode_two_lines_only = 0;
+	}
 	return 0;
 }
 #else

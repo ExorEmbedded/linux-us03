@@ -563,6 +563,13 @@
 			>;
 		};
 
+    pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D26__UART2_TX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D27__UART2_RX_DATA	0x1b0b1
+			>;
+		};
+
 		pinctrl_usdhc2: usdhc2grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD2_CMD__SD2_CMD		0x17059
@@ -655,6 +662,14 @@
 	mode-two-lines-only;
 	status = "okay";
 };
+
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
 
 &usbh1 {
 	vbus-supply = <&reg_usb_h1_vbus>;

@@ -373,7 +373,6 @@ struct tse_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma_addr;
 	u32 len;
-	int mapped_as_page;
 };
 
 struct altera_tse_private;
@@ -481,11 +480,7 @@ struct altera_tse_private {
 
 	/* ethtool msglvl option */
 	u32 msg_enable;
-#ifdef CONFIG_ALTERA_TSE_PCIE
-	/* Internal data buffers for the PCIe core version */
-	void __iomem * rxinternalbuf;
-	void __iomem * txinternalbuf;
-#endif
+
 	struct altera_dmaops *dmaops;
 };
 

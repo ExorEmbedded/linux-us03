@@ -82,12 +82,12 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 					NETIF_MSG_LINK | NETIF_MSG_IFUP |
 					NETIF_MSG_IFDOWN);
 
-#define RX_DESCRIPTORS 8
+#define RX_DESCRIPTORS 16
 static int dma_rx_num = RX_DESCRIPTORS;
 module_param(dma_rx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_rx_num, "Number of descriptors in the RX list");
 
-#define TX_DESCRIPTORS 8
+#define TX_DESCRIPTORS 16
 static int dma_tx_num = TX_DESCRIPTORS;
 module_param(dma_tx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
@@ -281,7 +281,6 @@ static void altera_tse_mdio_destroy(struct net_device *dev)
 static int tse_init_rx_buffer(struct altera_tse_private *priv,
 			      struct tse_buffer *rxbuffer, int len)
 {
-//!!!	rxbuffer->skb = netdev_alloc_skb_ip_align(priv->dev, len+4);
 	rxbuffer->skb = netdev_alloc_skb_2K_align(priv->dev, len);
 	if (!rxbuffer->skb)
 		return -ENOMEM;
@@ -295,7 +294,6 @@ static int tse_init_rx_buffer(struct altera_tse_private *priv,
 		dev_kfree_skb_any(rxbuffer->skb);
 		return -EINVAL;
 	}
-//!!!	rxbuffer->dma_addr &= (dma_addr_t)~3;
 	rxbuffer->len = len;
 	return 0;
 }
@@ -479,12 +477,12 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 		dma_unmap_single(priv->device, priv->rx_ring[entry].dma_addr,
 				 priv->rx_ring[entry].len, DMA_FROM_DEVICE);
 
-//!!!		if (netif_msg_pktdata(priv)) {
+		if (netif_msg_pktdata(priv)) {
 			netdev_info(priv->dev, "frame received %d bytes\n",
 				    pktlength);
 			print_hex_dump(1, "data: ", DUMP_PREFIX_OFFSET,
 				       16, 1, skb->data, pktlength, true);
-//!!!		}
+		}
 
 		tse_rx_vlan(priv->dev, skb);
 
@@ -650,12 +648,15 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Map the first skb fragment */
 	entry = priv->tx_prod % txsize;
 	buffer = &priv->tx_ring[entry];
-	
+
 	skb = tx_skb_align_workaround(dev, skb);
-	dma_addr = dma_map_single(priv->device, skb->data, nopaged_len, DMA_TO_DEVICE); 
-	//!!!dma_addr&=(dma_addr_t)~3;
+	if(!skb)
+	{
+	  ret = NETDEV_TX_BUSY;
+	  goto out;
+	}
 	
-	printk("*** skb->data=0x%x dma_addr=0x%x\n",(void*)skb->data,dma_addr); //!!!
+	dma_addr = dma_map_single(priv->device, skb->data, nopaged_len, DMA_TO_DEVICE); 
 	
 	if (dma_mapping_error(priv->device, dma_addr)) {
 		netdev_err(priv->dev, "%s: DMA mapping error\n", __func__);
@@ -1232,7 +1233,7 @@ static int tse_open(struct net_device *dev)
 			   priv->rx_irq);
 		goto init_error;
 	}
-//!!!#ifndef CONFIG_ALTERA_TSE_PCIE
+#ifndef CONFIG_ALTERA_TSE_PCIE
 	/* Register TX interrupt */
 	ret = request_irq(priv->tx_irq, altera_isr, IRQF_SHARED,
 			  dev->name, dev);
@@ -1241,7 +1242,7 @@ static int tse_open(struct net_device *dev)
 			   priv->tx_irq);
 		goto tx_request_irq_error;
 	}*/
-//!!!#endif	
+#endif	
 
 	/* Enable DMA interrupts */
 	spin_lock_irqsave(&priv->rxdma_irq_lock, flags);

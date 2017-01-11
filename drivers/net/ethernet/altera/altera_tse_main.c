@@ -30,10 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/of_device.h>
-#include <linux/of_mdio.h>
-#include <linux/of_net.h>
-#include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/skbuff.h>
@@ -74,7 +70,6 @@ MODULE_PARM_DESC(dma_rx_num, "Number of descriptors in the RX list");
 static int dma_tx_num = TX_DESCRIPTORS;
 module_param(dma_tx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
-
 
 #define POLL_PHY (-1)
 
@@ -770,9 +765,6 @@ static int init_phy(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev;
-	struct device_node *phynode;
-	bool fixed_link = false;
-	int rc = 0;
 
 	/* Avoid init phy in case of no phy present */
 	if (!priv->phy_iface)
@@ -781,70 +773,21 @@ static int init_phy(struct net_device *dev)
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
-
-	phynode = of_parse_phandle(priv->device->of_node, "phy-handle", 0);
-
-	if (!phynode) {
-		/* check if a fixed-link is defined in device-tree */
-		if (of_phy_is_fixed_link(priv->device->of_node)) {
-			rc = of_phy_register_fixed_link(priv->device->of_node);
-			if (rc < 0) {
-				netdev_err(dev, "cannot register fixed PHY\n");
-				return rc;
-			}
-
-			/* In the case of a fixed PHY, the DT node associated
-			 * to the PHY is the Ethernet MAC DT node.
-			 */
-			phynode = of_node_get(priv->device->of_node);
-			fixed_link = true;
-
-			netdev_dbg(dev, "fixed-link detected\n");
-			phydev = of_phy_connect(dev, phynode,
-						&altera_tse_adjust_link,
-						0, priv->phy_iface);
-		} else {
-			netdev_dbg(dev, "no phy-handle found\n");
-			if (!priv->mdio) {
-				netdev_err(dev, "No phy-handle nor local mdio specified\n");
-				return -ENODEV;
-			}
-			phydev = connect_local_phy(dev);
-		}
-	} else {
-		netdev_dbg(dev, "phy-handle found\n");
-		phydev = of_phy_connect(dev, phynode,
-			&altera_tse_adjust_link, 0, priv->phy_iface);
-	}
-
+	
+	phydev = connect_local_phy(dev);
 	if (!phydev) {
 		netdev_err(dev, "Could not find the PHY\n");
 		return -ENODEV;
 	}
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII
-	 * Note: Checkpatch throws CHECKs for the camel case defines below,
-	 * it's ok to ignore.
 	 */
 	if ((priv->phy_iface == PHY_INTERFACE_MODE_MII) ||
 	    (priv->phy_iface == PHY_INTERFACE_MODE_RMII))
 		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
 					 SUPPORTED_1000baseT_Full);
 
-	/* Broken HW is sometimes missing the pull-up resistor on the
-	 * MDIO line, which results in reads to non-existent devices returning
-	 * 0 rather than 0xffff. Catch this here and treat 0 as a non-existent
-	 * device as well. If a fixed-link is used the phy_id is always 0.
-	 * Note: phydev->phy_id is the result of reading the UID PHY registers.
-	 */
-	if ((phydev->phy_id == 0) && !fixed_link) {
-		netdev_err(dev, "Bad PHY UID 0x%08x\n", phydev->phy_id);
-		phy_disconnect(phydev);
-		return -ENODEV;
-	}
-
-	netdev_dbg(dev, "attached to PHY %d UID 0x%08x Link = %d\n",
-		   phydev->addr, phydev->phy_id, phydev->link);
+	netdev_dbg(dev, "attached to PHY %d UID 0x%08x Link = %d\n", phydev->addr, phydev->phy_id, phydev->link);
 
 	priv->phydev = phydev;
 	return 0;
@@ -1497,7 +1440,18 @@ err_check_bar_mapping:
  */
 static void altera_tse_pciedev_remove(struct pci_dev *pdev)
 {
-  printk("*** altera_tse_pciedev_remove\n");
+  struct net_device *ndev = pci_get_drvdata(pdev);
+  struct altera_tse_private *priv = netdev_priv(ndev);
+  if (ndev) 
+  {
+    unregister_netdev(ndev);
+    netif_napi_del(&priv->napi);
+    altera_tse_mdio_destroy(ndev);
+    free_netdev(ndev);
+    pci_iounmap(pdev, priv->mac_dev);
+    pci_release_regions(pdev);
+    pci_disable_device(pdev);
+  }	
 }
 
 static const struct pci_device_id altera_tse_pciedev_ids[] = {

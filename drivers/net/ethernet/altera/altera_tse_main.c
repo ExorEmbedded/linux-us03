@@ -1093,11 +1093,11 @@ static int tse_open(struct net_device *dev)
 
 
 	/* Register RX interrupt */
-	ret = request_irq(priv->rx_irq, altera_isr, IRQF_SHARED,
+	ret = request_irq(priv->msi_irq, altera_isr, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret) {
-		netdev_err(dev, "Unable to register RX interrupt %d\n",
-			   priv->rx_irq);
+		netdev_err(dev, "Unable to register msi interrupt %d\n",
+			   priv->msi_irq);
 		goto init_error;
 	}
 
@@ -1155,8 +1155,7 @@ static int tse_shutdown(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
 
 	/* Free the IRQ lines */
-	free_irq(priv->rx_irq, dev);
-	free_irq(priv->tx_irq, dev);
+	free_irq(priv->msi_irq, dev);
 
 	/* disable and reset the MAC, empties fifo */
 	spin_lock(&priv->mac_cfg_lock);
@@ -1327,8 +1326,7 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
     goto err_free_netdev;
   }
   
-  priv->rx_irq = pdev-> irq;
-  priv->tx_irq = pdev-> irq;
+  priv->msi_irq = pdev-> irq;
   
   //Rx and Tx FIFO depths
   priv->rx_fifo_depth = 2048;
@@ -1401,11 +1399,10 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   printk("TSE PCIe MAC revision: 0x%x\n",priv->revision);
   
   if (netif_msg_probe(priv))
-    dev_info(&pdev->dev, "Altera TSE MAC version %d.%d at 0x%08lx irq %d/%d\n",
+    dev_info(&pdev->dev, "Altera TSE MAC version %d.%d at 0x%08lx irq %d\n",
 	     (priv->revision >> 8) & 0xff,
 	     priv->revision & 0xff,
-	     (unsigned long) res_start, priv->rx_irq,
-	     priv->tx_irq);
+	     (unsigned long) res_start, priv->msi_irq);
   
    rc = init_phy(ndev);
   if (rc != 0) 

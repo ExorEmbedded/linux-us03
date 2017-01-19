@@ -254,8 +254,9 @@ struct imx_port_ucrs {
 static void imx_rs485_stop_tx(struct imx_port *sport)
 {
 	if ((sport->rts_gpio >= 0) && (sport->rs485.flags & SER_RS485_ENABLED))
-		gpio_set_value(sport->rts_gpio, 0);
-
+	  if ((sport->rs485.flags & SER_RS485_RTS_AFTER_SEND) == 0)
+	    gpio_set_value(sport->rts_gpio, 0);
+	
 	if(sport->is_plugin_module == 1)
 	  if ((sport->rts_gpio < 0) && (sport->rs485.flags & SER_RS485_ENABLED))
 	    writel(readl(sport->port.membase + UCR2) & ~UCR2_CTS, sport->port.membase + UCR2);

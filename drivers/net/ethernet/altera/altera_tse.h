@@ -461,12 +461,8 @@ struct altera_tse_private {
 	struct list_head txlisthd;
 	struct list_head rxlisthd;
 
-	/* MAC command_config register protection */
-	spinlock_t mac_cfg_lock;
-	/* Tx path protection */
-	spinlock_t tx_lock;
-	/* Rx DMA & interrupt control protection */
-	spinlock_t rxdma_irq_lock;
+	/* 1 global lock is used to protect agains some limitation of the PCIe implementation */
+	spinlock_t global_lock;
 
 	/* PHY */
 	int phy_addr;		/* PHY's MDIO address, -1 for autodetection */

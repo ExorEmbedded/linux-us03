@@ -145,14 +145,20 @@ static int altera_tse_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
 	struct net_device *ndev = bus->priv;
 	struct altera_tse_private *priv = netdev_priv(ndev);
+	int ret;
+	
+	spin_lock(&priv->global_lock);	
 
 	/* set MDIO address */
 	csrwr32((mii_id & 0x1f), priv->mac_dev,
 		tse_csroffs(mdio_phy1_addr));
 
 	/* get the data */
-	return csrrd32(priv->mac_dev,
+	ret = csrrd32(priv->mac_dev,
 		       tse_csroffs(mdio_phy1) + regnum * 4) & 0xffff;
+
+	spin_unlock(&priv->global_lock);
+	return ret;
 }
 
 static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
@@ -161,12 +167,14 @@ static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	struct net_device *ndev = bus->priv;
 	struct altera_tse_private *priv = netdev_priv(ndev);
 
+	spin_lock(&priv->global_lock);	
 	/* set MDIO address */
 	csrwr32((mii_id & 0x1f), priv->mac_dev,
 		tse_csroffs(mdio_phy1_addr));
 
 	/* write the data */
 	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy1) + regnum * 4);
+	spin_unlock(&priv->global_lock);
 	return 0;
 }
 
@@ -394,7 +402,7 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 	u32 rxstatus;
 	u16 pktlength;
 	u16 pktstatus;
-
+	
 	/* Check for count < limit first as get_rx_status is changing
 	* the response-fifo so we must process the next packet
 	* after calling get_rx_status if a response is pending.
@@ -452,8 +460,9 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 		priv->dev->stats.rx_bytes += pktlength;
 
 		entry = next_entry;
-
+		spin_lock(&priv->global_lock);
 		tse_rx_refill(priv);
+		spin_unlock(&priv->global_lock);
 	}
 
 	return count;
@@ -469,7 +478,7 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 	struct tse_buffer *tx_buff;
 	int txcomplete = 0;
 
-	spin_lock(&priv->tx_lock);
+	spin_lock(&priv->global_lock);
 
 	ready = priv->dmaops->tx_completions(priv);
 
@@ -505,7 +514,7 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 		netif_tx_unlock(priv->dev);
 	}
 
-	spin_unlock(&priv->tx_lock);
+	spin_unlock(&priv->global_lock);
 	return txcomplete;
 }
 
@@ -531,10 +540,10 @@ static int tse_poll(struct napi_struct *napi, int budget)
 			   "NAPI Complete, did %d packets with budget %d\n",
 			   rxcomplete, budget);
 
-		spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
+		spin_lock_irqsave(&priv->global_lock, flags);
 		priv->dmaops->enable_rxirq(priv);
 		priv->dmaops->enable_txirq(priv);
-		spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
+		spin_unlock_irqrestore(&priv->global_lock, flags);
 	}
 	return rxcomplete;
 }
@@ -552,17 +561,17 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 	}
 	priv = netdev_priv(dev);
 
-	spin_lock(&priv->rxdma_irq_lock);
+	spin_lock(&priv->global_lock);
 	/* reset IRQs */
 	priv->dmaops->clear_rxirq(priv);
 	priv->dmaops->clear_txirq(priv);
-	spin_unlock(&priv->rxdma_irq_lock);
+	spin_unlock(&priv->global_lock);
 
 	if (likely(napi_schedule_prep(&priv->napi))) {
-		spin_lock(&priv->rxdma_irq_lock);
+		spin_lock(&priv->global_lock);
 		priv->dmaops->disable_rxirq(priv);
 		priv->dmaops->disable_txirq(priv);
-		spin_unlock(&priv->rxdma_irq_lock);
+		spin_unlock(&priv->global_lock);
 		__napi_schedule(&priv->napi);
 	}
 
@@ -588,7 +597,7 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	enum netdev_tx ret = NETDEV_TX_OK;
 	dma_addr_t dma_addr;
 
-	spin_lock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->global_lock);
 
 	if (unlikely(tse_tx_avail(priv) < nfrags + 1)) {
 		if (!netif_queue_stopped(dev)) {
@@ -644,7 +653,7 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 out:
-	spin_unlock_bh(&priv->tx_lock);
+	spin_unlock_bh(&priv->global_lock);
 
 	return ret;
 }
@@ -662,7 +671,7 @@ static void altera_tse_adjust_link(struct net_device *dev)
 	int new_state = 0;
 
 	/* only change config if there is a link */
-	spin_lock(&priv->mac_cfg_lock);
+	spin_lock(&priv->global_lock);
 	if (phydev->link) {
 		/* Read old config */
 		u32 cfg_reg = ioread32(&priv->mac_dev->command_config);
@@ -721,7 +730,7 @@ static void altera_tse_adjust_link(struct net_device *dev)
 	if (new_state && netif_msg_link(priv))
 		phy_print_status(phydev);
 
-	spin_unlock(&priv->mac_cfg_lock);
+	spin_unlock(&priv->global_lock);
 }
 
 static struct phy_device *connect_local_phy(struct net_device *dev)
@@ -1008,7 +1017,7 @@ static void tse_set_rx_mode_hashfilter(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 
-	spin_lock(&priv->mac_cfg_lock);
+	spin_lock(&priv->global_lock);
 
 	if (dev->flags & IFF_PROMISC)
 		tse_set_bit(priv->mac_dev, tse_csroffs(command_config),
@@ -1019,7 +1028,7 @@ static void tse_set_rx_mode_hashfilter(struct net_device *dev)
 	else
 		altera_tse_set_mcfilter(dev);
 
-	spin_unlock(&priv->mac_cfg_lock);
+	spin_unlock(&priv->global_lock);
 }
 
 /* Set or clear the multicast filter for this adaptor
@@ -1028,7 +1037,7 @@ static void tse_set_rx_mode(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 
-	spin_lock(&priv->mac_cfg_lock);
+	spin_lock(&priv->global_lock);
 
 	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI) ||
 	    !netdev_mc_empty(dev) || !netdev_uc_empty(dev))
@@ -1038,7 +1047,7 @@ static void tse_set_rx_mode(struct net_device *dev)
 		tse_clear_bit(priv->mac_dev, tse_csroffs(command_config),
 			      MAC_CMDCFG_PROMIS_EN);
 
-	spin_unlock(&priv->mac_cfg_lock);
+	spin_unlock(&priv->global_lock);
 }
 
 /* Open and initialize the interface
@@ -1064,7 +1073,7 @@ static int tse_open(struct net_device *dev)
 	if ((priv->revision < 0xd00) || (priv->revision > 0xe00))
 		netdev_warn(dev, "TSE revision %x\n", priv->revision);
 
-	spin_lock(&priv->mac_cfg_lock);
+	spin_lock(&priv->global_lock);
 	ret = reset_mac(priv);
 	/* Note that reset_mac will fail if the clocks are gated by the PHY
 	 * due to the PHY being put into isolation or power down mode.
@@ -1074,7 +1083,7 @@ static int tse_open(struct net_device *dev)
 		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
 
 	ret = init_mac(priv);
-	spin_unlock(&priv->mac_cfg_lock);
+	spin_unlock(&priv->global_lock);
 	if (ret) {
 		netdev_err(dev, "Cannot init MAC core (error: %d)\n", ret);
 		goto alloc_skbuf_error;
@@ -1102,7 +1111,7 @@ static int tse_open(struct net_device *dev)
 	}
 
 	/* Enable DMA interrupts */
-	spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
+	spin_lock_irqsave(&priv->global_lock, flags);
 	priv->dmaops->enable_rxirq(priv);
 	priv->dmaops->enable_txirq(priv);
 
@@ -1110,7 +1119,7 @@ static int tse_open(struct net_device *dev)
 	for (i = 0; i < priv->rx_ring_size; i++)
 		priv->dmaops->add_rx_desc(priv, &priv->rx_ring[i]);
 
-	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
+	spin_unlock_irqrestore(&priv->global_lock, flags);
 
 	if (priv->phydev)
 		phy_start(priv->phydev);
@@ -1121,9 +1130,9 @@ static int tse_open(struct net_device *dev)
 	priv->dmaops->start_rxdma(priv);
 
 	/* Start MAC Rx/Tx */
-	spin_lock(&priv->mac_cfg_lock);
+	spin_lock(&priv->global_lock);
 	tse_set_mac(priv, true);
-	spin_unlock(&priv->mac_cfg_lock);
+	spin_unlock(&priv->global_lock);
 
 	return 0;
 init_error:
@@ -1149,17 +1158,16 @@ static int tse_shutdown(struct net_device *dev)
 	napi_disable(&priv->napi);
 
 	/* Disable DMA interrupts */
-	spin_lock_irqsave(&priv->rxdma_irq_lock, flags);
+	spin_lock_irqsave(&priv->global_lock, flags);
 	priv->dmaops->disable_rxirq(priv);
 	priv->dmaops->disable_txirq(priv);
-	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
+	spin_unlock_irqrestore(&priv->global_lock, flags);
 
 	/* Free the IRQ lines */
 	free_irq(priv->msi_irq, dev);
 
 	/* disable and reset the MAC, empties fifo */
-	spin_lock(&priv->mac_cfg_lock);
-	spin_lock(&priv->tx_lock);
+	spin_lock(&priv->global_lock);
 
 	ret = reset_mac(priv);
 	/* Note that reset_mac will fail if the clocks are gated by the PHY
@@ -1171,8 +1179,7 @@ static int tse_shutdown(struct net_device *dev)
 	priv->dmaops->reset_dma(priv);
 	free_skbufs(dev);
 
-	spin_unlock(&priv->tx_lock);
-	spin_unlock(&priv->mac_cfg_lock);
+	spin_unlock(&priv->global_lock);
 
 	priv->dmaops->uninit_dma(priv);
 
@@ -1337,7 +1344,10 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   priv->added_unicast = 1;
   priv->max_mtu = ETH_DATA_LEN;
   priv->rx_dma_buf_sz = ALTERA_RXDMABUFFER_SIZE;
-  
+
+  //Init spinlock
+  spin_lock_init(&priv->global_lock);
+ 
   //Get MAC address from cmdline
   if(pdev->subsystem_device==0)
     macaddr = mac1addr; 
@@ -1383,9 +1393,6 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
   
   // setup NAPI interface 
   netif_napi_add(ndev, &priv->napi, tse_poll, NAPI_POLL_WEIGHT);
-  spin_lock_init(&priv->mac_cfg_lock);
-  spin_lock_init(&priv->tx_lock);
-  spin_lock_init(&priv->rxdma_irq_lock);
   
   rc = register_netdev(ndev);
   if (rc) 

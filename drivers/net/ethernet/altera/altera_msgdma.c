@@ -191,8 +191,9 @@ u32 msgdma_rx_status(struct altera_tse_private *priv)
 	u32 rxstatus = 0;
 	u32 pktlength;
 	u32 pktstatus;
+	unsigned long int flags;
 	
-	spin_lock(&priv->global_lock);
+	spin_lock_irqsave(priv->plock, flags);
 
 	if (csrrd32(priv->rx_dma_csr, msgdma_csroffs(resp_fill_level))
 	    & 0xffff) {
@@ -205,6 +206,6 @@ u32 msgdma_rx_status(struct altera_tse_private *priv)
 		rxstatus |= (pktlength & 0xffff);
 	}
 	
-	spin_unlock(&priv->global_lock);
+	spin_unlock_irqrestore(priv->plock, flags);
 	return rxstatus;
 }

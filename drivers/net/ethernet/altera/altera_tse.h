@@ -461,8 +461,9 @@ struct altera_tse_private {
 	struct list_head txlisthd;
 	struct list_head rxlisthd;
 
-	/* 1 global lock is used to protect agains some limitation of the PCIe implementation */
+	/* spinlock structures */
 	spinlock_t global_lock;
+	spinlock_t* plock; 
 
 	/* PHY */
 	int phy_addr;		/* PHY's MDIO address, -1 for autodetection */

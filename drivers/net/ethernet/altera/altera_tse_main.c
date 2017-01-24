@@ -1425,6 +1425,13 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
     goto err_register_netdev;
   }
   
+  /*
+   * Initially notify the carrier down status.
+   * This to avoid the upper levels (ethtool) to assume the eth intf. to be up in the
+   * early stages of bootup, when it is not available yet.
+   */
+  netif_carrier_off(ndev);
+  
   dev_set_drvdata(&pdev->dev,ndev);
   priv->revision = ioread32(&priv->mac_dev->megacore_revision);
   printk("TSE PCIe MAC revision: 0x%x\n",priv->revision);

@@ -1088,6 +1088,12 @@ static int gen10g_config_init(struct phy_device *phydev)
 int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
+	
+	/* If genphy is used for the the DP83630, avoid suspend, since
+	 * resuming will not work properly.
+	 */
+	if(phydev->phy_id == 0x20005ce1)
+	  return 0;
 
 	mutex_lock(&phydev->lock);
 

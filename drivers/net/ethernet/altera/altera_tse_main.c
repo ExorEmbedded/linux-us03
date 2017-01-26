@@ -71,12 +71,12 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 					NETIF_MSG_LINK | NETIF_MSG_IFUP |
 					NETIF_MSG_IFDOWN);
 
-#define RX_DESCRIPTORS 16
+#define RX_DESCRIPTORS 64
 static int dma_rx_num = RX_DESCRIPTORS;
 module_param(dma_rx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_rx_num, "Number of descriptors in the RX list");
 
-#define TX_DESCRIPTORS 16
+#define TX_DESCRIPTORS 64
 static int dma_tx_num = TX_DESCRIPTORS;
 module_param(dma_tx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
@@ -1141,8 +1141,11 @@ static int tse_open(struct net_device *dev)
 	spin_unlock_irqrestore(priv->plock, flags);
 
 	if (priv->phydev)
-		phy_start(priv->phydev);
-
+	{
+	  priv->phydev->irq = PHY_POLL;
+	  phy_start(priv->phydev);
+	}
+ 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
 

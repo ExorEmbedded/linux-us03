@@ -247,12 +247,11 @@
 	};
 
 /* CARRIER SPI DEVICES */
-	spidev0: spi0@0 {
-	    /* CS0 TJA1145 /dev/spidev0.0 */
-	    compatible = "spidev";
+	tja1145: tja1145@0 {
+	    /* CS0 TJA1145 */
+	    compatible = "nxp,tja1145";
 	    reg = <0>;
 	    spi-cpha;
-	    //spi-cpol;
 	    spi-max-frequency = <500000>;
 	};
 };
@@ -624,6 +623,7 @@
 &flexcan1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan1>;
+	transceiver = <&tja1145>;
 	status = "okay";
 };
 

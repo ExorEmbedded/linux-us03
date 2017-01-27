@@ -1487,6 +1487,19 @@ struct spi_master *spi_alloc_master(struct device *dev, unsigned size)
 EXPORT_SYMBOL_GPL(spi_alloc_master);
 
 #ifdef CONFIG_OF
+static int __spi_of_device_match(struct device *dev, void *data)
+{
+        return dev->of_node == data;
+}
+
+/* must call put_device() when done with returned spi_device device */
+struct spi_device *of_find_spi_device_by_node(struct device_node *node)
+{
+        struct device *dev = bus_find_device(&spi_bus_type, NULL, node, __spi_of_device_match);
+        return dev ? to_spi_device(dev) : NULL;
+}
+EXPORT_SYMBOL(of_find_spi_device_by_node);
+
 static int of_spi_register_master(struct spi_master *master)
 {
 	int nb, i, *cs;

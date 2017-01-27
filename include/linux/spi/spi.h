@@ -190,6 +190,7 @@ struct spi_driver {
 	void			(*shutdown)(struct spi_device *spi);
 	int			(*suspend)(struct spi_device *spi, pm_message_t mesg);
 	int			(*resume)(struct spi_device *spi);
+	int			(*command)(struct spi_device *client, unsigned int cmd, void *arg);
 	struct device_driver	driver;
 };
 
@@ -1041,5 +1042,15 @@ spi_unregister_device(struct spi_device *spi)
 
 extern const struct spi_device_id *
 spi_get_device_id(const struct spi_device *sdev);
+
+#if IS_ENABLED(CONFIG_OF)
+/* must call put_device() when done with returned spi_device device */
+extern struct spi_device *of_find_spi_device_by_node(struct device_node *node);
+#else
+static inline struct spi_device *of_find_spi_device_by_node(struct device_node *node)
+{
+        return NULL;
+}
+#endif /* CONFIG_OF */
 
 #endif /* __LINUX_SPI_H */

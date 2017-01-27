@@ -54,7 +54,7 @@
 /*
  * Guard function, used to create a dependency btw flexcan and tja
  */
-void tja1145_driver_version(void)
+void tja1145_driver_version(void);
 
 /*
  * The method called in the client is

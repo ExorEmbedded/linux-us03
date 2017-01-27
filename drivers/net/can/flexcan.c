@@ -1349,7 +1349,6 @@ static int flexcan_probe(struct platform_device *pdev)
     /*
      * TJA1145 transceiver
      */
-    printk(KERN_INFO "%s Start TJA \n", __func__);
     ret = of_property_read_u32(pdev->dev.of_node, "transceiver", &transceiver_handle);
     if (ret != 0)
     {

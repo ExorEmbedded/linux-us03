@@ -24,6 +24,10 @@
 	status = "okay";
 };
 
+&ethphy {
+  fsl,disable-gigabit;
+};
+
 //&cpu0 {
 //	arm-supply = <&reg_arm>;
 //	soc-supply = <&reg_soc>;

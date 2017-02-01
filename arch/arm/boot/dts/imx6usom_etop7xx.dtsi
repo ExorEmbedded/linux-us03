@@ -280,7 +280,6 @@
 		#size-cells = <0>;
 		ethphy: ethernet-phy1 {
 			reg = <3>;
-			fsl,disable-gigabit;
 		};
 	};
 };

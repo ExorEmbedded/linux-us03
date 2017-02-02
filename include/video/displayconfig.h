@@ -618,7 +618,7 @@ static struct t_DisplayParams displayconfig[] = {
         .blank_inv      = 0,
         
         .pwmfreq        = 200,
-        .brightness_min = 1,
+        .brightness_min = 10,
         .brightness_max = 100,
     },              
     /* 56: Innolux G156BGE-L01 LVDS 24 bit 1366x768 */
@@ -696,7 +696,7 @@ static struct t_DisplayParams displayconfig[] = {
         .blank_inv      = 0,
         
         .pwmfreq        = 250,
-        .brightness_min = 10,
+        .brightness_min = 20,
         .brightness_max = 100,
     },              
     /* END OF LIST */

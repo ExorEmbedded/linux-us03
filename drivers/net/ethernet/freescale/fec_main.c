@@ -98,7 +98,7 @@ static struct platform_device_id fec_devtype[] = {
 	}, {
 		.name = "imx6q-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
-				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
+				FEC_QUIRK_HAS_BUFDESC_EX | 
 				FEC_QUIRK_HAS_VLAN | FEC_QUIRK_ERR006358 |
 				FEC_QUIRK_BUG_WAITMODE,
 	}, {
@@ -1541,16 +1541,22 @@ rx_processing_done:
 static int
 fec_enet_rx(struct net_device *ndev, int budget)
 {
-	int     pkt_received = 0;
-	u16	queue_id;
-	struct fec_enet_private *fep = netdev_priv(ndev);
+        int     pkt_received = 0; 
+        u16     queue_id;
+        struct fec_enet_private *fep = netdev_priv(ndev);
 
-	for_each_set_bit(queue_id, &fep->work_rx, FEC_ENET_MAX_RX_QS) {
-		clear_bit(queue_id, &fep->work_rx);
-		pkt_received += fec_enet_rx_queue(ndev,
-					budget - pkt_received, queue_id);
-	}
-	return pkt_received;
+        for_each_set_bit(queue_id, &fep->work_rx, FEC_ENET_MAX_RX_QS) {
+                int ret; 
+
+                ret = fec_enet_rx_queue(ndev,
+                                        budget - pkt_received, queue_id);
+
+                if (ret < budget - pkt_received)
+                        clear_bit(queue_id, &fep->work_rx);
+
+                pkt_received += ret; 
+        }
+        return pkt_received;
 }
 
 static bool
@@ -1614,6 +1620,11 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	struct net_device *ndev = napi->dev;
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	int pkts;
+	static unsigned int totpkts;
+	unsigned int tmp;
+	static int count;
+	
+	tmp = readl(fep->hwp + RMON_R_PACKETS);
 
 	pkts = fec_enet_rx(ndev, budget);
 
@@ -1622,7 +1633,33 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	if (pkts < budget) {
 		napi_complete(napi);
 		writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
+		
+		//Recovery sequence
+		if(pkts == 0)
+		{
+		  if(tmp != totpkts )
+		  {
+		    count++;
+		    napi_reschedule(napi);
+		    writel(FEC_ENET_MII, fep->hwp + FEC_IMASK);
+		    if(count > 5)
+		    {
+		      count = 0;
+		      netif_device_detach(ndev);
+		      netif_tx_lock_bh(ndev);
+		      fec_restart(ndev);
+		      netif_tx_unlock_bh(ndev);
+		      netif_device_attach(ndev);
+		    }
+		  }
+		}
+		else
+		{
+		  count = 0;
+		}
 	}
+	
+	totpkts = tmp;
 	return pkts;
 }
 
@@ -3578,7 +3615,7 @@ static struct platform_driver fec_driver = {
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
-		.pm	= &fec_pm_ops,
+//		.pm	= &fec_pm_ops,
 		.of_match_table = fec_dt_ids,
 	},
 	.id_table = fec_devtype,

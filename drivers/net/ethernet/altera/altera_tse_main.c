@@ -539,14 +539,12 @@ static int tse_poll(struct napi_struct *napi, int budget)
 	struct altera_tse_private *priv =
 			container_of(napi, struct altera_tse_private, napi);
 	int rxcomplete = 0;
-	unsigned long int flags;
 
 	tse_tx_complete(priv);
 
 	rxcomplete = tse_rx(priv, budget);
 
 	if (rxcomplete < budget) {
-
 		napi_gro_flush(napi, false);
 		__napi_complete(napi);
 
@@ -554,10 +552,13 @@ static int tse_poll(struct napi_struct *napi, int budget)
 			   "NAPI Complete, did %d packets with budget %d\n",
 			   rxcomplete, budget);
 
+/*      #625: Keep irqs enabled: this is a requirement for TSE over PCI-e to properly work */	
+#if 0
 		spin_lock_irqsave(priv->plock, flags);
 		priv->dmaops->enable_rxirq(priv);
 		priv->dmaops->enable_txirq(priv);
-		spin_unlock_irqrestore(priv->plock, flags);
+		spin_unlock_irqrestore(priv->plock, flags); 
+#endif
 	}
 	return rxcomplete;
 }
@@ -583,10 +584,13 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 	spin_unlock_irqrestore(priv->plock, flags);
 
 	if (likely(napi_schedule_prep(&priv->napi))) {
+/*      #625: Keep irqs enabled: this is a requirement for TSE over PCI-e to properly work */	
+#if 0	  
 		spin_lock_irqsave(priv->plock, flags);
 		priv->dmaops->disable_rxirq(priv);
 		priv->dmaops->disable_txirq(priv);
 		spin_unlock_irqrestore(priv->plock,flags);
+#endif
 		__napi_schedule(&priv->napi);
 	}
 

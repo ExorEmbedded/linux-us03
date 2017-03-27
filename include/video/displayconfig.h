@@ -47,6 +47,19 @@
  * 1.7			GP              23.05.16    Added display code #56: Innolux G156BGE-L01 LVDS 24 bit 1366x768 for serie 700
  *                                                  Added display code #57: Innolux G215HVN01 LVDS 24 bit 1920x1080 for serie 700
  *                                                  Added display code #58: DataImage 7" LVDS 24 bit 800x480 for serie 700
+ * 1.8	    SS  	   				07.11.2016  Alligned to displayconfig_rev2.5.xml:
+ *																			Inverted display clock edge for LVDS drivers wrongly set on next HDAxx carrier boards  
+ *																			HDA02A: display codes #36,38,39: inverted clock polarity   
+ *																			HDA05A: display codes #45 (OLD glass display): inverted clock polarity 
+ * 1.9	    GP  	   				02.02.2017  Added gamma correction for display codes #55 and #58, required tuning of min brite to allow 0,5cd/m2 on step0:
+ *																			display code #55: modified min brite from 1 to 10 (0,5cd/m2 for step0)
+ *																			display code #58: modified min brite from 10 to 20 (0,5cd/m2 for step0)
+ *1.10			SS							27.03.2017  Modified all display codes used by IMX.6 CPU (US03Ax) due to bug on LVDS clock (refer to unfuddle ticket #650).
+ *																			Display codes 55, 56, 57 and 58 HAVE TO BE USED only on IMX.6 panels!!!!
+ *																			display code #55: modified pixel clock from 0 to 1
+ *																			display code #56: modified pixel clock from 0 to 1
+ *																			display code #57: modified pixel clock from 0 to 1
+ *																			display code #58: modified pixel clock from 0 to 1; modified hs_w from 100 to 200 as per typical datasheet value (no visible effect)
  * 
  * NEXT AVAILABLE DISPLAY CODE: 59
  */
@@ -161,7 +174,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 16,
         
         .pclk_freq = 41000, 
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,
         
         .hs_fp     = 16, 
         .hs_bp     = 149, 
@@ -213,7 +226,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 16,
         
         .pclk_freq = 36000, 
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,
         
         .hs_fp     = 16, 
         .hs_bp     = 149, 
@@ -239,7 +252,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 16,
         
         .pclk_freq = 61000, 
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,
         
         .hs_fp     = 16, 
         .hs_bp     = 149, 
@@ -395,7 +408,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 16,
         
         .pclk_freq = 72000, 
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,
         
         .hs_fp     = 16, 
         .hs_bp     = 149, 
@@ -595,7 +608,7 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 1,
         .brightness_max = 100,
     },  
-    /* 55: Innolux G101ICE-L01 LVDS 24 bit 1280x800 */
+    /* 55: Innolux G101ICE-L01 LVDS 24 bit 1280x800 IMX.6 ONLY */
     {
         .dispid    = 55,
         .rezx      = 1280, 
@@ -603,7 +616,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 24,
         
         .pclk_freq = 71100, 
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,				//27.03.2017 inverted clock polarity due to IMX.6 bug
         
         .hs_fp     = 30, 
         .hs_bp     = 30, 
@@ -621,7 +634,7 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 10,
         .brightness_max = 100,
     },              
-    /* 56: Innolux G156BGE-L01 LVDS 24 bit 1366x768 */
+    /* 56: Innolux G156BGE-L01 LVDS 24 bit 1366x768 IMX.6 ONLY */
     {
         .dispid    = 56,
         .rezx      = 1366, 
@@ -629,7 +642,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 24,
         
         .pclk_freq = 76000, 
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,		     //27.03.2017 inverted clock polarity due to IMX.6 bug
         
         .hs_fp     = 47, 
         .hs_bp     = 47, 
@@ -647,7 +660,7 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 10,
         .brightness_max = 100,
     },              
-    /* 57: Innolux G215HVN01 DUAL LVDS 24 bit 1920x1080 */
+    /* 57: Innolux G215HVN01 DUAL LVDS 24 bit 1920x1080 IMX.6 ONLY*/
     {
         .dispid    = 57,
         .rezx      = 1920, 
@@ -655,7 +668,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 24,
         
         .pclk_freq = 72000,  // DUAL LVDS dispaly: this is the freq. of one single channel
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,			 //27.03.2017 inverted clock polarity due to IMX.6 bug
         
         .hs_fp     = 40, 
         .hs_bp     = 40, 
@@ -681,11 +694,11 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 24,
         
         .pclk_freq = 33200,  
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,			//27.03.2017 inverted clock polarity due to IMX.6 bug
         
         .hs_fp     = 28, 
         .hs_bp     = 28, 
-        .hs_w      = 100, 
+        .hs_w      = 200, 
         .hs_inv    = 0,
         
         .vs_fp     = 10, 

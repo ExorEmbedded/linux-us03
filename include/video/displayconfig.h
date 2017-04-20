@@ -60,8 +60,9 @@
  *																			display code #56: modified pixel clock from 0 to 1
  *																			display code #57: modified pixel clock from 0 to 1
  *																			display code #58: modified pixel clock from 0 to 1; modified hs_w from 100 to 200 as per typical datasheet value (no visible effect)
- * 
- * NEXT AVAILABLE DISPLAY CODE: 59
+ *1.11			SS							20.04.2017  Added display code #59: FutureLabs  FLT-070D07-W0 800x480 High Brightness for WE16
+ *																			Added display code #60: CHIMEI TG070Y2-L01 800x480 for WE16 using both US01Ax and US03Ax
+ * NEXT AVAILABLE DISPLAY CODE: 61
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -711,7 +712,59 @@ static struct t_DisplayParams displayconfig[] = {
         .pwmfreq        = 250,
         .brightness_min = 20,
         .brightness_max = 100,
-    },              
+    },
+    /* 59: FutureLabs  FLT-070D07-W0 800x480 High Brightness*/
+    {
+        .dispid    = 59,
+        .rezx      = 800,
+        .rezy      = 480,
+        .bpp       = 16,
+
+        .pclk_freq = 30000,
+        .pclk_inv  = 1,	//20.04.2017 inverted clock polarity due to IMX.6 bug; for US01Ax TTL will drive the display lines on falling edge => LVDS driver needs to sample on rising edge
+
+        .hs_fp     = 41,
+        .hs_bp     = 35,
+        .hs_w      = 129,
+        .hs_inv    = 1,
+
+        .vs_fp     = 12,
+        .vs_bp     = 35,
+        .vs_w      = 3,
+        .vs_inv    = 1,
+
+        .blank_inv      = 0,
+
+        .pwmfreq        = 10000,  //20.04.2017 backlight driven by TPS61165
+        .brightness_min = 1,
+        .brightness_max = 100,
+    },
+    /* 60: CHIMEI TG070Y2-L01 800x480 for WE16 using both US01Ax and US03Ax*/
+    {
+        .dispid    = 60,
+        .rezx      = 800,
+        .rezy      = 480,
+        .bpp       = 16,
+
+        .pclk_freq = 30000,
+        .pclk_inv  = 1,	//20.04.2017 inverted clock polarity due to IMX.6 bug; for US01Ax TTL will drive the display lines on falling edge => LVDS driver needs to sample on rising edge
+
+        .hs_fp     = 41,
+        .hs_bp     = 35,
+        .hs_w      = 129,
+        .hs_inv    = 1,
+
+        .vs_fp     = 12,
+        .vs_bp     = 35,
+        .vs_w      = 3,
+        .vs_inv    = 1,
+
+        .blank_inv      = 0,
+
+        .pwmfreq        = 200,
+        .brightness_min = 20,
+        .brightness_max = 100,
+    },
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

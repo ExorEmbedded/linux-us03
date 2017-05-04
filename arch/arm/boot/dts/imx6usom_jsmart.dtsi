@@ -584,7 +584,7 @@
 
 &usbotg {
 	vbus-supply = <&reg_usb_otg_vbus>;
-	dr_mode = "otg";
+	dr_mode = "host";
 	status = "okay";
 };
 

@@ -194,6 +194,8 @@ int fixed_phy_add(unsigned int irq, int phy_id,
 		goto err_regs;
 
 	list_add_tail(&fp->node, &fmb->phys);
+	
+	mdiobus_scan(fmb->mii_bus, phy_id); //This to allow registering the fixed phy independently from when this function gets called
 
 	return 0;
 

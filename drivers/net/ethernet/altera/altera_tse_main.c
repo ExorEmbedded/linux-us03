@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/skbuff.h>
 #include <asm/cacheflush.h>
+#include <linux/phy_fixed.h>
 
 #include "altera_utils.h"
 #include "altera_tse.h"
@@ -761,8 +762,10 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 	char phy_id_fmt[MII_BUS_ID_SIZE + 3];
 
 	if (priv->phy_addr != POLL_PHY) {
-		snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
-			 priv->mdio->id, priv->phy_addr);
+		if(priv->mdio)
+		  snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, priv->mdio->id, priv->phy_addr);
+		else
+		  snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, "fixed-0", priv->phy_addr); //If no "real" mdio bus is available, it means we are connectiong to a fixed phy
 
 		netdev_dbg(dev, "trying to attach to %s\n", phy_id_fmt);
 
@@ -1391,16 +1394,41 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
     ether_addr_copy(ndev->dev_addr, macaddr);
   else
     eth_hw_addr_random(ndev);
-  
-  // get phy addr and create mdio (autodetect phy address)
-  priv->phy_iface = PHY_INTERFACE_MODE_RMII;
-  priv->phy_addr = POLL_PHY;
 
-  rc = altera_tse_mdio_create(ndev, atomic_add_return(1, &instance_count));
-  if(rc)
+  printk("altera_tse_pciedev_probe: dev id=0x%x\n",pdev->device);
+  if(pdev->device == 0xf3ac)
   {
-    printk("altera_tse_pciedev_probe: Could not attach phy\n");
-    goto err_free_netdev;
+    // This is a fixed phy version of the core: no "real" mdio bus is used and a fixed phy is created instead
+    struct fixed_phy_status fixed_phy_stat;
+    fixed_phy_stat.link = 1;
+    fixed_phy_stat.speed = 100;
+    fixed_phy_stat.duplex = 1;
+    fixed_phy_stat.pause = 0;
+    fixed_phy_stat.asym_pause = 0;
+    
+    priv->phy_iface = PHY_INTERFACE_MODE_RMII;
+    priv->phy_addr = pdev->subsystem_device;
+    priv->mdio = NULL;
+    
+    rc = fixed_phy_add(PHY_POLL, priv->phy_addr, &fixed_phy_stat);
+    if (rc < 0)
+    {
+      printk("altera_tse_pciedev_probe: Could not create fixed phy\n");
+      goto err_free_netdev;
+    }
+  }
+  else
+  {
+    // get phy addr and create mdio (autodetect phy address)
+    priv->phy_iface = PHY_INTERFACE_MODE_RMII;
+    priv->phy_addr = POLL_PHY;
+
+    rc = altera_tse_mdio_create(ndev, atomic_add_return(1, &instance_count));
+    if(rc)
+    {
+      printk("altera_tse_pciedev_probe: Could not attach phy\n");
+      goto err_free_netdev;
+    }
   }
   
   // initialize netdev
@@ -1500,6 +1528,7 @@ static void altera_tse_pciedev_remove(struct pci_dev *pdev)
 
 static const struct pci_device_id altera_tse_pciedev_ids[] = {
 	{ PCI_DEVICE(0x1172, 0xe3ac) },
+	{ PCI_DEVICE(0x1172, 0xf3ac) },
 	{ 0, }
 };
 

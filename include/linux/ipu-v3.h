@@ -652,6 +652,7 @@ bool ipu_get_irq_status(struct ipu_soc *ipu, uint32_t irq);
 void ipu_set_csc_coefficients(struct ipu_soc *ipu, ipu_channel_t channel, int32_t param[][3]);
 int32_t ipu_set_channel_bandmode(struct ipu_soc *ipu, ipu_channel_t channel,
 				 ipu_buffer_t type, uint32_t band_height);
+void ipu_set_csc_coefficients_lcd(struct ipu_soc *ipu, ipu_channel_t channel, int32_t param[][3]);
 
 /* two stripe calculations */
 struct stripe_param{

@@ -969,11 +969,36 @@ void _ipu_dp_set_csc_coefficients(struct ipu_soc *ipu, ipu_channel_t channel, in
 	__ipu_dp_csc_setup(ipu, dp, dp_csc_param, true);
 }
 
+void _ipu_dp_set_csc_coefficients_lcd(struct ipu_soc *ipu, ipu_channel_t channel, int32_t param[][3])
+{
+	int dp;
+	struct dp_csc_param_t dp_csc_param;
+
+	if (channel == MEM_FG_SYNC)
+		dp = DP_SYNC;
+	else if (channel == MEM_BG_SYNC)
+		dp = DP_SYNC;
+	else if (channel == MEM_BG_ASYNC0)
+		dp = DP_ASYNC0;
+	else
+		return;
+
+	dp_csc_param.mode = DP_COM_CONF_CSC_DEF_BOTH;
+	dp_csc_param.coeff = param;
+	__ipu_dp_csc_setup(ipu, dp, dp_csc_param, true);
+}
+
 void ipu_set_csc_coefficients(struct ipu_soc *ipu, ipu_channel_t channel, int32_t param[][3])
 {
 	_ipu_dp_set_csc_coefficients(ipu, channel, param);
 }
 EXPORT_SYMBOL(ipu_set_csc_coefficients);
+
+void ipu_set_csc_coefficients_lcd(struct ipu_soc *ipu, ipu_channel_t channel, int32_t param[][3])
+{
+	_ipu_dp_set_csc_coefficients_lcd(ipu, channel, param);
+}
+EXPORT_SYMBOL(ipu_set_csc_coefficients_lcd);
 
 /*!
  * This function is called to adapt synchronous LCD panel to IPU restriction.

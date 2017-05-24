@@ -20,6 +20,9 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <video/displayconfig.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/delay.h>
 
 #include "mxc_dispdrv.h"
 
@@ -183,6 +186,23 @@ static int lcd_get_of_property(struct platform_device *pdev,
 	int err;
 	u32 ipu_id, disp_id;
 	const char *default_ifmt;
+	int en_vdd_gpio;
+	enum of_gpio_flags flags;
+
+	//LCD enable pin handling (if defined)
+	en_vdd_gpio = of_get_named_gpio_flags(np, "enable-gpios", 0, &flags);
+	if (en_vdd_gpio == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if (gpio_is_valid(en_vdd_gpio))
+	{
+		err = gpio_request(en_vdd_gpio, "en_vdd_gpio");
+		if(err < 0)
+		return err;
+
+		gpio_direction_output(en_vdd_gpio,1);
+		msleep(100);
+	}
 
 	err = of_property_read_string(np, "default_ifmt", &default_ifmt);
 	if (err) {

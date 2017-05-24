@@ -88,17 +88,17 @@ int plxx_manager_sendcmd(struct platform_device *pdev, unsigned int cmd)
     // If we have a RS485/422 plugin module (bit #3 in func. area) perform the command
     if(data->eeprom[SEE_FUNCT_AREA_OFF] & (0x01 << RS422_485_IF_FLAG))
     {
-        u8 tmp;
-        tmp=0x0e;
-        ioexp_macc->write(ioexp_macc, &tmp, 3, sizeof(u8));
-        msleep(1);
-        if(cmd == RS422_485_IF_SETFD)
-            tmp = 0x00;
-        else
-            tmp = 0x01;
+	u8 tmp;
+	tmp=0x0e;
+	ioexp_macc->write(ioexp_macc, &tmp, 3, sizeof(u8));
+	msleep(1);
+	if(cmd == RS422_485_IF_SETFD)
+	    tmp = 0x00;
+	else
+	    tmp = 0x01;
 
-        printk("plxx_manager_sendcmd cmd=0x%x\n",cmd);
-        ioexp_macc->write(ioexp_macc, &tmp, 1, sizeof(u8));
+	printk("plxx_manager_sendcmd cmd=0x%x\n",cmd);
+	ioexp_macc->write(ioexp_macc, &tmp, 1, sizeof(u8));
     }
 
     gpio_set_value(data->sel_gpio, 0);                      //Deselect the plugin I2C bus
@@ -432,10 +432,10 @@ static ssize_t i2cexpander_read(struct file *filp, struct kobject *kobj, struct 
         count = FULLEEPROMSIZE - off;
 
     gpio_set_value(data->sel_gpio, 1);                      //Select the plugin I2C bus
-    usleep(1);
+    usleep_range(1, 2);
 
     macc->read(macc, buf, off, count);
-    usleep(1);
+    usleep_range(1, 2);
 
     gpio_set_value(data->sel_gpio, 0);                      //Select the plugin I2C bus
     mutex_unlock(&plxx_lock);
@@ -462,10 +462,10 @@ static ssize_t i2cexpander_write(struct file *filp, struct kobject *kobj, struct
         count = FULLEEPROMSIZE - off;
 
     gpio_set_value(data->sel_gpio, 1);                      //Select the plugin I2C bus
-    usleep(1);
+    usleep_range(1, 2);
 
     i = macc->write(macc, buf, off, count);
-    usleep(1);
+    usleep_range(1, 2);
 
     gpio_set_value(data->sel_gpio, 0);                      //Select the plugin I2C bus
     mutex_unlock(&plxx_lock);

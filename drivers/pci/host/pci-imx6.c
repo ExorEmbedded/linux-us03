@@ -567,7 +567,7 @@ static int imx6_pcie_wait_for_link(struct pcie_port *pp)
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
 
 	while (!dw_pcie_link_up(pp)) {
-		udelay(10);
+		udelay(1000);
 		if (--count)
 			continue;
 

@@ -612,11 +612,13 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 	 * bus will not be detected at all.  This happens with PCIe switches.
 	 */
 
+	usleep_range(4000,5000);
 	if (!IS_ENABLED(CONFIG_PCI_IMX6_COMPLIANCE_TEST)) {
 		tmp = readl(pp->dbi_base + PCIE_RC_LCR);
 		tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
 		tmp |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN1;
 		writel(tmp, pp->dbi_base + PCIE_RC_LCR);
+		usleep_range(4000,5000);
 	}
 
 	/* Start LTSSM. */
@@ -630,11 +632,13 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 	if (ret)
 		return ret;
 
+#if 0
 	/* Allow Gen2 mode after the link is up. */
 	tmp = readl(pp->dbi_base + PCIE_RC_LCR);
 	tmp &= ~PCIE_RC_LCR_MAX_LINK_SPEEDS_MASK;
 	tmp |= PCIE_RC_LCR_MAX_LINK_SPEEDS_GEN2;
 	writel(tmp, pp->dbi_base + PCIE_RC_LCR);
+#endif
 
 	/*
 	 * Start Directed Speed Change so the best possible speed both link
@@ -751,6 +755,7 @@ static int imx6_pcie_link_up(struct pcie_port *pp)
 		udelay(10);
 	}
 
+#if 0
 	if (!is_imx7d_pcie(imx6_pcie)) {
 		/*
 		 * From L0, initiate MAC entry to gen2 if EP/RC supports gen2.
@@ -773,6 +778,7 @@ static int imx6_pcie_link_up(struct pcie_port *pp)
 
 		imx6_pcie_reset_phy(pp);
 	}
+#endif
 
 	return 0;
 }

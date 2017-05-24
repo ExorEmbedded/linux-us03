@@ -579,6 +579,12 @@ config WORKING_HOURS
 	help
 	    Say Y to add working hours counters in I2C EEPROM.
 
+config PLXX_MANAGER
+	tristate "Plugin plxx modules manager"
+	depends on EEPROM_AT24
+	help
+	    Say Y to add the plugin plxx manager driver.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

@@ -9,6 +9,9 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/delay.h>
 
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -24,6 +27,7 @@
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 #include "mxc_dispdrv.h"
+#include <video/displayconfig.h>
 
 #define DRIVER_NAME	"ldb"
 
@@ -293,6 +297,75 @@ static const struct of_device_id ldb_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ldb_dt_ids);
+
+/*
+ *---------------------------------------------------------------------------------
+ * Helper functions to retrieve the display id value, when passed from the cmdline,
+ * and use it to set the display parameters/timings (the contents of the DTB file
+ * are overridden, if a valid dispaly id is passed from cmdline.
+ *---------------------------------------------------------------------------------
+ */
+//This is an exported variable holding the display id value, if passed from cmdline
+extern int hw_dispid;
+
+/*
+ * Writes the videomode structure according with the contents of the displayconfig.h
+ * file and the passed dispid parameter.
+ * Returns 0 if success, -1 if failure (ie: no match found)
+ */
+int dispid_get_videomode(struct videomode* vm, int dispid)
+{
+	int i=0;
+
+	// Scan the display array to search for the required dispid
+	if(dispid == NODISPLAY)
+		return -1;
+
+	while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
+		i++;
+
+	if(displayconfig[i].dispid == NODISPLAY)
+		return -1;
+
+	// If we are here, we have a valid array index pointing to the desired display
+	vm->hactive         = displayconfig[i].rezx;
+	vm->hback_porch  = displayconfig[i].hs_bp;
+	vm->hfront_porch = displayconfig[i].hs_fp;
+	vm->hsync_len    = displayconfig[i].hs_w;
+
+	vm->vactive         = displayconfig[i].rezy;
+	vm->vback_porch = displayconfig[i].vs_bp;
+	vm->vfront_porch = displayconfig[i].vs_fp;
+	vm->vsync_len    = displayconfig[i].vs_w;
+	vm->pixelclock = 1000 * displayconfig[i].pclk_freq;
+
+	vm->flags = 0;
+	if(displayconfig[i].hs_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_HSYNC_LOW;
+
+	if(displayconfig[i].vs_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_VSYNC_LOW;
+
+	if(displayconfig[i].blank_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_DE_LOW;
+
+	if(displayconfig[i].pclk_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+	else
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+
+	return 0;
+}
+
+/*
+ *---------------------------------------------------------------------------------
+ */
 
 static int ldb_init(struct mxc_dispdrv_handle *mddh,
 		    struct mxc_dispdrv_setting *setting)
@@ -697,10 +770,27 @@ static int ldb_probe(struct platform_device *pdev)
 	bool ext_ref;
 	int i, data_width, mapping, child_count = 0;
 	char clkname[16];
+	int en_vdd_gpio, err;
+	enum of_gpio_flags flags;
 
 	ldb = devm_kzalloc(dev, sizeof(*ldb), GFP_KERNEL);
 	if (!ldb)
 		return -ENOMEM;
+
+	//LCD enable pin handling (if defined)
+	en_vdd_gpio = of_get_named_gpio_flags(np, "enable-gpios", 0, &flags);
+	if (en_vdd_gpio == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if (gpio_is_valid(en_vdd_gpio))
+	{
+		err = gpio_request(en_vdd_gpio, "en_vdd_gpio");
+		if(err < 0)
+		    return err;
+
+		gpio_direction_output(en_vdd_gpio,1);
+		msleep(100);
+	}
 
 	ldb->regmap = syscon_regmap_lookup_by_phandle(np, "gpr");
 	if (IS_ERR(ldb->regmap)) {
@@ -837,6 +927,11 @@ static int ldb_probe(struct platform_device *pdev)
 		ret = of_get_videomode(child, &chan->vm, 0);
 		if (ret)
 			return -EINVAL;
+		/*
+		 * Override the DTB timings,
+		 * if a valid hw_dispid is mapped to the displayconfig.h file.
+		 */
+		dispid_get_videomode(&chan->vm, hw_dispid);
 
 		sprintf(clkname, "ldb_di%d", i);
 		ldb->ldb_di_clk[i] = devm_clk_get(dev, clkname);

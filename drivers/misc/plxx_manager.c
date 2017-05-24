@@ -349,7 +349,7 @@ static ssize_t func_bit_area_read(struct file *filp, struct kobject *kobj, struc
     return count;
 }
 
-/* Show the eeprom contents of the plugin as a raw file 
+/* Show the eeprom contents of the plugin as a raw file
  */
 static ssize_t eeprom_read(struct file *filp, struct kobject *kobj, struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
@@ -378,7 +378,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj, struct bin_a
     return count;
 }
 
-/* Write the eeprom contents of the plugin as a raw file 
+/* Write the eeprom contents of the plugin as a raw file
  */
 static ssize_t eeprom_write(struct file *filp, struct kobject *kobj, struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
@@ -416,6 +416,62 @@ static ssize_t eeprom_write(struct file *filp, struct kobject *kobj, struct bin_
     return i;
 }
 
+/* Show the registers of the i2cexpander of the plugin as a raw file
+ */
+static ssize_t i2cexpander_read(struct file *filp, struct kobject *kobj, struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+    struct plxx_data *data = dev_get_drvdata(container_of(kobj, struct device, kobj));
+    struct memory_accessor* macc = data->ioexp_macc;
+
+    if(count == 0)
+        return count;
+
+    mutex_lock(&plxx_lock);
+
+    if(count > (FULLEEPROMSIZE - off))
+        count = FULLEEPROMSIZE - off;
+
+    gpio_set_value(data->sel_gpio, 1);                      //Select the plugin I2C bus
+    msleep(1);
+
+    macc->read(macc, buf, off, count);
+    msleep(1);
+
+    gpio_set_value(data->sel_gpio, 0);                      //Select the plugin I2C bus
+    mutex_unlock(&plxx_lock);
+    return count;
+}
+
+/* Write the registers of the i2cexpander of the plugin as a raw file
+ */
+static ssize_t i2cexpander_write(struct file *filp, struct kobject *kobj, struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+    struct plxx_data *data = dev_get_drvdata(container_of(kobj, struct device, kobj));
+    struct memory_accessor* macc = data->ioexp_macc;
+    int i;
+
+    if(count == 0)
+        return count;
+
+    if(off >= FULLEEPROMSIZE)
+        return 0;
+
+    mutex_lock(&plxx_lock);
+
+    if(count > (FULLEEPROMSIZE - off))
+        count = FULLEEPROMSIZE - off;
+
+    gpio_set_value(data->sel_gpio, 1);                      //Select the plugin I2C bus
+    msleep(1);
+
+    i = macc->write(macc, buf, off, count);
+    msleep(1);
+
+    gpio_set_value(data->sel_gpio, 0);                      //Select the plugin I2C bus
+    mutex_unlock(&plxx_lock);
+    return i;
+}
+
 static DEVICE_ATTR(installed, S_IRUGO, show_installed, NULL);
 static DEVICE_ATTR(hwcode, S_IRUGO, show_hwcode, NULL);
 static DEVICE_ATTR(hwsubcode, S_IRUGO, show_hwsubcode, NULL);
@@ -425,6 +481,7 @@ static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
 static BIN_ATTR_RO(func_bit_area, SEE_FUNCAREA_NBITS);
 static BIN_ATTR_RW(eeprom, FULLEEPROMSIZE);
+static BIN_ATTR_RW(i2cexpander, FULLEEPROMSIZE);
 
 static struct attribute *plxx_sysfs_attributes[] = {
     &dev_attr_installed.attr,
@@ -439,6 +496,7 @@ static struct attribute *plxx_sysfs_attributes[] = {
 static struct bin_attribute *plxx_sysfs_bin_attrs[] = {
     &bin_attr_func_bit_area,
     &bin_attr_eeprom,
+    &bin_attr_i2cexpander,
     NULL,
 };
 

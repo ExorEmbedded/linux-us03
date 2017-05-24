@@ -432,10 +432,10 @@ static ssize_t i2cexpander_read(struct file *filp, struct kobject *kobj, struct 
         count = FULLEEPROMSIZE - off;
 
     gpio_set_value(data->sel_gpio, 1);                      //Select the plugin I2C bus
-    msleep(1);
+    usleep(1);
 
     macc->read(macc, buf, off, count);
-    msleep(1);
+    usleep(1);
 
     gpio_set_value(data->sel_gpio, 0);                      //Select the plugin I2C bus
     mutex_unlock(&plxx_lock);
@@ -462,10 +462,10 @@ static ssize_t i2cexpander_write(struct file *filp, struct kobject *kobj, struct
         count = FULLEEPROMSIZE - off;
 
     gpio_set_value(data->sel_gpio, 1);                      //Select the plugin I2C bus
-    msleep(1);
+    usleep(1);
 
     i = macc->write(macc, buf, off, count);
-    msleep(1);
+    usleep(1);
 
     gpio_set_value(data->sel_gpio, 0);                      //Select the plugin I2C bus
     mutex_unlock(&plxx_lock);

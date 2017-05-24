@@ -321,7 +321,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj, struct bin_a
 
     for(i=0; i < count; i++)
     {
-        buf[i] = data->eeprom[i];
+        buf[i+off] = data->eeprom[i];
     }
 
     mutex_unlock(&plxx_lock);

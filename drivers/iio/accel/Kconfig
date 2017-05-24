@@ -136,4 +136,11 @@ config MMA9553
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma9553.
+
+config SENSORS_LIS331DLH
+	tristate "STMicro LIS331DLH driver"
+	depends on I2C
+	help
+	    Driver for STMicro LIS331DLH
+
 endmenu

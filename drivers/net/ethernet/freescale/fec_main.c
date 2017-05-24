@@ -101,7 +101,7 @@ static struct platform_device_id fec_devtype[] = {
 	}, {
 		.name = "imx6q-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
-				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
+				FEC_QUIRK_HAS_BUFDESC_EX |
 				FEC_QUIRK_HAS_VLAN | FEC_QUIRK_ERR006358 |
 				FEC_QUIRK_HAS_RACC | FEC_QUIRK_BUG_WAITMODE,
 	}, {
@@ -1680,6 +1680,11 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	struct net_device *ndev = napi->dev;
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	int pkts;
+	static unsigned int totpkts;
+	unsigned int tmp;
+	static int count;
+
+	tmp = readl(fep->hwp + RMON_R_PACKETS);
 
 	pkts = fec_enet_rx(ndev, budget);
 
@@ -1688,7 +1693,32 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	if (pkts < budget) {
 		napi_complete(napi);
 		writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
+
+		//Recovery sequence
+		if(pkts == 0)
+		{
+			if(tmp != totpkts )
+			{
+				count++;
+				napi_reschedule(napi);
+				writel(FEC_ENET_MII, fep->hwp + FEC_IMASK);
+				if(count > 5)
+				{
+					count = 0;
+					netif_device_detach(ndev);
+					netif_tx_lock_bh(ndev);
+					fec_restart(ndev);
+					netif_tx_unlock_bh(ndev);
+					netif_device_attach(ndev);
+				}
+			}
+		}
+		else
+		{
+			count = 0;
+		}
 	}
+	totpkts = tmp;
 	return pkts;
 }
 

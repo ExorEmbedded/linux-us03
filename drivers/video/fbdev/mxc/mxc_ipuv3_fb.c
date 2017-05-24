@@ -51,6 +51,7 @@
 #include <linux/string.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
+#include <linux/reboot.h>
 
 #include "mxc_dispdrv.h"
 #include <video/displayconfig.h>
@@ -2544,6 +2545,7 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		if (ret == 0) {
 			dev_err(info->device, "timeout when waiting for flip "
 						"irq\n");
+			emergency_restart();
 			return -ETIMEDOUT;
 		}
 	}

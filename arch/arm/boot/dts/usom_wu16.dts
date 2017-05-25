@@ -17,6 +17,7 @@
 
 #include "imx6dl.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 
@@ -137,6 +138,7 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio3 22 0>;
 			enable-active-high;
+			vin-supply = <&swbst_reg>;
 		};
 
 		reg_usb_h1_vbus: regulator@1 {
@@ -147,7 +149,9 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio5 00 0>;
 			enable-active-high;
+			vin-supply = <&swbst_reg>;
 		};
+
 		reg_sensor: regulator@3 {
 			compatible = "regulator-fixed";
 			reg = <3>;
@@ -620,14 +624,14 @@
 	fsl,wdog-reset = <1>;
 };
 
-&flexcan1 {
+&can1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan1>;
 	transceiver = <&tja1145>;
 	status = "okay";
 };
 
-&flexcan2 {
+&can2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan2>;
 	stb-gpio = <&gpio3 8 0>;

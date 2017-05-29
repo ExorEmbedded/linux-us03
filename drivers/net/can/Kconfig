@@ -137,6 +137,12 @@ config CAN_XILINXCAN
 	  Xilinx CAN driver. This driver supports both soft AXI CAN IP and
 	  Zynq CANPS IP.
 
+config CAN_TJA1145
+	tristate "NXP TJA1145 CAN transceiver driver"
+	depends on OF && CAN_FLEXCAN
+	---help---
+	  Say Y here if you want to support for NXP TJA1145 CAN transceiver.
+
 source "drivers/net/can/mscan/Kconfig"
 
 source "drivers/net/can/sja1000/Kconfig"

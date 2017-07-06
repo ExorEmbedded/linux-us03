@@ -375,10 +375,12 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 			cmd = RS422_485_IF_SETFD;
 		      else
 			cmd = RS422_485_IF_SETHD;
+#if defined(CONFIG_CONFIG_PLXX_MANAGER) || defined(CONFIG_CONFIG_PLXX_MANAGER_MODULE)
 		      if(sport->plugin1dev) 
 			plxx_manager_sendcmd(sport->plugin1dev , cmd); 
 		      if(sport->plugin2dev) 
 			plxx_manager_sendcmd(sport->plugin2dev , cmd); 
+#endif
 		    } 
 		
 		break;

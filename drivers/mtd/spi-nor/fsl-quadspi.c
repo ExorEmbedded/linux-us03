@@ -199,7 +199,6 @@
 enum fsl_qspi_devtype {
 	FSL_QUADSPI_VYBRID,
 	FSL_QUADSPI_IMX6SX,
-	FSL_QUADSPI_IMX6UL,
 };
 
 struct fsl_qspi_devtype_data {
@@ -221,16 +220,6 @@ static struct fsl_qspi_devtype_data imx6sx_data = {
 	.rxfifo = 128,
 	.txfifo = 512,
 	.ahb_buf_size = 1024
-};
-
-static struct fsl_qspi_devtype_data imx6ul_data = {
-	.devtype = FSL_QUADSPI_IMX6UL,
-	.rxfifo = 128,
-	.txfifo = 512,
-	.ahb_buf_size = 1024,
-	.driver_data = QUADSPI_QUIRK_TKT253890
-		| QUADSPI_QUIRK_DDR_DELAY
-		| QUADSPI_QUIRK_4X_INT_CLK
 };
 
 #define FSL_QSPI_MAX_CHIP	4

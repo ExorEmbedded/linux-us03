@@ -802,7 +802,6 @@ static int fsl_sai_probe(struct platform_device *pdev)
 static const struct of_device_id fsl_sai_ids[] = {
 	{ .compatible = "fsl,vf610-sai", },
 	{ .compatible = "fsl,imx6sx-sai", },
-    { .compatible = "fsl,imx6ul-sai", },
 	{ /* sentinel */ }
 };
 

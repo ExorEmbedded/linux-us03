@@ -161,7 +161,7 @@ void imx_gpc_pre_suspend(bool arm_power_off)
 	int i;
 
 	/* Tell GPC to power off ARM core when suspend */
-	if ((cpu_is_imx6sx() || cpu_is_imx6ul()) && arm_power_off)
+	if (cpu_is_imx6sx() && arm_power_off)
 		imx_gpc_mf_mix_off();
 
 	if (arm_power_off)
@@ -181,7 +181,7 @@ void imx_gpc_post_resume(void)
 	/* Keep ARM core powered on for other low-power modes */
 	writel_relaxed(0x0, gpc_base + GPC_PGC_CPU_PDN);
 	/* Keep M/F mix powered on for other low-power modes */
-	if (cpu_is_imx6sx() || cpu_is_imx6ul())
+	if (cpu_is_imx6sx())
 		writel_relaxed(0x0, gpc_base + GPC_PGC_MF_PDN);
 
 	for (i = 0; i < IMR_NUM; i++)

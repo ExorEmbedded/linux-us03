@@ -763,10 +763,8 @@ static void imx_start_tx(struct uart_port *port)
 	    {
 		if(sport->mode_two_lines_only)
 		{
-		    if (gpio_get_value(sport->rts_gpio) == 1)
 			gpio_set_value(sport->rts_gpio, 0);
 		} else {
-		    if (gpio_get_value(sport->rts_gpio) == 0)
 			gpio_set_value(sport->rts_gpio, 1);
 		}
 

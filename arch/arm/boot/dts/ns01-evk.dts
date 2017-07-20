@@ -186,6 +186,10 @@
 		reg = <0x51>;
 	};
 	
+	m41t83:m41t83@68 {
+		compatible = "stm,m41t83";
+		reg = <0x68>;
+	};
 };
 
 &iomuxc {

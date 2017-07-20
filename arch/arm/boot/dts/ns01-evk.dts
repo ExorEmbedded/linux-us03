@@ -23,6 +23,22 @@
 		reg = <0x80000000 0x20000000>;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		led@1 {
+			label = "us03:dl:usr0";
+			gpios = <&tca6408 7 1>;
+			default-state = "on";
+		};
+
+		led@2 {
+			label = "us03:fault:usr0";
+			gpios = <&tca6408 6 0>;
+			default-state = "off";
+		};
+
+	};
 
 };
 
@@ -190,6 +206,18 @@
 		compatible = "stm,m41t83";
 		reg = <0x68>;
 	};
+
+	tca6408: tca6408@21 {
+		compatible = "ti,tca6408";
+		interrupt-parent = <&gpio1>;
+		interrupts = <3 0x8>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <0x21>;
+		restart-if-fails;
+	};
 };
 
 &iomuxc {
@@ -220,6 +248,7 @@
 			fsl,pins = <
 				MX6UL_PAD_UART2_TX_DATA__I2C4_SCL 0x4001b8b0
 				MX6UL_PAD_UART2_RX_DATA__I2C4_SDA 0x4001b8b0
+				MX6UL_PAD_GPIO1_IO03__GPIO1_IO03  0x1b0b0
 			>;
 		};
 	};

@@ -60,6 +60,7 @@
 #include <linux/uaccess.h>
 
 #include "mxc/mxc_dispdrv.h"
+#include <video/displayconfig.h>
 
 #define REG_SET	4
 #define REG_CLR	8
@@ -253,6 +254,82 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 static int mxsfb_map_videomem(struct fb_info *info);
 static int mxsfb_unmap_videomem(struct fb_info *info);
 static int mxsfb_set_par(struct fb_info *fb_info);
+
+/*----------------------------------------------------------------------------------------------------------------*
+   Helper functions to retrieve the display id value, when passed from the cmdline, and use it to set the
+   display parameters/timings (the contents of the DTB file are overridden, if a valid display id is passed from
+   cmdline.
+ *----------------------------------------------------------------------------------------------------------------*/
+extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+
+/*
+ * Writes the fb_videomode structure according with the contents of the displayconfig.h file and the passed dispid parameter.
+ * Returns 0 if success, -1 if failure (ie: no match found)
+ */
+static int dispid_get_fb_videomode(struct fb_videomode *fbmode, int dispid)
+{
+    int i=0;
+    unsigned int htotal, vtotal;
+
+    // Scan the display array to search for the required dispid
+    if(dispid == NODISPLAY)
+	return -1;
+
+    while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
+	i++;
+
+    if(displayconfig[i].dispid == NODISPLAY)
+	return -1;
+
+    // If we are here, we have a valid array index pointing to the desired display
+    fbmode->xres         = displayconfig[i].rezx;
+    fbmode->left_margin  = displayconfig[i].hs_bp;
+    fbmode->right_margin = displayconfig[i].hs_fp;
+    fbmode->hsync_len    = displayconfig[i].hs_w;
+
+    fbmode->yres         = displayconfig[i].rezy;
+    fbmode->upper_margin = displayconfig[i].vs_bp;
+    fbmode->lower_margin = displayconfig[i].vs_fp;
+    fbmode->vsync_len    = displayconfig[i].vs_w;
+
+    /* prevent division by zero in KHZ2PICOS macro */
+    fbmode->pixclock = displayconfig[i].pclk_freq ? KHZ2PICOS(displayconfig[i].pclk_freq) : 0;
+
+    fbmode->sync = 0;
+    fbmode->vmode = 0;
+
+    if(displayconfig[i].hs_inv == 0)
+	fbmode->sync |= FB_SYNC_HOR_HIGH_ACT;
+
+    if(displayconfig[i].vs_inv == 0)
+	fbmode->sync |= FB_SYNC_VERT_HIGH_ACT;
+
+    if(displayconfig[i].pclk_inv == 0)
+	fbmode->sync |= FB_SYNC_CLK_LAT_FALL;
+
+    fbmode->flag = 0;
+
+    htotal = displayconfig[i].rezx + displayconfig[i].hs_bp + displayconfig[i].hs_fp + displayconfig[i].hs_w;
+    vtotal = displayconfig[i].rezy + displayconfig[i].vs_bp + displayconfig[i].vs_fp + displayconfig[i].vs_w;
+
+    /* prevent division by zero */
+    if (htotal && vtotal)
+    {
+	fbmode->refresh = displayconfig[i].pclk_freq / (htotal * vtotal);
+	/* a mode must have htotal and vtotal != 0 or it is invalid */
+    }
+    else
+    {
+	fbmode->refresh = 0;
+	return -EINVAL;
+    }
+
+    return 0;
+}
+
+/*----------------------------------------------------------------------------------------------------------------*
+ *----------------------------------------------------------------------------------------------------------------*/
+
 
 /* enable lcdif pix clock */
 static inline void clk_enable_pix(struct mxsfb_info *host)
@@ -1115,6 +1192,7 @@ static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host)
 	u32 width;
 	int i;
 	int ret = 0;
+	struct fb_videomode lcdif_modedb;
 
 	host->id = of_alias_get_id(np, "lcdif");
 
@@ -1162,7 +1240,15 @@ static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host)
 		/* Timing is from encoder driver */
 		goto put_display_node;
 	}
-
+	
+	// Override the DTB display timings if a valid/matching hw_dispid parameter is passed from cmdline
+	if(0 == dispid_get_fb_videomode(&lcdif_modedb, hw_dispid))
+	{
+	  fb_add_videomode(&lcdif_modedb, &fb_info->modelist);
+	  ret = 0;
+	  goto put_display_node;
+	}
+	
 	timings = of_get_display_timings(display_np);
 	if (!timings) {
 		dev_err(dev, "failed to get display timings\n");

@@ -66,7 +66,7 @@ extern int hw_dispid; //This is an exported variable holding the display id valu
  * Writes the fb_videomode structure according with the contents of the displayconfig.h file and the passed dispid parameter.
  * Returns 0 if success, -1 if failure (ie: no match found)
  */
-int dispid_get_fb_videomode(struct fb_videomode *fbmode, int dispid)
+static int dispid_get_fb_videomode(struct fb_videomode *fbmode, int dispid)
 {
     int i=0;
     unsigned int htotal, vtotal;

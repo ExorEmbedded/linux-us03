@@ -61,6 +61,7 @@
 
 #include "mxc/mxc_dispdrv.h"
 #include <video/displayconfig.h>
+#include <linux/delay.h>
 
 #define REG_SET	4
 #define REG_CLR	8
@@ -1193,9 +1194,26 @@ static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host)
 	int i;
 	int ret = 0;
 	struct fb_videomode lcdif_modedb;
+	int en_vdd_gpio;
+	enum of_gpio_flags flags;
 
 	host->id = of_alias_get_id(np, "lcdif");
 
+	//LCD enable pin handling (if defined)
+	en_vdd_gpio = of_get_named_gpio_flags(np, "enable-gpios", 0, &flags);
+	if (en_vdd_gpio == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if (gpio_is_valid(en_vdd_gpio))
+	{
+		ret = gpio_request(en_vdd_gpio, "en_vdd_gpio");
+		if(ret < 0)
+		return ret;
+
+		gpio_direction_output(en_vdd_gpio,1);
+		msleep(100);
+	}
+	
 	display_np = of_parse_phandle(np, "display", 0);
 	if (!display_np) {
 		dev_err(dev, "failed to find display phandle\n");

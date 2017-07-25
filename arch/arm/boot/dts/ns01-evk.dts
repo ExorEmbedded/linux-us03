@@ -331,6 +331,16 @@
 			>;
 		};
 		
+		pinctrl_ecspi3: ecspi1grp-3 {
+			fsl,pins = <
+				MX6UL_PAD_NAND_CE1_B__ECSPI3_MOSI   0x10b0
+				MX6UL_PAD_NAND_CLE__ECSPI3_MISO     0x10b0
+				MX6UL_PAD_NAND_CE0_B__ECSPI3_SCLK   0x10b0
+				MX6UL_PAD_NAND_READY_B__GPIO4_IO12  0x10b0
+			>;
+		};
+		
+		
 	};
 };
 
@@ -394,4 +404,22 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan2>;
 	status = "okay";
+};
+
+&ecspi3 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 12 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi3>;
+	status = "okay";
+
+	fram: at25@0 {
+        /* CS3 FRAM */
+	    compatible = "atmel,at25", "st,m95256";
+	    reg = <0>;
+	    spi-max-frequency = <20000000>;
+	    pagesize = <64>;
+	    size = <65536>;
+	    address-width = <16>;
+	};
 };

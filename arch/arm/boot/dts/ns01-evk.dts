@@ -49,6 +49,11 @@
 		status = "okay";
 	};
 
+	beeper {
+	  compatible = "pwm-beeper";
+	  pwms = <&pwm5 0 50000 0>;
+	};
+	
 };
 
 &cpu0 {
@@ -306,6 +311,11 @@
 			>;
 		};
 		
+		pinctrl_pwm5: pwm5grp {
+			fsl,pins = <
+				MX6UL_PAD_NAND_DQS__PWM5_OUT   0x110b0
+			>;
+		};
 	};
 };
 
@@ -348,6 +358,14 @@
 	pinctrl-0 = <&pinctrl_pwm4>;
 	clocks = <&clks IMX6UL_CLK_PWM4>,
 	 <&clks IMX6UL_CLK_PWM4>;
+	status = "okay";
+};
+
+&pwm5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm5>;
+	clocks = <&clks IMX6UL_CLK_PWM5>,
+	 <&clks IMX6UL_CLK_PWM5>;
 	status = "okay";
 };
 

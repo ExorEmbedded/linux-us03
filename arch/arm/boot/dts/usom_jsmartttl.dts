@@ -46,6 +46,16 @@
 	status = "okay";
 };
 
+&i2c3 {
+	polytouch: edt-ft5x06@38 {
+		compatible = "edt,edt-ft5406", "edt,edt-ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <9 8>;
+		int-gpios = <&gpio3 9 0>;
+	};
+};
+
 &mxcfb1 {
 	status = "okay";
 };

@@ -349,7 +349,7 @@
 				MX6UL_PAD_ENET1_TX_EN__ENET1_TX_EN	0x1b0b0
 				MX6UL_PAD_ENET1_TX_DATA0__ENET1_TDATA00	0x1b0b0
 				MX6UL_PAD_ENET1_TX_DATA1__ENET1_TDATA01	0x1b0b0
-				MX6UL_PAD_ENET1_TX_CLK__ENET1_REF_CLK1	0x4001b031
+				MX6UL_PAD_ENET1_TX_CLK__ENET1_REF_CLK1	0x4b01b0a8
 			>;
 		};
 
@@ -364,7 +364,7 @@
 				MX6UL_PAD_ENET2_TX_EN__ENET2_TX_EN	0x1b0b0
 				MX6UL_PAD_ENET2_TX_DATA0__ENET2_TDATA00	0x1b0b0
 				MX6UL_PAD_ENET2_TX_DATA1__ENET2_TDATA01	0x1b0b0
-				MX6UL_PAD_ENET2_TX_CLK__ENET2_REF_CLK2	0x4001b031
+				MX6UL_PAD_ENET2_TX_CLK__ENET2_REF_CLK2	0x4b01b0a8
 			>;
 		};
 		
@@ -454,7 +454,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ethphy0: ethernet-phy@2 {
+		ethphy0: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
 		};

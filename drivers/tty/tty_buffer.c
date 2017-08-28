@@ -37,6 +37,7 @@
 
 #define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
 
+static void flush_to_ldisc(struct work_struct *work);
 
 /**
  *	tty_buffer_lock_exclusive	-	gain exclusive access to buffer
@@ -361,12 +362,17 @@ EXPORT_SYMBOL(tty_insert_flip_string_flags);
 
 void tty_schedule_flip(struct tty_port *port)
 {
-	struct tty_bufhead *buf = &port->buf;
+  struct tty_bufhead *buf = &port->buf;
 
-	buf->tail->commit = buf->tail->used;
-	schedule_work(&buf->work);
+  buf->tail->commit = buf->tail->used;
+  
+  if (port->low_latency)
+    flush_to_ldisc(&buf->work);
+  else
+    schedule_work(&buf->work);
 }
 EXPORT_SYMBOL(tty_schedule_flip);
+
 
 /**
  *	tty_prepare_flip_string		-	make room for characters

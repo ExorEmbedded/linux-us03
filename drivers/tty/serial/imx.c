@@ -541,7 +541,7 @@ static void imx_stop_tx(struct uart_port *port)
 		return;
 
          temp = readl(port->membase + UCR1);
-         writel(temp & ~UCR1_TXMPTYEN, port->membase + UCR1);
+         writel(temp & ~(UCR1_TXMPTYEN | UCR1_TRDYEN), port->membase + UCR1);
 
 	/* In RS485 mode, disable TX in shifter is empty (we are confident here the circular buffer to be empty) */
          if (sport->rs485.flags & SER_RS485_ENABLED &&
@@ -594,7 +594,9 @@ static void imx_enable_ms(struct uart_port *port)
 static inline void imx_transmit_buffer(struct imx_port *sport)
 {
 	struct circ_buf *xmit = &sport->port.state->xmit;
-         unsigned long temp;
+        unsigned long temp;
+	struct tty_port *ttyport = &sport->port.state->port;
+	static unsigned long txfullflag;
 
 	if (sport->port.x_char) {
 		/* Send next char */
@@ -615,7 +617,7 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
                   * and the TX IRQ is disabled.
                   **/
                  temp = readl(sport->port.membase + UCR1);
-                 temp &= ~UCR1_TXMPTYEN;
+                 temp &= ~(UCR1_TXMPTYEN | UCR1_TRDYEN);
                  if (sport->dma_is_txing) {
                          temp |= UCR1_TDMAEN;
                          writel(temp, sport->port.membase + UCR1);
@@ -624,8 +626,20 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
                          imx_dma_tx(sport);
                  }
          }
+
+	if((ttyport->low_latency) && ((txfullflag & UTS_TXFULL) != UTS_TXFULL) )
+	{ //Handle the low latency option for MPI protocol
+	  if (!sport->dma_is_enabled) 
+	  { // Clear the IRTS flag to keep the TX stopped while feedint the TX buffer (if we are not refilling on the fly the current packet)
+	    temp = readl(sport->port.membase + UCR2);
+	    temp &= ~UCR2_IRTS;
+	    writel(temp, sport->port.membase + UCR2);
+	  }
+	}
+         
+        txfullflag = 0;
 	while (!uart_circ_empty(xmit) &&
-                !(readl(sport->port.membase + uts_reg(sport)) & UTS_TXFULL)) {
+                !( (txfullflag = readl(sport->port.membase + uts_reg(sport))) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
 		 * out the port here */
 		writel(xmit->buf[xmit->tail], sport->port.membase + URTX0);
@@ -638,6 +652,23 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 
 	if (uart_circ_empty(xmit))
 	  imx_stop_tx(&sport->port);
+	
+	if(ttyport->low_latency)
+	{ //Handle the low latency option for MPI protocol
+	  if ((txfullflag & UTS_TXFULL) && (!sport->dma_is_enabled) )
+	  { 	//If we exited the TXBUFF write loop because of TXFULL, it means we probably need to transmit a chunk which is bugger than the TX FIFO size
+		  //so we enable the TRDYEN interrupt in order to refill the TX FIFO buffer when the watermark level is reached.
+		  temp = readl(sport->port.membase + UCR1);
+		  writel(temp | UCR1_TRDYEN, sport->port.membase + UCR1);
+	  }
+
+	  if (!sport->dma_is_enabled) 
+	  { // Set the IRTS flag to ignore RTS and start transmission
+	    temp = readl(sport->port.membase + UCR2);
+	    temp |= UCR2_IRTS;
+	    writel(temp, sport->port.membase + UCR2);
+	  }
+	}
 }
 
 static void dma_tx_callback(void *data)
@@ -1032,7 +1063,7 @@ static void imx_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
-#define TXTL 2 /* reset default */
+#define TXTL 4 /* reset default */
 #define RXTL 1 /* For console port */
 #define RXTL_UART 16 /* For uart */
 
@@ -1395,7 +1426,7 @@ static void imx_shutdown(struct uart_port *port)
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 	temp = readl(sport->port.membase + UCR1);
-	temp &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN);
+	temp &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN | UCR1_TRDYEN);
 
 	writel(temp, sport->port.membase + UCR1);
 	spin_unlock_irqrestore(&sport->port.lock, flags);
@@ -1548,7 +1579,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * disable interrupts and drain transmitter
 	 */
 	old_ucr1 = readl(sport->port.membase + UCR1);
-	writel(old_ucr1 & ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN),
+	writel(old_ucr1 & ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_TRDYEN),
 			sport->port.membase + UCR1);
 
 	while (!(readl(sport->port.membase + USR2) & USR2_TXDC))
@@ -1682,7 +1713,7 @@ imx_verify_port(struct uart_port *port, struct serial_struct *ser)
          if (is_imx1_uart(sport))
                  temp |= IMX1_UCR1_UARTCLKEN;
          temp |= UCR1_UARTEN | UCR1_RRDYEN;
-         temp &= ~(UCR1_TXMPTYEN | UCR1_RTSDEN);
+         temp &= ~(UCR1_TXMPTYEN | UCR1_RTSDEN | UCR1_TRDYEN);
          writel(temp, sport->port.membase + UCR1);
  
          temp = readl(sport->port.membase + UCR2);
@@ -1795,7 +1826,7 @@ imx_console_write(struct console *co, const char *s, unsigned int count)
 	if (is_imx1_uart(sport))
 		ucr1 |= IMX1_UCR1_UARTCLKEN;
 	ucr1 |= UCR1_UARTEN;
-	ucr1 &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN);
+	ucr1 &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_TRDYEN);
 
 	writel(ucr1, sport->port.membase + UCR1);
 

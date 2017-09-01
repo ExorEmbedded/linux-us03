@@ -62,7 +62,9 @@
  *																			display code #58: modified pixel clock from 0 to 1; modified hs_w from 100 to 200 as per typical datasheet value (no visible effect)
  *1.11			SS							20.04.2017  Added display code #59: FutureLabs  FLT-070D07-W0 800x480 High Brightness for WE16
  *																			Added display code #60: CHIMEI TG070Y2-L01 800x480 for WE16 using both US01Ax and US03Ax
- * NEXT AVAILABLE DISPLAY CODE: 61
+ *1.12			SS							01.09.2017  Added display code #61: FutureLabs 1024x600 High Brightness for Jsmart07---Initial definition without any datasheet/spec
+ *
+ * NEXT AVAILABLE DISPLAY CODE: 62
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -764,7 +766,33 @@ static struct t_DisplayParams displayconfig[] = {
         .pwmfreq        = 200,
         .brightness_min = 20,
         .brightness_max = 100,
-    },
+    }, 
+    /* 61: FutureLabs Jsmart07 1024x600*/
+    {
+        .dispid    = 61,
+        .rezx      = 1024, 
+        .rezy      = 600, 
+        .bpp       = 24,
+        
+        .pclk_freq = 51000, 
+        .pclk_inv  = 1,  //20.04.2017 inverted clock polarity due to IMX.6 bug; for US01Ax TTL will drive the display lines on falling edge => LVDS driver needs to sample on rising edge
+        
+        .hs_fp     = 10, 
+        .hs_bp     = 320, 
+        .hs_w      = 10, 
+        .hs_inv    = 1,
+        
+        .vs_fp     = 10, 
+        .vs_bp     = 35, 
+        .vs_w      = 10, 
+        .vs_inv    = 1,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 10000,
+        .brightness_min = 10,
+        .brightness_max = 100,
+    },                          
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

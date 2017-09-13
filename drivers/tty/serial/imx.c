@@ -241,6 +241,7 @@ struct imx_port {
 	unsigned int            saved_reg[10];
 #define DMA_TX_IS_WORKING 1
 	unsigned long		flags;
+	int                     rs485_invert_rts;
 };
 
 struct imx_port_ucrs {
@@ -398,9 +399,20 @@ static void imx_stop_tx(struct uart_port *port)
 	    readl(port->membase + USR2) & USR2_TXDC) {
 		temp = readl(port->membase + UCR2);
 		if (port->rs485.flags & SER_RS485_RTS_AFTER_SEND)
-			temp &= ~UCR2_CTS;
+		{
+		  if(sport->rs485_invert_rts == 0)
+		    temp &= ~UCR2_CTS;
+		  else
+		    temp |= UCR2_CTS;
+		}
 		else
-			temp |= UCR2_CTS;
+		{
+		  if(sport->rs485_invert_rts == 0)
+		    temp |= UCR2_CTS;
+		  else
+		    temp &= ~UCR2_CTS;
+		}
+		  
 		writel(temp, port->membase + UCR2);
 
 		temp = readl(port->membase + UCR4);
@@ -599,9 +611,20 @@ static void imx_start_tx(struct uart_port *port)
 		/* enable transmitter and shifter empty irq */
 		temp = readl(port->membase + UCR2);
 		if (port->rs485.flags & SER_RS485_RTS_ON_SEND)
-			temp &= ~UCR2_CTS;
+		{
+		  if(sport->rs485_invert_rts == 0)
+		    temp &= ~UCR2_CTS;
+		  else
+		    temp |= UCR2_CTS;
+		}
 		else
-			temp |= UCR2_CTS;
+		{
+		  if(sport->rs485_invert_rts == 0)
+		    temp |= UCR2_CTS;
+		  else
+		    temp &= ~UCR2_CTS;
+		}
+		    
 		writel(temp, port->membase + UCR2);
 
 		temp = readl(port->membase + UCR4);
@@ -1331,9 +1354,9 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 				 * it under manual control and keep transmitter
 				 * disabled.
 				 */
-				if (!(port->rs485.flags &
-				      SER_RS485_RTS_AFTER_SEND))
-					ucr2 |= UCR2_CTS;
+				if (!(port->rs485.flags & SER_RS485_RTS_AFTER_SEND))
+				  if(sport->rs485_invert_rts == 0)
+				    ucr2 |= UCR2_CTS;
 			} else {
 				ucr2 |= UCR2_CTSC;
 			}
@@ -1343,7 +1366,8 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	} else if (port->rs485.flags & SER_RS485_ENABLED)
 		/* disable transmitter */
 		if (!(port->rs485.flags & SER_RS485_RTS_AFTER_SEND))
-			ucr2 |= UCR2_CTS;
+		  if(sport->rs485_invert_rts == 0)
+		    ucr2 |= UCR2_CTS;
 
 	if (termios->c_cflag & CSTOPB)
 		ucr2 |= UCR2_STPB;
@@ -1596,9 +1620,20 @@ static int imx_rs485_config(struct uart_port *port,
 		temp = readl(sport->port.membase + UCR2);
 		temp &= ~UCR2_CTSC;
 		if (rs485conf->flags & SER_RS485_RTS_AFTER_SEND)
-			temp &= ~UCR2_CTS;
+		{
+		  if(sport->rs485_invert_rts == 0)
+		    temp &= ~UCR2_CTS;
+		  else
+		    temp |= UCR2_CTS;
+		}
 		else
-			temp |= UCR2_CTS;
+		{
+		  if(sport->rs485_invert_rts == 0)
+		    temp |= UCR2_CTS;
+		  else
+		    temp &= ~UCR2_CTS;
+		}
+		    
 		writel(temp, sport->port.membase + UCR2);
 	}
 
@@ -1937,6 +1972,10 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 
 	if (of_get_property(np, "fsl,dte-mode", NULL))
 		sport->dte_mode = 1;
+
+	sport->rs485_invert_rts = 0;
+	if (of_get_property(np, "fsl,rs485-invert-rts", NULL))
+		sport->rs485_invert_rts = 1;
 
 	sport->devdata = of_id->data;
 

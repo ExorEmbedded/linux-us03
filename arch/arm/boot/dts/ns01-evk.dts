@@ -550,7 +550,7 @@
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
 	
-	spidev1_2: spi2@0 {
+	spidev2_0: spi2@0 {
 		compatible = "generic,spidev";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
@@ -588,7 +588,7 @@
 	pinctrl-0 = <&pinctrl_ecspi4>;
 	status = "okay";
 	
-	spidev1_4: spi4@0 {
+	spidev4_0: spi4@0 {
 		compatible = "generic,spidev";
 		reg = <0>;
 		spi-max-frequency = <1000000>;

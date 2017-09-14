@@ -365,6 +365,24 @@
 				MX6UL_PAD_UART2_CTS_B__FLEXCAN2_TX	0x1b020
 			>;
 		};
+
+		pinctrl_ecspi1: ecspi1grp-1 {
+			fsl,pins = <
+				MX6UL_PAD_CSI_DATA05__GPIO4_IO26	0x10b0
+				MX6UL_PAD_CSI_DATA04__ECSPI1_SCLK	0x10b0
+				MX6UL_PAD_CSI_DATA06__ECSPI1_MOSI	0x10b0
+				MX6UL_PAD_CSI_DATA07__ECSPI1_MISO	0x10b0
+			>;
+		};
+
+		pinctrl_ecspi2: ecspi1grp-2 {
+			fsl,pins = <
+				MX6UL_PAD_UART4_RX_DATA__GPIO1_IO29	0x10b0
+				MX6UL_PAD_UART4_TX_DATA__ECSPI2_SCLK	0x10b0
+				MX6UL_PAD_UART5_TX_DATA__ECSPI2_MOSI	0x10b0
+				MX6UL_PAD_UART5_RX_DATA__ECSPI2_MISO	0x10b0
+			>;
+		};
 		
 		pinctrl_ecspi3: ecspi1grp-3 {
 			fsl,pins = <
@@ -376,6 +394,15 @@
 			>;
 		};
 
+		pinctrl_ecspi4: ecspi1grp-4 {
+			fsl,pins = <
+				MX6UL_PAD_NAND_DATA07__GPIO4_IO09	0x10b0
+				MX6UL_PAD_NAND_DATA04__ECSPI4_SCLK	0x10b0
+				MX6UL_PAD_NAND_DATA05__ECSPI4_MOSI	0x10b0
+				MX6UL_PAD_NAND_DATA06__ECSPI4_MISO	0x10b0
+			>;
+		};
+		
 		pinctrl_enet1: enet1grp {
 			fsl,pins = <
 				MX6UL_PAD_ENET1_RX_EN__ENET1_RX_EN	0x1b0b0
@@ -502,6 +529,34 @@
 	};
 };
 
+&ecspi1 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 26 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	status = "okay";
+	
+	spidev1_0: spi1@0 {
+		compatible = "generic,spidev";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+};
+
+&ecspi2 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio1 29 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	status = "okay";
+	
+	spidev1_2: spi2@0 {
+		compatible = "generic,spidev";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+};
+
 &ecspi3 {
 	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 12 0>, <&gpio4 10 0>;
@@ -525,3 +580,19 @@
 		spi-max-frequency = <1000000>;
 	};
 };
+
+&ecspi4 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 9 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi4>;
+	status = "okay";
+	
+	spidev1_4: spi4@0 {
+		compatible = "generic,spidev";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+};
+
+

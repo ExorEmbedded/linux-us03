@@ -333,7 +333,12 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-udoo.dtb \
 	imx6q-wandboard.dtb \
 	imx6q-wandboard-revb1.dtb \
-	usom_wu16.dtb
+	usom_wu16.dtb \
+	usom_etop7xx.dtb \
+	usom_etop7xxq.dtb \
+	usom_jsmart.dtb \
+	usom_jsmartq.dtb \
+	usom_jsmartttl.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
 	imx6sl-evk-btwifi.dtb \

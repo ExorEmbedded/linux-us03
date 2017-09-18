@@ -32,6 +32,8 @@
 		i2c2 = &i2c1;
 		i2c1 = &i2c2;
 		i2c0 = &i2c3;
+		can0 = &flexcan1;
+		can1 = &flexcan2;
 	};
 
 	leds {
@@ -51,7 +53,6 @@
 			gpios = <&gpio3 2 0>;
 			default-state = "off";
 		};
-
 	};
 
 	gpio_buttons: gpio_buttons@0 {

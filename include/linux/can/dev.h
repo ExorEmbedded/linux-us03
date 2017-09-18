@@ -104,6 +104,7 @@ u8 can_dlc2len(u8 can_dlc);
 u8 can_len2dlc(u8 len);
 
 struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max);
+struct net_device *alloc_candev_alias(int sizeof_priv, unsigned int echo_skb_max, const char *alias);
 void free_candev(struct net_device *dev);
 
 /* a candev safe wrapper around netdev_priv */

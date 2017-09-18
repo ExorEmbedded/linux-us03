@@ -1220,7 +1220,7 @@ static int flexcan_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	const struct flexcan_devtype_data *devtype_data;
-	struct net_device *dev;
+	struct net_device *dev = NULL;
 	struct flexcan_priv *priv;
 	struct resource *mem;
 	struct clk *clk_ipg = NULL, *clk_per = NULL;
@@ -1274,7 +1274,20 @@ static int flexcan_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev = alloc_candev(sizeof(struct flexcan_priv), 1);
+	if (pdev->dev.of_node)
+	{
+		int id = of_alias_get_id(pdev->dev.of_node, "can");
+		if (id >= 0)
+		{
+			char name[IFNAMSIZ];
+			snprintf(name, sizeof(name), "can%d", id);
+			dev = alloc_candev_alias(sizeof(struct flexcan_priv), 1, name );
+		}
+	}
+
+	if (!dev)
+		dev = alloc_candev(sizeof(struct flexcan_priv), 1);
+
 	if (!dev)
 		return -ENOMEM;
 

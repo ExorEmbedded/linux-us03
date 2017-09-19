@@ -64,8 +64,9 @@
  *																			Added display code #60: CHIMEI TG070Y2-L01 800x480 for WE16 using both US01Ax and US03Ax
  *1.12			SS							01.09.2017  Added display code #61: FutureLabs 1024x600 High Brightness for Jsmart07---Initial definition without any datasheet/spec
  *1.13			SS							05.09.2017  Added display code #62: FutureLabs 1280x800 High Brightness for Jsmart10---Initial definition without any datasheet/spec
+ *1.14			SS							20.09.2017  Added display code #63: FutureLabs FLT-1001Q2ETTXNH01 1280x800 for serie 700 High Brightness 
  *
- * NEXT AVAILABLE DISPLAY CODE: 63
+ * NEXT AVAILABLE DISPLAY CODE: 64
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -819,7 +820,33 @@ static struct t_DisplayParams displayconfig[] = {
         .pwmfreq        = 10000,
         .brightness_min = 10,
         .brightness_max = 100,
-    },                                        
+    },   
+    /* 63: FutureLabs FLT-1001Q2ETTXNH01 24 bit 1280x800 IMX.6 ONLY */
+    {
+        .dispid    = 63,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 71100, 
+        .pclk_inv  = 1,				//inverted clock polarity due to IMX.6 bug
+        
+        .hs_fp     = 30, 
+        .hs_bp     = 30, 
+        .hs_w      = 100, 
+        .hs_inv    = 0,
+        
+        .vs_fp     = 3, 
+        .vs_bp     = 10, 
+        .vs_w      = 10, 
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 10,
+        .brightness_max = 80,
+    },                                                   
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

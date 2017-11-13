@@ -41,6 +41,21 @@ config MPL3115
           To compile this driver as a module, choose M here: the module
           will be called mpl3115.
 
+config ST_LPS22HB_IIO
+	tristate "STMicroelectronics LPS22HB/LPS22HD sensor"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	select ST_LPS22HB_I2C_IIO if (I2C)
+	select ST_LPS22HB_SPI_IIO if (SPI)
+	help
+	  This driver supports LPS22HB/LPS22HD sensors. This driver can be
+	  built as a module. The module will be called st-lps22hb.
+
+config ST_LPS22HB_I2C_IIO
+	tristate
+	depends on ST_LPS22HB_IIO
+
 config IIO_ST_PRESS
 	tristate "STMicroelectronics pressure sensor Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS

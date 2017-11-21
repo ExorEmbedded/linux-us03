@@ -65,8 +65,10 @@
  *1.12			SS							01.09.2017  Added display code #61: FutureLabs 1024x600 High Brightness for Jsmart07---Initial definition without any datasheet/spec
  *1.13			SS							05.09.2017  Added display code #62: FutureLabs 1280x800 High Brightness for Jsmart10---Initial definition without any datasheet/spec
  *1.14			SS							20.09.2017  Added display code #63: FutureLabs FLT-1001Q2ETTXNH01 1280x800 for serie 700 High Brightness 
+ *1.15			SS							30.10.2017  Added display code #64: Qitex QX-050WVGA0TLT00D 800x480 for ex705-rocktouch 
+ *1.16			SS							21.11.2017  Added display code #65: FutureLabs FLT-BB070MR02-YO 800x480 for ex707-HB-rocktouch 
  *
- * NEXT AVAILABLE DISPLAY CODE: 64
+ * NEXT AVAILABLE DISPLAY CODE: 66
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -846,7 +848,59 @@ static struct t_DisplayParams displayconfig[] = {
         .pwmfreq        = 200,
         .brightness_min = 10,
         .brightness_max = 80,
-    },                                                   
+    },  
+     /* 64: QITEX QX-050WVGA0TLT00D 800x480 */
+    {
+      .dispid    = 64,
+      .rezx      = 800, 
+      .rezy      = 480, 
+      .bpp       = 16,
+      
+      .pclk_freq = 27000, 
+      .pclk_inv  = 1,
+      
+      .hs_fp     = 40, 
+      .hs_bp     = 40, 
+      .hs_w      = 48, 
+      .hs_inv    = 1,
+      
+      .vs_fp     = 13, 
+      .vs_bp     = 29, 
+      .vs_w      = 3, 
+      .vs_inv    = 1,
+      
+      .blank_inv      = 0,
+      
+      .pwmfreq        = 10000,
+      .brightness_min = 1,
+      .brightness_max = 100,
+    }, 
+    /* 65: FutureLabs  FLT-BB070MR02-YO 800x480 ex707-High Brightness IMX.6 ONLY*/
+    {
+        .dispid    = 65,
+        .rezx      = 800, 
+        .rezy      = 480, 
+        .bpp       = 24,
+        
+        .pclk_freq = 29000, 
+        .pclk_inv  = 1,	//21.11.2017 inverted clock polarity due to IMX.6 bug; 
+        
+        .hs_fp     = 25, 
+        .hs_bp     = 25, 
+        .hs_w      = 78, 
+        .hs_inv    = 0,
+        
+        .vs_fp     = 5, 
+        .vs_bp     = 5, 
+        .vs_w      = 35, 
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 10000,  
+        .brightness_min = 10,
+        .brightness_max = 100,
+    },                                                 
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

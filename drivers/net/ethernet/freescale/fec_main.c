@@ -1815,9 +1815,9 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	time_left = wait_for_completion_timeout(&fep->mdio_done,
 			usecs_to_jiffies(FEC_MII_TIMEOUT));
 	if (time_left == 0) {
-		fep->mii_timeout = 1;
+		//fep->mii_timeout = 1;
 		netdev_err(fep->netdev, "MDIO read timeout\n");
-		return -ETIMEDOUT;
+		//return -ETIMEDOUT;
 	}
 
 	/* return value */

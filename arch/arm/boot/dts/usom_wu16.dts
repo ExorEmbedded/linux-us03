@@ -192,17 +192,23 @@
 	};
 	
 	beeper {
-	  compatible = "pwm-beeper";
-	  pwms = <&pwm3 0 50000 0>;
+		compatible = "pwm-beeper";
+		pwms = <&pwm3 0 50000 0>;
 	};
 
 	working_hours {
-	  compatible = "working_hours";
-	  eeprom = <&seeprom0>;
-	  backlight = <&pwm_bl00>;
-	  rtcnvram = <&m41t83>;
-	  status = "okay";
+		compatible = "working_hours";
+		eeprom = <&seeprom0>;
+		backlight = <&pwm_bl00>;
+		rtcnvram = <&m41t83>;
+		status = "okay";
 	};
+
+	v4l2_out {
+		compatible = "fsl,mxc_v4l2_output";
+		status = "okay";
+	};
+
 };
 
 &mxcfb1 {

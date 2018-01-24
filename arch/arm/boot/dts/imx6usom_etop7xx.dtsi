@@ -25,6 +25,7 @@
 		i2c2 = &i2c1;
 		i2c1 = &i2c2;
 		i2c0 = &i2c3;
+		eth0_7xx = &fec;
 	};
 
 	leds {

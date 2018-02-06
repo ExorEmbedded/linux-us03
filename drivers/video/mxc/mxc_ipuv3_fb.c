@@ -48,7 +48,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
-#include <linux/reboot.h>
 
 #include "mxc_dispdrv.h"
 #include <video/displayconfig.h>
@@ -1550,7 +1549,6 @@ mxcfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	ret = wait_for_completion_timeout(&mxc_fbi->flip_complete, HZ/2);
 	if (ret == 0) {
 		dev_err(info->device, "timeout when waiting for flip irq\n");
-		emergency_restart();
 		return -ETIMEDOUT;
 	}
 

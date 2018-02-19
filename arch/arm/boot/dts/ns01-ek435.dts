@@ -79,15 +79,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart6>;
 	fsl,uart-has-rtscts;
-	status = "okay";
-};
-
-&uart5 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart5>;
-	fsl,uart-has-rtscts;
-	fsl,rs485-invert-rts;
-	status = "okay";
+	status = "disabled";
 };
 
 &usbotg1 {
@@ -99,7 +91,6 @@
 	dr_mode = "host";
 	status = "okay";
 };
-
 
 &usdhc1 {
 	pinctrl-names = "default";
@@ -247,6 +238,12 @@
 		reg = <0x21>;
 		restart-if-fails;
 	};
+
+	htu21d@40 {
+	  /* Temperature/humidity */
+	  compatible = "htu21";
+	  reg = <0x40>;
+	};
 };
 
 &iomuxc {
@@ -301,15 +298,6 @@
 			>;
 		};
 
-		pinctrl_uart5: uart5grp {
-			fsl,pins = <
-				MX6UL_PAD_CSI_DATA00__UART5_DCE_TX	0x1b0b1
-				MX6UL_PAD_CSI_DATA01__UART5_DCE_RX	0x1b0b1
-				MX6UL_PAD_CSI_DATA02__UART5_DCE_RTS	0x1b0b1
-				MX6UL_PAD_CSI_DATA03__UART5_DCE_CTS	0x1b0b1
-			>;
-		};
-		
 		pinctrl_lcdif_ctrl: lcdifctrlgrp {
 			fsl,pins = <
 				MX6UL_PAD_LCD_CLK__LCDIF_CLK	    0x79
@@ -374,25 +362,6 @@
 				MX6UL_PAD_UART4_TX_DATA__ECSPI2_SCLK	0x10b0
 				MX6UL_PAD_UART5_TX_DATA__ECSPI2_MOSI	0x10b0
 				MX6UL_PAD_UART5_RX_DATA__ECSPI2_MISO	0x10b0
-			>;
-		};
-		
-		pinctrl_ecspi3: ecspi1grp-3 {
-			fsl,pins = <
-				MX6UL_PAD_NAND_CE1_B__ECSPI3_MOSI   0x10b0
-				MX6UL_PAD_NAND_CLE__ECSPI3_MISO     0x10b0
-				MX6UL_PAD_NAND_CE0_B__ECSPI3_SCLK   0x10b0
-				MX6UL_PAD_NAND_READY_B__GPIO4_IO12  0x10b0
-				MX6UL_PAD_NAND_ALE__GPIO4_IO10      0x10b0
-			>;
-		};
-
-		pinctrl_ecspi4: ecspi1grp-4 {
-			fsl,pins = <
-				MX6UL_PAD_NAND_DATA07__GPIO4_IO09	0x10b0
-				MX6UL_PAD_NAND_DATA04__ECSPI4_SCLK	0x10b0
-				MX6UL_PAD_NAND_DATA05__ECSPI4_MOSI	0x10b0
-				MX6UL_PAD_NAND_DATA06__ECSPI4_MISO	0x10b0
 			>;
 		};
 		
@@ -544,42 +513,5 @@
 	};
 };
 
-&ecspi3 {
-	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio4 12 0>, <&gpio4 10 0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ecspi3>;
-	status = "okay";
-
-	fram: at25@0 {
-        /* CS3 FRAM */
-	    compatible = "atmel,at25", "st,m95256";
-	    reg = <0>;
-	    spi-max-frequency = <20000000>;
-	    pagesize = <64>;
-	    size = <65536>;
-	    address-width = <16>;
-	};
-	
-	spidev3_1: spi3@1 {
-		compatible = "generic,spidev";
-		reg = <1>;
-		spi-max-frequency = <1000000>;
-	};
-};
-
-&ecspi4 {
-	fsl,spi-num-chipselects = <1>;
-	cs-gpios = <&gpio4 9 0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ecspi4>;
-	status = "okay";
-	
-	spidev4_0: spi4@0 {
-		compatible = "generic,spidev";
-		reg = <0>;
-		spi-max-frequency = <1000000>;
-	};
-};
 
 

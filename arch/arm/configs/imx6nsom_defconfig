@@ -1338,10 +1338,7 @@ CONFIG_BCMDHD_NVRAM_PATH="/lib/firmware/bcm/ZP_BCM4339/bcmdhd.ZP.OOB.cal"
 # CONFIG_ZD1211RW is not set
 # CONFIG_MWIFIEX is not set
 # CONFIG_CW1200 is not set
-CONFIG_RSI_91X=y
-CONFIG_RSI_DEBUGFS=y
-CONFIG_RSI_SDIO=m
-CONFIG_RSI_USB=m
+# CONFIG_RSI_91X is not set
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers

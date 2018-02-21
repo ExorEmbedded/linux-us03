@@ -27,17 +27,16 @@
 		compatible = "gpio-leds";
 
 		led@1 {
-			label = "us03:dl:usr0";
+			label = "ns01:dl:usr0";
 			gpios = <&tca6408 7 1>;
 			default-state = "on";
 		};
 
 		led@2 {
-			label = "us03:fault:usr0";
+			label = "ns01:fault:usr0";
 			gpios = <&tca6408 6 0>;
 			default-state = "off";
 		};
-
 	};
 
 	pwm_bl00: backlight {
@@ -277,7 +276,7 @@
 			fsl,pins = <
 				MX6UL_PAD_UART3_TX_DATA__GPIO1_IO24	0x17059 /* EN_VDD */
 				MX6UL_PAD_UART3_RX_DATA__GPIO1_IO25	0x17059 /* EN_BL */
-				
+				MX6UL_PAD_NAND_ALE__GPIO4_IO10          0x17059 /* WIFI RESET GPIO4 IO10*/
 			>;
 		};
 

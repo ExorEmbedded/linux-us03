@@ -572,6 +572,15 @@ config SERIAL_IMX_CONSOLE
 	  "console=ttymxc0". (Try "man bootparam" or see the documentation of
 	  your bootloader about how to pass options to the kernel at boot time.)
 
+config SERIAL_IMX_EXOR_UART
+	tristate "EXOR IMX serial port support"
+	depends on (SERIAL_IMX=m || !SERIAL_IMX) && m
+	select SERIAL_CORE
+	select RATIONAL
+	help
+	  If you have a machine based on a Motorola IMX CPU you
+	  can enable its onboard serial port by enabling this option.
+
 config SERIAL_UARTLITE
 	tristate "Xilinx uartlite serial port support"
 	depends on PPC32 || MICROBLAZE || MFD_TIMBERDALE || ARCH_ZYNQ

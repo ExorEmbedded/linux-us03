@@ -35,6 +35,9 @@
 #define SUPPORT_SYSRQ
 #endif
 
+// #define SCNK_DRIVER  ----> (CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+// #define SCNK_USING_HRTIMER
+
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -61,6 +64,13 @@
 #include <linux/platform_data/serial-imx.h>
 #include <linux/platform_data/dma-imx.h>
 #include <linux/plxx_manager.h>
+
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+#include <linux/ktime.h>
+#ifdef SCNK_USING_HRTIMER
+#include <linux/hrtimer.h>
+#endif
+#endif
 
 /* Register definitions */
 #define URXD0 0x0  /* Receiver Register */
@@ -185,6 +195,75 @@
 #define MINOR_START		16
 #define DEV_NAME		"ttymxc"
 
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+#define REQ_RPT		0x00
+#define REQ_LANG	0x06
+#define RES_LANG	0x04
+#define REQ_KURZ	0x0E
+#define RES_KURZ	0x0C
+#define REQ_STAT	0x12
+#define RES_STAT	0x14
+#define REQ_VARI	0x18
+#define REQ_PROZ	0x1C
+
+#define PROZ_INFO	0x80
+#define PROZ_INFO_CRC	0xC1
+#define PROZ_INFO_NOCRC	0x81
+#define diag_eot_cnt (sport->SCNKdata.diag_cnt[0])
+#define diag_req_cnt (sport->SCNKdata.diag_cnt[1])
+#define diag_err_cnt (sport->SCNKdata.diag_cnt[2])
+#define diag_tot_cnt (sport->SCNKdata.diag_cnt[3])
+#define diag_sts_cnt (sport->SCNKdata.diag_cnt[4])
+#define diag_prz_cnt (sport->SCNKdata.diag_cnt[5])
+#define diag_fus_cnt (sport->SCNKdata.diag_cnt[6])
+#define diag_yyy_cnt (sport->SCNKdata.diag_cnt[7])
+
+struct s_SCNKparams {
+	unsigned char unitID;
+	unsigned char inBufLen;
+	unsigned char outBufLen;
+	unsigned short applTimeout;
+	unsigned short manufID;
+};
+
+struct s_SCNKdata {
+	unsigned char unitID;
+	unsigned char inBufLen;
+	unsigned char outBufLen;
+	unsigned short SCNKstatus;
+	unsigned char statMsg[5];
+	unsigned char infoMsg[12];
+	unsigned char outBufMsg1[84];
+	unsigned char outBufMsg2[84];
+	bool useTxBuf2;
+	bool useCRC;
+	unsigned int diag_cnt[8];
+	int gapTime;
+	unsigned char localBuf[UART_XMIT_SIZE];
+	struct circ_buf txBuf;
+	bool SCNKenabled;
+	int expectedLen;
+	int rxLen;
+	unsigned char rxBuf[84];
+	int lastTxLen;
+	unsigned char lastTxBuf[84];
+	unsigned char lastRecvJob;
+	bool pendingReq;
+	struct timespec lastCycle;
+#ifdef SCNK_USING_HRTIMER
+	struct hrtimer hrt;
+#endif
+};
+#define SET_SCNK_MODE 0x54FF
+#define GET_SCNK_DIAG 0x54FE
+#define SET_SCNK_DIAG 0x54FD
+#define SET_SCNK_PREQ 0x54FC
+#define GET_SCNK_SREQ 0x54FB
+#define TOG_SCNK_BAUD 0x54FA
+
+//#define SCNK_DEBUG KERN_DEBUG
+
+#endif
 /*
  * This determines how often we check the modem status signals
  * for any change.  They generally aren't connected to an IRQ
@@ -243,6 +322,10 @@ struct imx_port {
 	struct platform_device* plugin1dev;
 	struct platform_device* plugin2dev;
 	int                     mode_two_lines_only;
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+	struct s_SCNKparams SCNKparams;
+	struct s_SCNKdata SCNKdata;
+#endif
 };
 
 struct imx_port_ucrs {
@@ -250,6 +333,110 @@ struct imx_port_ucrs {
 	unsigned int	ucr2;
 	unsigned int	ucr3;
 };
+
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+static void addCrc(unsigned char b, unsigned short *crc)
+{
+	unsigned char cy;
+	//bit0
+	cy = (*crc & 1);
+	*crc >>= 1;
+	if ((b & 1) ^ cy)
+		*crc ^= 0xA001;
+	//bit1
+	cy = (*crc & 1) << 1;
+	*crc >>= 1;
+	if ((b & 2) ^ cy)
+		*crc ^= 0xA001;
+	//bit2
+	cy = (*crc & 1) << 2;
+	*crc >>= 1;
+	if ((b & 4) ^ cy)
+		*crc ^= 0xA001;
+	//bit3
+	cy = (*crc & 1) << 3;
+	*crc >>= 1;
+	if ((b & 8) ^ cy)
+		*crc ^= 0xA001;
+	//bit4
+	cy = (*crc & 1) << 4;
+	*crc >>= 1;
+	if ((b & 0x10) ^ cy)
+		*crc ^= 0xA001;
+	//bit5
+	cy = (*crc & 1) << 5;
+	*crc >>= 1;
+	if ((b & 0x20) ^ cy)
+		*crc ^= 0xA001;
+	//bit6
+	cy = (*crc & 1) << 6;
+	*crc >>= 1;
+	if ((b & 0x40) ^ cy)
+		*crc ^= 0xA001;
+	//bit7
+	cy = (*crc & 1) << 7;
+	*crc >>= 1;
+	if ((b & 0x80) ^ cy)
+		*crc ^= 0xA001;
+}
+
+static void setSCNKTxData(unsigned char *pMsg, int len, bool useCRC)
+{
+	int i;
+	if (useCRC)
+	{
+		unsigned short crc = 0xffff;
+		addCrc(1, &crc);
+		addCrc(pMsg[2], &crc);
+		for (i = 0; i < len-6; i++)
+			addCrc(pMsg[3+i], &crc);
+		pMsg[len-2] = crc >> 8;
+		pMsg[len-3] = crc & 0xFF;
+		for (i = 0; i < len-1; i++)
+			pMsg[len-1] ^= pMsg[i];
+	}
+	else
+		for (i = 0; i < len-3; i++)
+			pMsg[len-3] ^= pMsg[i];
+}				struct timespec now;
+
+
+#ifdef SCNK_USING_HRTIMER
+void startSCNKtx(struct imx_port *sport)
+{
+	//enable transmission after a delay
+	unsigned long temp;
+#ifdef SCNK_DEBUG
+//	dev_dbg(sport->port.dev, "<<<<<<<<< SCNK HRTcallback for uart %d >>>>>>>>>>\n", sport->port.line);
+#endif
+	imx_rs485_start_tx(sport);
+	/* enable transmitter and shifter empty irq */
+	temp = readl(((struct uart_port *)sport)->membase + UCR4);
+	temp |= UCR4_TCEN;
+	writel(temp, ((struct uart_port *)sport)->membase + UCR4);
+}
+
+struct imx_port *sportArray[UART_NR];
+enum hrtimer_restart hrtCallback_0(struct hrtimer *phrt){startSCNKtx(sportArray[0]);return HRTIMER_NORESTART;}
+enum hrtimer_restart hrtCallback_1(struct hrtimer *phrt){startSCNKtx(sportArray[1]);return HRTIMER_NORESTART;}
+enum hrtimer_restart hrtCallback_2(struct hrtimer *phrt){startSCNKtx(sportArray[2]);return HRTIMER_NORESTART;}
+enum hrtimer_restart hrtCallback_3(struct hrtimer *phrt){startSCNKtx(sportArray[3]);return HRTIMER_NORESTART;}
+enum hrtimer_restart hrtCallback_4(struct hrtimer *phrt){startSCNKtx(sportArray[4]);return HRTIMER_NORESTART;}
+enum hrtimer_restart hrtCallback_5(struct hrtimer *phrt){startSCNKtx(sportArray[5]);return HRTIMER_NORESTART;}
+enum hrtimer_restart hrtCallback_6(struct hrtimer *phrt){startSCNKtx(sportArray[6]);return HRTIMER_NORESTART;}
+enum hrtimer_restart hrtCallback_7(struct hrtimer *phrt){startSCNKtx(sportArray[7]);return HRTIMER_NORESTART;}
+
+//void *hrtCallBackArray[UART_NR] = {&hrtCallback_0,
+enum hrtimer_restart (*hrtCallBackArray[UART_NR] )(struct hrtimer *) = {&hrtCallback_0,
+								   &hrtCallback_1,
+								   &hrtCallback_2,
+								   &hrtCallback_3,
+								   &hrtCallback_4,
+								   &hrtCallback_5,
+								   &hrtCallback_6,
+								   &hrtCallback_7};
+#endif
+#endif
 
 static void imx_rs485_stop_tx(struct imx_port *sport)
 {
@@ -289,10 +476,10 @@ static void imx_rs485_start_tx(struct imx_port *sport)
 
 void imx_config_rs485(struct imx_port *sport)
 {
-	printk("%s -> (MCK) \n", __func__) ;
 
-	printk("--------- Setting UART /dev/ttymxc%d mode...\n", sport->port.line);
-	printk("--------- SER_RS485_ENABLED=%d \n", (sport->rs485.flags & SER_RS485_ENABLED));
+    dev_dbg(sport->port.dev, "%s -> (MCK) \n", __func__);
+	dev_dbg(sport->port.dev, "--------- Setting UART /dev/ttymxc%d mode...\n", sport->port.line);
+	dev_dbg(sport->port.dev, "--------- SER_RS485_ENABLED=%d \n", (sport->rs485.flags & SER_RS485_ENABLED));
 
 	if (sport->rts_gpio >= 0)
 	{
@@ -301,20 +488,20 @@ void imx_config_rs485(struct imx_port *sport)
 	  {
 	    if(sport->rs485.flags & SER_RS485_RX_DURING_TX)
 	    {
-		printk("Setting UART to RS422\n");
+		dev_dbg(sport->port.dev, "Setting UART to RS422\n");
 		if(sport->be15mode_gpio >= 0)
 		  gpio_set_value(sport->be15mode_gpio, 0);
 	    }
 	    else
 	    {
-		printk("Setting UART to RS485\n");
+		dev_dbg(sport->port.dev, "Setting UART to RS485\n");
 		if(sport->be15mode_gpio >= 0)
 		  gpio_set_value(sport->be15mode_gpio, 1);
 	    }
 	  }
 	  else
 	  {
-		printk("Setting UART to RS232\n");
+		dev_dbg(sport->port.dev, "Setting UART to RS232\n");
 		/*
 		* If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
 		*/
@@ -338,7 +525,7 @@ void imx_config_rs485(struct imx_port *sport)
 	
 	if (sport->have_rtscts) 
 	{
-		printk("UART have RTS/CTS\n");
+		dev_dbg(sport->port.dev, "UART have RTS/CTS\n");
 		if (sport->rs485.flags & SER_RS485_ENABLED)
 		  writel(readl(sport->port.membase + UCR2) & ~UCR2_CTSC, sport->port.membase + UCR2);
 		
@@ -348,7 +535,7 @@ void imx_config_rs485(struct imx_port *sport)
 	} 
 	else
 	{
-		printk("UART does not have RTS/CTS... RS485 mode not possible\n");
+		dev_dbg(sport->port.dev, "UART does not have RTS/CTS... RS485 mode not possible\n");
 		sport->rs485.flags &= ~SER_RS485_ENABLED;
 	}
 }
@@ -359,40 +546,126 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 	struct imx_port *sport = (struct imx_port *)port;
 
 	switch (cmd) {
-	case TIOCSRS485:
-		if (copy_from_user(&(sport->rs485), (struct serial_rs485 *) arg, sizeof(struct serial_rs485)))	
-				return -EFAULT;
-		imx_config_rs485(sport);
-		
-		//Set duplex mode for RS485/422 plugin modules, according with RS485 or RS422 mode set
-		if(sport->is_plugin_module == 1)
-		  if (sport->rs485.flags & SER_RS485_ENABLED)
-		    if (!gpio_is_valid(sport->rxen_gpio)) 
-		    {
-		      unsigned int cmd;
-		      
-		      if(sport->rs485.flags & SER_RS485_RX_DURING_TX)
-			cmd = RS422_485_IF_SETFD;
-		      else
-			cmd = RS422_485_IF_SETHD;
+		case TIOCSRS485:
+			if (copy_from_user(&(sport->rs485), (struct serial_rs485 *) arg, sizeof(struct serial_rs485)))
+					return -EFAULT;
+			imx_config_rs485(sport);
+
+			//Set duplex mode for RS485/422 plugin modules, according with RS485 or RS422 mode set
+			if(sport->is_plugin_module == 1)
+			  if (sport->rs485.flags & SER_RS485_ENABLED)
+				if (!gpio_is_valid(sport->rxen_gpio))
+				{
+				  unsigned int cmd;
+
+				  if(sport->rs485.flags & SER_RS485_RX_DURING_TX)
+				cmd = RS422_485_IF_SETFD;
+				  else
+				cmd = RS422_485_IF_SETHD;
 #if defined(CONFIG_CONFIG_PLXX_MANAGER) || defined(CONFIG_CONFIG_PLXX_MANAGER_MODULE)
-		      if(sport->plugin1dev) 
-			plxx_manager_sendcmd(sport->plugin1dev , cmd); 
-		      if(sport->plugin2dev) 
-			plxx_manager_sendcmd(sport->plugin2dev , cmd); 
+				  if(sport->plugin1dev)
+				plxx_manager_sendcmd(sport->plugin1dev , cmd);
+				  if(sport->plugin2dev)
+				plxx_manager_sendcmd(sport->plugin2dev , cmd);
 #endif
-		    } 
-		
-		break;
+				}
 
-	case TIOCGRS485:
-		if (copy_to_user((struct serial_rs485 *) arg, &(sport->rs485), sizeof(struct serial_rs485)))
+			break;
+
+		case TIOCGRS485:
+			if (copy_to_user((struct serial_rs485 *) arg, &(sport->rs485), sizeof(struct serial_rs485)))
+					return -EFAULT;
+			dev_info(sport->port.dev, "Getting RS485 parameters for the device\n");
+			break;
+
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+		case SET_SCNK_MODE:
+			if (copy_from_user(&(sport->SCNKparams), (struct s_SCNKparams *) arg, sizeof(sport->SCNKparams)))
 				return -EFAULT;
-		printk(KERN_NOTICE"Getting RS485 parameters for the device\n");
-		break;
+			sport->SCNKdata.useTxBuf2 = false;
+			sport->SCNKdata.useCRC = false;
+			memset (sport->SCNKdata.outBufMsg1, 0, sizeof(sport->SCNKdata.outBufMsg1));
+			sport->SCNKdata.outBufMsg1[0] = 0x01;
+			sport->SCNKdata.outBufMsg1[1] = 0x18;
+			sport->SCNKdata.outBufMsg1[2] = sport->SCNKparams.outBufLen;
+			setSCNKTxData(sport->SCNKdata.outBufMsg1,sport->SCNKparams.outBufLen+6, false);
+			memset (sport->SCNKdata.outBufMsg2, 0, sizeof(sport->SCNKdata.outBufMsg1));
+			sport->SCNKdata.outBufMsg2[0] = 0x01;
+			sport->SCNKdata.outBufMsg2[1] = 0x18;
+			sport->SCNKdata.outBufMsg2[2] = sport->SCNKparams.outBufLen;
+			setSCNKTxData(sport->SCNKdata.outBufMsg2,sport->SCNKparams.outBufLen+6, false);
 
-	default:
-		return -ENOIOCTLCMD;
+			sport->SCNKdata.statMsg[0] = 0x01;
+			sport->SCNKdata.statMsg[1] = 0x14;
+			sport->SCNKdata.SCNKstatus = 0x8006;
+			sport->SCNKdata.infoMsg[0] = 0x01;
+			sport->SCNKdata.infoMsg[1] = 0x18;
+			sport->SCNKdata.infoMsg[2] = 0x08;
+			sport->SCNKdata.infoMsg[3] = sport->SCNKparams.manufID >> 8;
+			sport->SCNKdata.infoMsg[4] = sport->SCNKparams.manufID & 0xFF;
+			memset (sport->SCNKdata.diag_cnt, 0, sizeof(sport->SCNKdata.diag_cnt));
+			sport->SCNKdata.txBuf.buf = sport->SCNKdata.localBuf;
+			sport->SCNKdata.txBuf.head = sport->SCNKdata.txBuf.tail = 0;
+			sport->SCNKdata.expectedLen = 3;
+			sport->SCNKdata.rxLen = 0;
+			sport->SCNKdata.lastRecvJob = 0;
+			sport->SCNKdata.gapTime = 180000;
+			sport->SCNKdata.pendingReq = false;
+#ifdef SCNK_USING_HRTIMER
+			sportArray[sport->port.line] = sport;
+			hrtimer_init(&sport->SCNKdata.hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL);
+#ifdef SCNK_DEBUG
+//			dev_dbg(sport->port.dev, SCNK_DEBUG "<<<<<<<<< SCNK HRTinit function = %X on uart %d >>>>>>>>>>\n", (unsigned int)(hrtCallBackArray[sport->port.line]), sport->port.line);
+#endif
+			sport->SCNKdata.hrt.function = hrtCallBackArray[sport->port.line];
+#endif
+			getrawmonotonic(&sport->SCNKdata.lastCycle);
+			sport->SCNKdata.SCNKenabled = true;
+#ifdef SCNK_DEBUG
+			dev_dbg(sport->port.dev, "<<<<<<<<< SCNK Mode activated on port:%d unitID=%d inL:%d outL:%d MANUF:%X >>>>>>>>>>\n",
+				   sport->port.line,
+				   sport->SCNKparams.unitID,
+				   sport->SCNKparams.inBufLen,
+				   sport->SCNKparams.outBufLen,
+				   sport->SCNKparams.manufID);
+#endif
+			break;
+
+		case GET_SCNK_DIAG:
+			if (copy_to_user((unsigned int *)arg, &(sport->SCNKdata.diag_cnt), sizeof(sport->SCNKdata.diag_cnt)))
+				return -EFAULT;
+			break;
+
+		case SET_SCNK_DIAG:
+			{
+				unsigned int tmp[2];
+				if (copy_from_user(tmp, (unsigned int*) arg, sizeof(tmp)))
+					return -EFAULT;
+				if (tmp[0] < (sizeof(sport->SCNKdata.diag_cnt)/sizeof(unsigned int)))
+					sport->SCNKdata.diag_cnt[tmp[0]] = tmp[1];
+			}
+			break;
+		case SET_SCNK_PREQ:
+			sport->SCNKdata.pendingReq = true;
+			break;
+		case GET_SCNK_SREQ:
+			if (copy_to_user((unsigned int *)arg, &(sport->SCNKdata.pendingReq), sizeof(sport->SCNKdata.pendingReq)))
+				return -EFAULT;
+			break;
+		case TOG_SCNK_BAUD:
+			{
+				bool is375 = false;
+				if (copy_from_user(&is375, (unsigned int*) arg, sizeof(is375)))
+					return -EFAULT;
+				if (is375)
+					sport->SCNKdata.gapTime = 90000;
+				else
+					sport->SCNKdata.gapTime = 180000;
+			}
+			break;
+#endif
+		default:
+			return -ENOIOCTLCMD;
 	}
 	return 0;
 }
@@ -540,19 +813,19 @@ static void imx_stop_tx(struct uart_port *port)
 	if (sport->dma_is_enabled && sport->dma_is_txing)
 		return;
 
-         temp = readl(port->membase + UCR1);
-         writel(temp & ~(UCR1_TXMPTYEN | UCR1_TRDYEN), port->membase + UCR1);
+	temp = readl(port->membase + UCR1);
+	writel(temp & ~(UCR1_TXMPTYEN | UCR1_TRDYEN), port->membase + UCR1);
 
 	/* In RS485 mode, disable TX in shifter is empty (we are confident here the circular buffer to be empty) */
-         if (sport->rs485.flags & SER_RS485_ENABLED &&
-             readl(port->membase + USR2) & USR2_TXDC) {
-                 temp = readl(port->membase + UCR2);
-			imx_rs485_stop_tx(sport);
-			// Transmit complete interrupt disabled
-                 temp = readl(port->membase + UCR4);
-                 temp &= ~UCR4_TCEN;
-                 writel(temp, port->membase + UCR4);
-		}
+	if (sport->rs485.flags & SER_RS485_ENABLED &&
+		readl(port->membase + USR2) & USR2_TXDC) {
+		temp = readl(port->membase + UCR2);
+		imx_rs485_stop_tx(sport);
+		// Transmit complete interrupt disabled
+		temp = readl(port->membase + UCR4);
+		temp &= ~UCR4_TCEN;
+		writel(temp, port->membase + UCR4);
+	}
 }
 
 /*
@@ -593,11 +866,39 @@ static void imx_enable_ms(struct uart_port *port)
  static void imx_dma_tx(struct imx_port *sport);
 static inline void imx_transmit_buffer(struct imx_port *sport)
 {
+
 	struct circ_buf *xmit = &sport->port.state->xmit;
-        unsigned long temp;
+	unsigned long temp;
 	struct tty_port *ttyport = &sport->port.state->port;
 	static unsigned long txfullflag;
 
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+	if (sport->SCNKdata.SCNKenabled)
+	{
+		xmit = &sport->SCNKdata.txBuf;
+//#ifdef SCNK_DEBUG
+#if 0
+		if (xmit->head != xmit->tail)
+		{
+			int i;
+			char tmps[256];
+			char tmp[16];
+			long int L = (xmit->head-xmit->tail) & (UART_XMIT_SIZE-1);
+			dev_dbg(sport->port.dev, "<<<<<<<<< SCNK TX activated: len=%ld job:%X >>>>>>>>>>\n", L, xmit->buf[(xmit->head+3) & (UART_XMIT_SIZE-1)]);
+			tmps[0] = 0;
+			for (i=0; i<L; i++)
+			{
+				sprintf(tmp, "%02X,", xmit->buf[(xmit->tail+i) & (UART_XMIT_SIZE-1)]);
+				strcat(tmps,tmp);
+			}
+			dev_dbg(sport->port.dev, "%s\n", tmps);
+
+		}
+		else
+			dev_dbg(sport->port.dev, "<<<<<<<<< SCNK TX ended >>>>>>>>>>\n");
+#endif
+	}
+#endif
 	if (sport->port.x_char) {
 		/* Send next char */
 		writel(sport->port.x_char, sport->port.membase + URTX0);
@@ -611,35 +912,35 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		return;
 	}
 	
-        if (sport->dma_is_enabled) {
-                 /*
-                  * We've just sent a X-char Ensure the TX DMA is enabled
-                  * and the TX IRQ is disabled.
-                  **/
-                 temp = readl(sport->port.membase + UCR1);
-                 temp &= ~(UCR1_TXMPTYEN | UCR1_TRDYEN);
-                 if (sport->dma_is_txing) {
-                         temp |= UCR1_TDMAEN;
-                         writel(temp, sport->port.membase + UCR1);
-                 } else {
-                         writel(temp, sport->port.membase + UCR1);
-                         imx_dma_tx(sport);
-                 }
-         }
+	if (sport->dma_is_enabled) {
+		/*
+		* We've just sent a X-char Ensure the TX DMA is enabled
+		* and the TX IRQ is disabled.
+		**/
+		temp = readl(sport->port.membase + UCR1);
+		temp &= ~(UCR1_TXMPTYEN | UCR1_TRDYEN);
+		if (sport->dma_is_txing) {
+			temp |= UCR1_TDMAEN;
+			writel(temp, sport->port.membase + UCR1);
+		} else {
+			writel(temp, sport->port.membase + UCR1);
+			imx_dma_tx(sport);
+		}
+	}
 
 	if((ttyport->low_latency) && ((txfullflag & UTS_TXFULL) != UTS_TXFULL) )
-	{ //Handle the low latency option for MPI protocol
-	  if (!sport->dma_is_enabled) 
-	  { // Clear the IRTS flag to keep the TX stopped while feedint the TX buffer (if we are not refilling on the fly the current packet)
-	    temp = readl(sport->port.membase + UCR2);
-	    temp &= ~UCR2_IRTS;
-	    writel(temp, sport->port.membase + UCR2);
-	  }
+	{ //Handle the low latency option for REALTIME protocol
+		if (!sport->dma_is_enabled)
+		{ // Clear the IRTS flag to keep the TX stopped while feedint the TX buffer (if we are not refilling on the fly the current packet)
+			temp = readl(sport->port.membase + UCR2);
+			temp &= ~UCR2_IRTS;
+			writel(temp, sport->port.membase + UCR2);
+		}
 	}
          
-        txfullflag = 0;
+	txfullflag = 0;
 	while (!uart_circ_empty(xmit) &&
-                !( (txfullflag = readl(sport->port.membase + uts_reg(sport))) & UTS_TXFULL)) {
+		   !( (txfullflag = readl(sport->port.membase + uts_reg(sport))) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
 		 * out the port here */
 		writel(xmit->buf[xmit->tail], sport->port.membase + URTX0);
@@ -651,23 +952,23 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		uart_write_wakeup(&sport->port);
 
 	if (uart_circ_empty(xmit))
-	  imx_stop_tx(&sport->port);
+		imx_stop_tx(&sport->port);
 	
 	if(ttyport->low_latency)
 	{ //Handle the low latency option for MPI protocol
-	  if ((txfullflag & UTS_TXFULL) && (!sport->dma_is_enabled) )
-	  { 	//If we exited the TXBUFF write loop because of TXFULL, it means we probably need to transmit a chunk which is bugger than the TX FIFO size
-		  //so we enable the TRDYEN interrupt in order to refill the TX FIFO buffer when the watermark level is reached.
-		  temp = readl(sport->port.membase + UCR1);
-		  writel(temp | UCR1_TRDYEN, sport->port.membase + UCR1);
-	  }
+		if ((txfullflag & UTS_TXFULL) && (!sport->dma_is_enabled) )
+		{ 	//If we exited the TXBUFF write loop because of TXFULL, it means we probably need to transmit a chunk which is bugger than the TX FIFO size
+			//so we enable the TRDYEN interrupt in order to refill the TX FIFO buffer when the watermark level is reached.
+			temp = readl(sport->port.membase + UCR1);
+			writel(temp | UCR1_TRDYEN, sport->port.membase + UCR1);
+		}
 
-	  if (!sport->dma_is_enabled) 
-	  { // Set the IRTS flag to ignore RTS and start transmission
-	    temp = readl(sport->port.membase + UCR2);
-	    temp |= UCR2_IRTS;
-	    writel(temp, sport->port.membase + UCR2);
-	  }
+		if (!sport->dma_is_enabled)
+		{ // Set the IRTS flag to ignore RTS and start transmission
+			temp = readl(sport->port.membase + UCR2);
+			temp |= UCR2_IRTS;
+			writel(temp, sport->port.membase + UCR2);
+		}
 	}
 }
 
@@ -776,53 +1077,71 @@ static void imx_start_tx(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long temp;
 
-	if (sport->rs485.flags & SER_RS485_ENABLED)
-	{
-		imx_rs485_start_tx(sport);
-                 /* enable transmitter and shifter empty irq */
-                 temp = readl(port->membase + UCR4);
-                 temp |= UCR4_TCEN;
-                 writel(temp, port->membase + UCR4);
+
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+	if (sport->SCNKdata.SCNKenabled) {
+		struct circ_buf *xmit = &sport->port.state->xmit;
+		unsigned char *pBuf = (sport->SCNKdata.useTxBuf2)?
+									sport->SCNKdata.outBufMsg1:
+									sport->SCNKdata.outBufMsg2;
+		unsigned char *pBuf1 = pBuf;
+#ifdef SCNK_DEBUG
+//		dev_dbg(sport->port.dev, "<<<<<<<<< SCNK new request to transmit: len=%ld, job=%X >>>>>>>>>>\n",
+//			   (xmit->head-xmit->tail) & (UART_XMIT_SIZE-1),
+//			   (unsigned int)(xmit->buf[(xmit->tail+3) & (UART_XMIT_SIZE-1)]));
+#endif
+
+		while (!uart_circ_empty(xmit)) {
+			*pBuf1++ = xmit->buf[xmit->tail];
+			xmit->tail = (xmit->tail+1) & (UART_XMIT_SIZE-1);
+		}
+		setSCNKTxData(pBuf, sport->SCNKparams.outBufLen+6, sport->SCNKdata.useCRC);
+		sport->SCNKdata.useTxBuf2 = !sport->SCNKdata.useTxBuf2;
 	}
 	else
+#endif
 	{
-	  /*
-	   * If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
-	   */
-	  if (gpio_is_valid(sport->mode_gpio))
-	    if (gpio_is_valid(sport->rts_gpio)) 
-	    {
-		if(sport->mode_two_lines_only)
-		{
-			gpio_set_value(sport->rts_gpio, 0);
+		if (sport->rs485.flags & SER_RS485_ENABLED) {
+			imx_rs485_start_tx(sport);
+			/* enable transmitter and shifter empty irq */
+			temp = readl(port->membase + UCR4);
+			temp |= UCR4_TCEN;
+			writel(temp, port->membase + UCR4);
 		} else {
-			gpio_set_value(sport->rts_gpio, 1);
+			/*
+				* If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
+			*/
+			if (gpio_is_valid(sport->mode_gpio))
+				if (gpio_is_valid(sport->rts_gpio)) {
+					if(sport->mode_two_lines_only) {
+						gpio_set_value(sport->rts_gpio, 0);
+					} else {
+						gpio_set_value(sport->rts_gpio, 1);
+					}
+				}
 		}
 
-	    }
-	}
-         
-	if (!sport->dma_is_enabled) {
-		temp = readl(sport->port.membase + UCR1);
-		writel(temp | UCR1_TXMPTYEN, sport->port.membase + UCR1);
-	}
+		if (!sport->dma_is_enabled) {
+			temp = readl(sport->port.membase + UCR1);
+			writel(temp | UCR1_TXMPTYEN, sport->port.membase + UCR1);
+		}
 
-         if (sport->dma_is_enabled) {
-                 if (sport->port.x_char) {
-                         /* We have X-char to send, so enable TX IRQ and
-                          * disable TX DMA to let TX interrupt to send X-char */
-                         temp = readl(sport->port.membase + UCR1);
-                         temp &= ~UCR1_TDMAEN;
-                         temp |= UCR1_TXMPTYEN;
-                         writel(temp, sport->port.membase + UCR1);
-                         return;
-                 }
- 
-                 if (!uart_circ_empty(&port->state->xmit) &&
-                     !uart_tx_stopped(port))
-                         imx_dma_tx(sport);
-                 return;
-         }
+		if (sport->dma_is_enabled) {
+			if (sport->port.x_char) {
+				/* We have X-char to send, so enable TX IRQ and
+				 * disable TX DMA to let TX interrupt to send X-char */
+				temp = readl(sport->port.membase + UCR1);
+				temp &= ~UCR1_TDMAEN;
+				temp |= UCR1_TXMPTYEN;
+				writel(temp, sport->port.membase + UCR1);
+				return;
+			}
+
+			if (!uart_circ_empty(&port->state->xmit) && !uart_tx_stopped(port))
+				imx_dma_tx(sport);
+			return;
+		}
+	}
 }
 
 static irqreturn_t imx_rtsint(int irq, void *dev_id)
@@ -910,9 +1229,256 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 #endif
 		}
 
-                if (sport->port.ignore_status_mask & URXD_DUMMY_READ)
-                        goto out;
-		tty_insert_flip_char(port, rx, flg);
+		if (sport->port.ignore_status_mask & URXD_DUMMY_READ)
+			goto out;
+
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+		if (sport->SCNKdata.SCNKenabled) {
+			//SCNK state machine
+			unsigned char c;
+			int i;
+			bool bufferFull=false;
+			
+#ifdef SCNK_DEBUG
+//		dev_dbg(sport->port.dev, "<<<<<<<<< SCNK byte received: %X %X >>>>>>>>>>\n", rx, flg);
+#endif
+			if (sport->SCNKdata.rxLen < sport->SCNKdata.expectedLen)
+			{
+				sport->SCNKdata.rxBuf[sport->SCNKdata.rxLen] = (unsigned char)rx;
+				sport->SCNKdata.rxLen++;
+				if (sport->SCNKdata.rxLen == 2)
+				{
+					switch((unsigned char)rx & 0x3F)
+					{
+						case REQ_RPT:
+						case REQ_STAT:
+							break;
+						case REQ_PROZ:
+							sport->SCNKdata.expectedLen = 4;
+							break;
+						case REQ_LANG:
+							sport->SCNKdata.expectedLen = 9;	//IO Long
+							break;
+						case RES_LANG:
+							sport->SCNKdata.expectedLen = 10;	//IO Long
+							break;
+						case REQ_KURZ:
+						case RES_KURZ:
+							sport->SCNKdata.expectedLen = 5;	//IO Short
+							break;
+						case RES_STAT:
+							sport->SCNKdata.expectedLen = 5;	//STAT messages
+							break;
+						case REQ_VARI:
+							// get length on next byte
+							break;
+						default:
+							while (readl(sport->port.membase + USR2) & USR2_RDR);	//disregard the rest
+							sport->SCNKdata.expectedLen = 2;	//exit
+							break;
+					}
+				}
+				else if (sport->SCNKdata.rxLen == 3 && (sport->SCNKdata.rxBuf[1] & 0x3F) == REQ_VARI)
+					sport->SCNKdata.expectedLen = sport->SCNKdata.rxBuf[2] + (sport->SCNKdata.useCRC?6:4);
+			}
+			if (sport->SCNKdata.rxLen >= sport->SCNKdata.expectedLen)
+			{
+#if 0
+				struct timespec now;
+				getrawmonotonic(&now);
+				diag_yyy_cnt = (int)(((long long)now.tv_sec * 1000000 + now.tv_nsec/1000) -
+											  ((long long)sport->SCNKdata.lastCycle.tv_sec * 1000000 + sport->SCNKdata.lastCycle.tv_nsec/1000) -
+											  4000);	//500 +/- spam of 5ms cycle time
+				sport->SCNKdata.lastCycle.tv_sec = now.tv_sec;
+				sport->SCNKdata.lastCycle.tv_nsec = now.tv_nsec;
+				if ((int)(diag_yyy_cnt) > (int)(diag_fus_cnt))
+					diag_fus_cnt = diag_yyy_cnt;
+				if (readl(sport->port.membase + USR2) & USR2_RDR)
+					diag_prz_cnt++;
+#endif
+				diag_tot_cnt++;
+				c = sport->SCNKdata.rxBuf[0];
+				if (c == sport->SCNKparams.unitID)
+				{
+					unsigned char inSum = 0;
+					diag_fus_cnt++;
+					for (i = 0; i < sport->SCNKdata.rxLen; i++)
+						inSum ^= sport->SCNKdata.rxBuf[i];
+					if (inSum == 0)
+					{
+						int len = 0;
+						bool newRXFrame = false;
+						unsigned char *pSend = NULL;
+						bool prev_CRC = sport->SCNKdata.useCRC;
+#ifdef SCNK_DEBUG
+//		dev_dbg(sport->port.dev, "<<<<<<<<< SCNK new message received: rxlen=%d, cmd=%X len=%d, job=%X >>>>>>>>>>\n",
+//							sport->SCNKdata.rxLen, sport->SCNKdata.rxBuf[1], sport->SCNKdata.rxBuf[2], sport->SCNKdata.rxBuf[3]);
+#endif
+						c = sport->SCNKdata.rxBuf[1] & 0x3F;
+						switch (c)
+						{
+							case REQ_RPT:
+								len = sport->SCNKdata.lastTxLen;
+								pSend = sport->SCNKdata.lastTxBuf;
+								break;
+							case REQ_STAT:
+								if (sport->SCNKdata.rxLen == 3)
+								{
+									memcpy (&sport->SCNKdata.statMsg[2], &sport->SCNKdata.SCNKstatus, sizeof(sport->SCNKdata.SCNKstatus));
+									pSend = sport->SCNKdata.statMsg;
+									pSend[4] = pSend[0] ^ pSend[1] ^ pSend[2] ^ pSend[3];
+									len = 5;
+								}
+								diag_sts_cnt++;
+								break;
+							case REQ_PROZ:
+								if (sport->SCNKdata.rxLen == 4)
+								{
+									diag_prz_cnt++;
+									c = sport->SCNKdata.rxBuf[2];
+									switch (c)
+									{
+										case PROZ_INFO:
+											pSend = sport->SCNKdata.infoMsg;
+											pSend[6] = pSend[0] ^ pSend[1] ^ pSend[2] ^ pSend[3] ^ pSend[4] ^ pSend[5];
+											len = 7;
+											break;
+										case PROZ_INFO_NOCRC:
+											sport->SCNKdata.useCRC = false;
+											pSend = sport->SCNKdata.infoMsg;
+											sport->SCNKdata.infoMsg[11] = pSend[0] ^ pSend[1] ^ pSend[2] ^ pSend[3] ^ pSend[4] ^ pSend[5] ^ pSend[6] ^ pSend[7] ^ pSend[8] ^ pSend[9] ^ pSend[10];
+											len = 12;
+											break;
+										case PROZ_INFO_CRC:
+												dev_dbg(sport->port.dev, "<<<<<<<< SCNK CRC SET 1 >>>>>>>>\n");
+											sport->SCNKdata.useCRC = true;
+											pSend = sport->SCNKdata.infoMsg;
+											sport->SCNKdata.infoMsg[11] = pSend[0] ^ pSend[1] ^ pSend[2] ^ pSend[3] ^ pSend[4] ^ pSend[5] ^ pSend[6] ^ pSend[7] ^ pSend[8] ^ pSend[9] ^ pSend[10];
+											len = 12;
+											break;
+										default:
+											diag_eot_cnt++;
+											if (c & 2)
+												sport->SCNKdata.SCNKstatus &= 0xDFFF;
+											if (c & 4)
+												sport->SCNKdata.SCNKstatus |= 0x2000;
+											sport->SCNKdata.useCRC = (c & 0x40)?true:false;
+											if (sport->SCNKdata.useCRC) 
+												dev_dbg(sport->port.dev, "<<<<<<<< SCNK CRC SET 2 >>>>>>>>\n");
+
+											memcpy (&sport->SCNKdata.statMsg[2], &sport->SCNKdata.SCNKstatus, sizeof(sport->SCNKdata.SCNKstatus));
+											pSend = sport->SCNKdata.statMsg;
+											pSend[4] = pSend[0] ^ pSend[1] ^ pSend[2] ^ pSend[3];
+											len = 5;
+											break;
+									}
+								}
+								break;
+							case REQ_VARI:
+								c = sport->SCNKdata.rxBuf[3];
+								if (c != 0 && c != sport->SCNKdata.lastRecvJob)	//new buffer
+								{
+									newRXFrame = true;
+								}
+								diag_req_cnt++;
+								//send out buffer
+								pSend = (sport->SCNKdata.useTxBuf2)?sport->SCNKdata.outBufMsg2:sport->SCNKdata.outBufMsg1;
+								len = pSend[2]+((sport->SCNKdata.useCRC)?6:4);
+#ifdef SCNK_DEBUG
+//								if (sport->SCNKdata.pendingReq) 
+//									dev_dbg(sport->port.dev, "SCNK: reset pending request flag\n");
+#endif
+								sport->SCNKdata.pendingReq = false;
+
+								break;
+							default:
+								break;
+						}
+						//send anything prepared
+						if (len)
+						{
+							//save for repetition
+							if (pSend != sport->SCNKdata.lastTxBuf)
+							{
+								sport->SCNKdata.lastTxLen = len;
+								memcpy(sport->SCNKdata.lastTxBuf, pSend, len);
+							}
+							//fill tx_buffer
+							for (i=0; i<len; i++)
+							{
+								sport->SCNKdata.txBuf.buf[sport->SCNKdata.txBuf.head] = pSend[i];
+								sport->SCNKdata.txBuf.head = (sport->SCNKdata.txBuf.head + 1) & (UART_XMIT_SIZE-1);
+							}
+							{
+#ifdef SCNK_USING_HRTIMER
+								ktime_t kt = ktime_set(0, sport->SCNKdata.gapTime);
+#ifdef SCNK_DEBUG
+//								dev_dbg(sport->port.dev, "<<<<<<<<< SCNK HRTstart should call %X after %d >>>>>>>>>>\n", (unsigned int)(sport->SCNKdata.hrt.function), sport->SCNKdata.gapTime);
+#endif
+								hrtimer_start( &sport->SCNKdata.hrt, kt, HRTIMER_MODE_REL );
+#else
+								unsigned long temp;
+								udelay(sport->SCNKdata.gapTime / 1000); /*  */
+								imx_rs485_start_tx(sport);
+								/* enable transmitter and shifter empty irq */
+								temp = readl(((struct uart_port *)sport)->membase + UCR4);
+								temp |= UCR4_TCEN;
+								writel(temp, ((struct uart_port *)sport)->membase + UCR4);
+								imx_transmit_buffer(sport);
+#endif
+							}
+						}
+						if (newRXFrame)
+						{
+#ifdef SCNK_DEBUG
+//		dev_dbg(sport->port.dev, "<<<<<<<<< SCNK new frame received: rxlen=%d, job=%X len=%d >>>>>>>>>>\n",
+//							sport->SCNKdata.rxLen, sport->SCNKdata.rxBuf[3], sport->SCNKdata.rxBuf[2]);
+#endif
+							if(sport->SCNKdata.rxLen == sport->SCNKparams.inBufLen + (sport->SCNKdata.useCRC?6:4))
+							{
+								unsigned short crc = 0xffff;
+								if (sport->SCNKdata.useCRC)
+								{
+									addCrc(sport->SCNKdata.rxBuf[0], &crc);
+									addCrc(sport->SCNKparams.inBufLen, &crc);
+									for (i = 0; i < sport->SCNKdata.rxBuf[2]; i++)
+										addCrc(sport->SCNKdata.rxBuf[3+i], &crc);
+								}
+								if (!sport->SCNKdata.useCRC ||
+									(((crc >> 8) == sport->SCNKdata.rxBuf[sport->SCNKparams.inBufLen+4]) &&
+									 ((crc & 0xff) == sport->SCNKdata.rxBuf[sport->SCNKparams.inBufLen+3])))
+								{
+									//fill the data
+									tty_insert_flip_string(port, sport->SCNKdata.rxBuf, sport->SCNKparams.inBufLen+6);
+									bufferFull=true;	
+									sport->SCNKdata.lastRecvJob = c;
+								}
+								else
+									diag_err_cnt++;
+							}
+						}
+						if (prev_CRC != sport->SCNKdata.useCRC)
+						{
+							pSend = (sport->SCNKdata.useTxBuf2)?sport->SCNKdata.outBufMsg2:sport->SCNKdata.outBufMsg1;
+							setSCNKTxData(pSend, sport->SCNKparams.outBufLen+6, sport->SCNKdata.useCRC);
+						}
+					}	//XOR match
+					else
+					{
+						diag_err_cnt++;
+					}
+				}	//unitID
+				sport->SCNKdata.rxLen = 0;
+				sport->SCNKdata.expectedLen = 3;
+				spin_unlock_irqrestore(&sport->port.lock, flags);
+				if (bufferFull)
+					tty_flip_buffer_push(port);
+				return IRQ_HANDLED;
+			}
+		}
+		else
+#endif
+			tty_insert_flip_char(port, rx, flg);
 	}
 
 out:
@@ -1314,6 +1880,10 @@ static int imx_startup(struct uart_port *port)
 	int retval, i;
 	unsigned long flags, temp;
 
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+	sport->SCNKdata.SCNKenabled = false;
+    dev_info(sport->port.dev, "STARTUP UART %d\n", sport->port.line);
+#endif
 	retval = clk_prepare_enable(sport->clk_per);
 	if (retval)
                  return retval;
@@ -1389,7 +1959,11 @@ static void imx_shutdown(struct uart_port *port)
          unsigned long temp;
          unsigned long flags;
  
-         if (sport->dma_is_enabled) {
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+		 sport->SCNKdata.SCNKenabled = false;
+		 dev_info(sport->port.dev, "SHUTDOWN UART %d\n", sport->port.line);
+#endif
+		 if (sport->dma_is_enabled) {
                  int ret;
  
                  /* We have to wait for the DMA to finish. */
@@ -2065,7 +2639,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	ret = of_get_named_gpio(np, "rts-gpio", 0); 
 	if (ret >= 0 && gpio_is_valid(ret)) 
 	{
-		printk("Setting UART /dev/ttymxc%d with the pin %d as rts-gpio\n", sport->port.line, ret);
+		dev_dbg(sport->port.dev, "Setting UART /dev/ttymxc%d with the pin %d as rts-gpio\n", sport->port.line, ret);
 		sport->rts_gpio = ret;
 
 		ret = gpio_request(sport->rts_gpio, "rts-gpio");
@@ -2082,7 +2656,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	ret = of_get_named_gpio(np, "be15mode-gpio", 0); // IMX_GPIO_NR(3, 29);
 	if (ret >= 0 && gpio_is_valid(ret)) 
 	{
-		printk("Setting UART /dev/ttymxc%d with the pin %d as be15mode-gpio\n", sport->port.line, ret);
+		dev_dbg(sport->port.dev, "Setting UART /dev/ttymxc%d with the pin %d as be15mode-gpio\n", sport->port.line, ret);
 		sport->be15mode_gpio = ret;
 
 		ret = gpio_request(sport->be15mode_gpio, "be15mode-gpio");
@@ -2100,7 +2674,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	ret = of_get_named_gpio(np, "mode-gpio", 0);
 	if (ret >= 0 && gpio_is_valid(ret)) 
 	{
-		printk("Setting UART /dev/ttymxc%d with the pin %d as mode-gpio\n", sport->port.line, ret);
+		dev_dbg(sport->port.dev, "Setting UART /dev/ttymxc%d with the pin %d as mode-gpio\n", sport->port.line, ret);
 		sport->mode_gpio = ret;
 
 		ret = gpio_request(sport->mode_gpio, "mode-gpio");
@@ -2117,7 +2691,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	ret = of_get_named_gpio(np, "rxen-gpio", 0);
 	if (ret >= 0 && gpio_is_valid(ret)) 
 	{
-		printk("Setting UART /dev/ttymxc%d with the pin %d as rxen-gpio\n", sport->port.line, ret);
+		dev_dbg(sport->port.dev, "Setting UART /dev/ttymxc%d with the pin %d as rxen-gpio\n", sport->port.line, ret);
 		sport->rxen_gpio = ret;
 
 		ret = gpio_request(sport->rxen_gpio, "rxen-gpio");
@@ -2152,7 +2726,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	if (of_property_read_bool(np, "mode-two-lines-only"))
 	{
 	    sport->mode_two_lines_only = 1;
-	    printk("Setting UART /dev/ttymxc%d with two wires serial mode \n", sport->port.line );
+	    dev_dbg(sport->port.dev, "Setting UART /dev/ttymxc%d with two wires serial mode \n", sport->port.line );
 	} else {
 	    sport->mode_two_lines_only = 0;
 	}
@@ -2260,13 +2834,14 @@ static int serial_imx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sport);
 
+	dev_info(&pdev->dev, "Serial port %d added with Exor-imx-uart driver \n", sport->port.line);
 	return uart_add_one_port(&imx_reg, &sport->port);
 }
 
 static int serial_imx_remove(struct platform_device *pdev)
 {
 	struct imx_port *sport = platform_get_drvdata(pdev);
-	dev_info(&pdev->dev, "port %d removed\n", sport->port.line);
+	dev_info(&pdev->dev, "Serial port %d removed\n", sport->port.line);
 	if (gpio_is_valid(sport->mode_gpio))
 		gpio_free(sport->mode_gpio);
 	if (gpio_is_valid(sport->rts_gpio))
@@ -2286,7 +2861,7 @@ static struct platform_driver serial_imx_driver = {
 	.resume		= serial_imx_resume,
 	.id_table	= imx_uart_devtype,
 	.driver		= {
-	.name	= "imx-uart",
+	.name	= "imx-exor-uart",
 	.owner	= THIS_MODULE,
 	.of_match_table = imx_uart_dt_ids,
 	},
@@ -2296,7 +2871,7 @@ static int __init imx_serial_init(void)
 {
 	int ret;
 
-	pr_info("Serial: IMX driver\n");
+	pr_info("Serial: Exor custom\n");
 
 	ret = uart_register_driver(&imx_reg);
 	if (ret)
@@ -2319,6 +2894,8 @@ module_init(imx_serial_init);
 module_exit(imx_serial_exit);
 
 MODULE_AUTHOR("Sascha Hauer");
-MODULE_DESCRIPTION("IMX generic serial port driver");
+MODULE_AUTHOR("Giuseppe Migliorini");
+MODULE_AUTHOR("Luigi Scagnet");
+MODULE_DESCRIPTION("Exor S-K serial port driver based on IMX generic ");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:imx-uart");

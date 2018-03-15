@@ -373,23 +373,6 @@
 		    linux,default-trigger = "none";
 	    };
 	};
-
-    egalax_ts@2a {
-        compatible = "eeti,egalax_i2c";
-        reg = <0x2a>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <9 8>;
-		int-gpios = <&gpio3 9 0>;
-	};
-/*
-	polytouch: edt-ft5x06@38 {
-		compatible = "edt,edt-ft5406", "edt,edt-ft5x06";
-		reg = <0x38>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <9 8>;
-		int-gpios = <&gpio3 9 0>;
-	};
-*/
 };
 
 &iomuxc {

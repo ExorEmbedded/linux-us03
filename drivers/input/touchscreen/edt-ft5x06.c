@@ -640,6 +640,7 @@ static inline int edt_ft5x06_i2c_ts_probe_dt(struct device *dev,
 }
 #endif
 
+static unsigned char counter = 0;
 static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
@@ -657,6 +658,11 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to allocate driver data.\n");
 		return -ENOMEM;
 	}
+
+    if( counter < 2){
+        counter ++;
+	    return -EPROBE_DEFER;
+    }
 
 	if (!pdata) {
 		error = edt_ft5x06_i2c_ts_probe_dt(&client->dev, tsdata);

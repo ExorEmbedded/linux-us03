@@ -194,6 +194,7 @@
 #define SERIAL_IMX_MAJOR	207
 #define MINOR_START		16
 #define DEV_NAME		"ttymxc"
+#define DRIVER_VERSION		"1.1"
 
 #if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 #define REQ_RPT		0x00
@@ -1213,7 +1214,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 				continue;
 			}
 
-                        rx &= (sport->port.read_status_mask | 0xFF);
+			rx &= (sport->port.read_status_mask | 0xFF);
 
 			if (rx & URXD_BRK)
 				flg = TTY_BREAK;
@@ -1242,7 +1243,14 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 #ifdef SCNK_DEBUG
 //		dev_dbg(sport->port.dev, "<<<<<<<<< SCNK byte received: %X %X >>>>>>>>>>\n", rx, flg);
 #endif
-			if (sport->SCNKdata.rxLen < sport->SCNKdata.expectedLen)
+			if (flg != TTY_NORMAL)
+			{
+				while (readl(sport->port.membase + USR2) & USR2_RDR)	//disregard the rest
+					rx = readl(sport->port.membase + URXD0);
+				sport->SCNKdata.expectedLen = 2;	//exit
+				sport->SCNKdata.rxLen = 0;
+			}
+			else if (sport->SCNKdata.rxLen < sport->SCNKdata.expectedLen)
 			{
 				sport->SCNKdata.rxBuf[sport->SCNKdata.rxLen] = (unsigned char)rx;
 				sport->SCNKdata.rxLen++;
@@ -1273,7 +1281,8 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 							// get length on next byte
 							break;
 						default:
-							while (readl(sport->port.membase + USR2) & USR2_RDR);	//disregard the rest
+							while (readl(sport->port.membase + USR2) & USR2_RDR)	//disregard the rest
+								rx = readl(sport->port.membase + URXD0);
 							sport->SCNKdata.expectedLen = 2;	//exit
 							break;
 					}
@@ -2834,7 +2843,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sport);
 
-	dev_info(&pdev->dev, "Serial port %d added with Exor-imx-uart driver \n", sport->port.line);
+	dev_info(&pdev->dev, "Serial port %d added with Exor-imx-uart V%s driver \n", sport->port.line, DRIVER_VERSION);
 	return uart_add_one_port(&imx_reg, &sport->port);
 }
 
@@ -2897,5 +2906,6 @@ MODULE_AUTHOR("Sascha Hauer");
 MODULE_AUTHOR("Giuseppe Migliorini");
 MODULE_AUTHOR("Luigi Scagnet");
 MODULE_DESCRIPTION("Exor S-K serial port driver based on IMX generic ");
+MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:imx-uart");

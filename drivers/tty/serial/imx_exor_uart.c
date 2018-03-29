@@ -621,6 +621,7 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 			sport->SCNKdata.hrt.function = hrtCallBackArray[sport->port.line];
 #endif
 			getrawmonotonic(&sport->SCNKdata.lastCycle);
+			sport->port.read_status_mask |= (URXD_FRMERR | URXD_PRERR);
 			sport->SCNKdata.SCNKenabled = true;
 #ifdef SCNK_DEBUG
 			dev_dbg(sport->port.dev, "<<<<<<<<< SCNK Mode activated on port:%d unitID=%d inL:%d outL:%d MANUF:%X >>>>>>>>>>\n",
@@ -1208,12 +1209,14 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 			if (rx & URXD_OVRRUN)
 				sport->port.icount.overrun++;
 
+#if !(defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE))
 			if (rx & sport->port.ignore_status_mask) {
 				if (++ignored > 100)
 					goto out;
 				continue;
 			}
 
+#endif
 			rx &= (sport->port.read_status_mask | 0xFF);
 
 			if (rx & URXD_BRK)
@@ -1247,7 +1250,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 			{
 				while (readl(sport->port.membase + USR2) & USR2_RDR)	//disregard the rest
 					rx = readl(sport->port.membase + URXD0);
-				sport->SCNKdata.expectedLen = 2;	//exit
+				sport->SCNKdata.expectedLen = 3;	//exit
 				sport->SCNKdata.rxLen = 0;
 			}
 			else if (sport->SCNKdata.rxLen < sport->SCNKdata.expectedLen)
@@ -1283,12 +1286,23 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 						default:
 							while (readl(sport->port.membase + USR2) & USR2_RDR)	//disregard the rest
 								rx = readl(sport->port.membase + URXD0);
-							sport->SCNKdata.expectedLen = 2;	//exit
+							sport->SCNKdata.expectedLen = 3;	//exit
+							sport->SCNKdata.rxLen = 0;
 							break;
 					}
 				}
 				else if (sport->SCNKdata.rxLen == 3 && (sport->SCNKdata.rxBuf[1] & 0x3F) == REQ_VARI)
-					sport->SCNKdata.expectedLen = sport->SCNKdata.rxBuf[2] + (sport->SCNKdata.useCRC?6:4);
+				{
+					if (sport->SCNKdata.rxBuf[2] < 6 || sport->SCNKdata.rxBuf[2] > 78)
+					{
+						while (readl(sport->port.membase + USR2) & USR2_RDR)	//disregard the rest
+							rx = readl(sport->port.membase + URXD0);
+						sport->SCNKdata.expectedLen = 3;	//exit
+						sport->SCNKdata.rxLen = 0;
+					}
+					else
+						sport->SCNKdata.expectedLen = sport->SCNKdata.rxBuf[2] + (sport->SCNKdata.useCRC?6:4);
+				}
 			}
 			if (sport->SCNKdata.rxLen >= sport->SCNKdata.expectedLen)
 			{
@@ -2130,8 +2144,13 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_lock_irqsave(&sport->port.lock, flags);
 
 	sport->port.read_status_mask = 0;
+#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
+	if (termios->c_iflag & INPCK || sport->SCNKdata.SCNKenabled)
+		sport->port.read_status_mask |= (URXD_FRMERR | URXD_PRERR);
+#else
 	if (termios->c_iflag & INPCK)
 		sport->port.read_status_mask |= (URXD_FRMERR | URXD_PRERR);
+#endif
 	if (termios->c_iflag & (BRKINT | PARMRK))
 		sport->port.read_status_mask |= URXD_BRK;
 

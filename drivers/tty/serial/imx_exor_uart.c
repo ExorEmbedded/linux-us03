@@ -581,6 +581,10 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 
 #if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 		case SET_SCNK_MODE:
+			if ( arg == NULL ){
+				sport->SCNKdata.SCNKenabled = false;
+				break;
+			}
 			if (copy_from_user(&(sport->SCNKparams), (struct s_SCNKparams *) arg, sizeof(sport->SCNKparams)))
 				return -EFAULT;
 			sport->SCNKdata.useTxBuf2 = false;

@@ -36,6 +36,7 @@
 #include <linux/rational.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/of_device.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
@@ -239,6 +240,11 @@ struct imx_port {
 	struct delayed_work	tsk_dma_tx;
 	wait_queue_head_t	dma_wait;
 	unsigned int            saved_reg[10];
+	int					rts_gpio;         /* GPIO used as tx_en line for RS485 operation */
+	int					be15mode_gpio;    /* GPIO used as mode selection between RS485 (1) and RS422 (0) on BE15 carriers */
+	int					mode_gpio;        /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
+	int					rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
+
 #define DMA_TX_IS_WORKING 1
 	unsigned long		flags;
 	int                     rs485_invert_rts;
@@ -1979,6 +1985,75 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 
 	sport->devdata = of_id->data;
 
+	//Get rts-gpio line (used for tx enable 1=active)
+	sport->rts_gpio = -EINVAL;
+	ret = of_get_named_gpio(np, "rts-gpio", 0);
+	if (ret >= 0 && gpio_is_valid(ret))
+	{
+		printk("Setting UART /dev/ttymxc%d with the pin %d as rts-gpio\n", sport->port.line, ret);
+		sport->rts_gpio = ret;
+
+		ret = gpio_request(sport->rts_gpio, "rts-gpio");
+		if(ret < 0)
+			return ret;
+
+		ret = gpio_direction_output(sport->rts_gpio, 0);
+		if(ret < 0)
+			return ret;
+	}
+
+	//Get be15mode-gpio line (used for mode selection between RS485 and RS422 on BE15 carriers 0=RS422 1=RS485)
+	sport->be15mode_gpio = -EINVAL;
+	ret = of_get_named_gpio(np, "be15mode-gpio", 0); // IMX_GPIO_NR(3, 29);
+	if (ret >= 0 && gpio_is_valid(ret))
+	{
+		printk("Setting UART /dev/ttymxc%d with the pin %d as be15mode-gpio\n", sport->port.line, ret);
+		sport->be15mode_gpio = ret;
+
+		ret = gpio_request(sport->be15mode_gpio, "be15mode-gpio");
+		if(ret < 0)
+			return ret;
+
+		ret = gpio_direction_output(sport->be15mode_gpio, 0);
+		if(ret < 0)
+			return ret;
+	}
+
+
+	// Get mode-gpio line, which is used to switch from RS485 <-> RS232 on programmable phys
+	sport->mode_gpio = -EINVAL;
+	ret = of_get_named_gpio(np, "mode-gpio", 0);
+	if (ret >= 0 && gpio_is_valid(ret))
+	{
+		printk("Setting UART /dev/ttymxc%d with the pin %d as mode-gpio\n", sport->port.line, ret);
+		sport->mode_gpio = ret;
+
+		ret = gpio_request(sport->mode_gpio, "mode-gpio");
+		if(ret < 0)
+			return ret;
+
+		ret = gpio_direction_output(sport->mode_gpio, 0);
+		if(ret < 0)
+			return ret;
+	}
+
+	// Get rxen-gpio, which is used to enable/disable the rx on programmable phys
+	sport->rxen_gpio = -EINVAL;
+	ret = of_get_named_gpio(np, "rxen-gpio", 0);
+	if (ret >= 0 && gpio_is_valid(ret))
+	{
+		printk("Setting UART /dev/ttymxc%d with the pin %d as rxen-gpio\n", sport->port.line, ret);
+		sport->rxen_gpio = ret;
+
+		ret = gpio_request(sport->rxen_gpio, "rxen-gpio");
+		if(ret < 0)
+			return ret;
+
+		ret = gpio_direction_output(sport->rxen_gpio, 1);
+		if(ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 #else
@@ -2021,6 +2096,10 @@ static int serial_imx_probe(struct platform_device *pdev)
 		serial_imx_probe_pdata(sport, pdev);
 	else if (ret < 0)
 		return ret;
+
+	ret = gpio_direction_output(sport->mode_gpio,0);
+	ret = gpio_direction_output(sport->rts_gpio, 1);
+	ret = gpio_direction_output(sport->rxen_gpio,1);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);

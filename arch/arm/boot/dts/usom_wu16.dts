@@ -21,7 +21,7 @@
 
 / {
 
-	model = "Wuerth wu16 i.MX6 DualLite Board";
+	model = "Wu16 i.MX6 DualLite Board";
 	compatible = "fsl,imx6dl-sabresd", "fsl,imx6dl";
 
 	aliases {

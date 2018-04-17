@@ -338,7 +338,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	usom_etop7xxq.dtb \
 	usom_jsmart.dtb \
 	usom_jsmartq.dtb \
-	usom_jsmartttl.dtb
+	usom_jsmartttl.dtb \
+	usom_evkitq.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb \
 	imx6sl-evk-btwifi.dtb \

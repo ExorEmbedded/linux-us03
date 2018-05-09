@@ -558,9 +558,18 @@ config SERIAL_IMX
 	  If you have a machine based on a Motorola IMX CPU you
 	  can enable its onboard serial port by enabling this option.
 
+config SERIAL_IMX_EXOR_UART
+	tristate "EXOR IMX serial port support"
+	depends on !SERIAL_IMX
+	select SERIAL_CORE
+	select RATIONAL
+	help
+	  If you have a machine based on a Motorola IMX CPU you
+	  can enable its onboard serial port by enabling this option.
+
 config SERIAL_IMX_CONSOLE
 	bool "Console on IMX serial port"
-	depends on SERIAL_IMX=y
+	depends on SERIAL_IMX=y || SERIAL_IMX_EXOR_UART=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have enabled the serial port on the Freescale IMX
@@ -571,15 +580,6 @@ config SERIAL_IMX_CONSOLE
 	  you can alter that using a kernel command line option such as
 	  "console=ttymxc0". (Try "man bootparam" or see the documentation of
 	  your bootloader about how to pass options to the kernel at boot time.)
-
-config SERIAL_IMX_EXOR_UART
-	tristate "EXOR IMX serial port support"
-	depends on (SERIAL_IMX=m || !SERIAL_IMX) && m
-	select SERIAL_CORE
-	select RATIONAL
-	help
-	  If you have a machine based on a Motorola IMX CPU you
-	  can enable its onboard serial port by enabling this option.
 
 config SERIAL_UARTLITE
 	tristate "Xilinx uartlite serial port support"

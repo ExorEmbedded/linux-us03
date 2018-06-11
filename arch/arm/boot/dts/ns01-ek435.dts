@@ -15,6 +15,13 @@
 	model = "Exor NanoSom01 i.MX6 UltraLite EK435 Board";
 	compatible = "exor,ns01-ek435", "fsl,imx6ul";
 
+	aliases {
+		i2c3 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
+		i2c0 = &i2c4;
+	};
+
 	chosen {
 		stdout-path = &uart1;
 	};

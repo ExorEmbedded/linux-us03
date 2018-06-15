@@ -536,6 +536,13 @@
 				MX6QDL_PAD_SD4_DAT7__SD4_DATA7		0x17059
 			>;
 		};
+
+		pinctrl_flexcan1: flexcan1grp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_8__FLEXCAN1_RX		0x1b020
+				MX6QDL_PAD_GPIO_7__FLEXCAN1_TX		0x1b020
+			>;
+		};
 	};
 };
 
@@ -549,6 +556,12 @@
 	ipu_id = <0>;
 	disp_id = <0>;
 	status = "disabled";
+};
+
+&flexcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	status = "okay";
 };
 
 &pwm1 {

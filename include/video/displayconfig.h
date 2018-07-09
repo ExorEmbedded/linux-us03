@@ -68,8 +68,10 @@
  *1.15			SS							30.10.2017  Added display code #64: Qitex QX-050WVGA0TLT00D 800x480 for ex705-rocktouch 
  *1.16			SS							21.11.2017  Added display code #65: FutureLabs FLT-BB070MR02-YO 800x480 for ex707-HB-rocktouch 
  *1.17			SS							17.01.2018  Added display code #66: DISPJST-005N001 800x480 for Jsmart05---Initial definition 
- *
- * NEXT AVAILABLE DISPLAY CODE: 67
+ *1.18			SS							28.03.2018  Modified display code #64: modified pixel clock from 1 to 0 due to wrong datasheet info
+ *1.19			SS							09.07.2018  Added display code #67: FutureLabs FLC-101HML0000SA2 for ex710-hb
+
+ * NEXT AVAILABLE DISPLAY CODE: 68
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -858,7 +860,7 @@ static struct t_DisplayParams displayconfig[] = {
       .bpp       = 16,
       
       .pclk_freq = 27000, 
-      .pclk_inv  = 1,
+      .pclk_inv  = 0,           //28.03.2018 inverted clock polarity due to datasheet error
       
       .hs_fp     = 40, 
       .hs_bp     = 40, 
@@ -927,7 +929,33 @@ static struct t_DisplayParams displayconfig[] = {
         .pwmfreq        = 10000,
         .brightness_min = 10,
         .brightness_max = 100,
-    },                                                
+    },
+    /* 67: Innolux G101ICE-L01 LVDS 24 bit 1280x800 IMX.6 ONLY */
+    {
+        .dispid    = 67,
+        .rezx      = 1280,
+        .rezy      = 800,
+        .bpp       = 24,
+
+        .pclk_freq = 71100,
+        .pclk_inv  = 1,				//27.03.2017 inverted clock polarity due to IMX.6 bug
+
+        .hs_fp     = 30,
+        .hs_bp     = 30,
+        .hs_w      = 100,
+        .hs_inv    = 0,
+
+        .vs_fp     = 3,
+        .vs_bp     = 10,
+        .vs_w      = 10,
+        .vs_inv    = 0,
+
+        .blank_inv      = 0,
+
+        .pwmfreq        = 200,
+        .brightness_min = 10,
+        .brightness_max = 70,
+    },
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

@@ -339,6 +339,12 @@
 	  reg = <0x5c>;
 	};
 
+	lps22hb@5d {
+	    /* Pressure sensor LPS22HB */
+	    compatible = "st,lps22hb";
+	    reg = <0x5d>;
+	};
+
 	htu21d@40 {
 	  /* Temperature/humidity */
 	  compatible = "htu21";

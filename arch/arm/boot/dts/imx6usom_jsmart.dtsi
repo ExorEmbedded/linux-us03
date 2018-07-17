@@ -170,15 +170,6 @@
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
-	framtest: at25@0 {
-		compatible = "atmel,at25", "st,m95256";
-		reg = <0>;
-		spi-max-frequency = <20000000>;
-		pagesize = <64>;
-		size = <65536>;
-		address-width = <16>;
-	};
-
 	fram: at25@3 {
 		compatible = "atmel,at25", "st,m95256";
 		reg = <3>;
@@ -329,11 +320,6 @@
 	seeprom2:seeprom2@56 {
 		compatible = "atmel,24c02";
 		reg = <0x56>;
-	};
-
-	seepromtest:seeprom3@57 {
-		compatible = "atmel,24c02";
-		reg = <0x57>;
 	};
 	
 	m41t83:m41t83@68 {

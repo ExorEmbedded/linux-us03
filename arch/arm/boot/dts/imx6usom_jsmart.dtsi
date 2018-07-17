@@ -170,6 +170,12 @@
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
+	spidev0: spi0@0 {
+		compatible = "spidev";
+		reg = <0>;
+		spi-max-frequency = <3000000>;
+	};
+
 	fram: at25@3 {
 		compatible = "atmel,at25", "st,m95256";
 		reg = <3>;

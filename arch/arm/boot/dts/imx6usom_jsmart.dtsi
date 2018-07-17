@@ -513,6 +513,8 @@
 			fsl,pins = <
 				MX6QDL_PAD_SD3_DAT7__UART1_TX_DATA	0x1b0b1
 				MX6QDL_PAD_SD3_DAT6__UART1_RX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D19__UART1_CTS_B     0x1b0b1
+				MX6QDL_PAD_EIM_D20__UART1_RTS_B     0x1b0b1
 			>;
 		};
 
@@ -585,10 +587,6 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	fsl,uart-has-rtscts;
-	rts-gpio = <&gpio3 14 0>;
-	mode-gpio = <&gpio3 15 0>;
-	rxen-gpio = <&gpio6 31 0>;
 	status = "okay";
 };
 

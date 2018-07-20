@@ -239,7 +239,6 @@
 
 &iomuxc {
   	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog_1>;
 	imx6ul-evk {
 		pinctrl_usdhc1: usdhc1grp {
 			fsl,pins = <

@@ -76,6 +76,8 @@
 #include "uas-detect.h"
 #endif
 
+#include <linux/leds.h>
+
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
 MODULE_DESCRIPTION("USB Mass Storage driver for Linux");
@@ -376,6 +378,12 @@ static int usb_stor_control_thread(void * __us)
 		/* we've got a command, let's do it! */
 		else {
 			US_DEBUG(usb_stor_show_command(us, us->srb));
+			
+			/* Send LED trigger WR event if it is the case */
+			if((us->srb->cmnd[0] == WRITE_6) || (us->srb->cmnd[0] == WRITE_10) || (us->srb->cmnd[0] == WRITE_12) 
+			  || (us->srb->cmnd[0] == WRITE_16) || (us->srb->cmnd[0] == WRITE_32))
+			  ledtrig_usbstick_wr_activity();
+			
 			us->proto_handler(us->srb, us);
 			usb_mark_last_busy(us->pusb_dev);
 		}

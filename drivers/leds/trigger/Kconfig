@@ -108,4 +108,11 @@ config LEDS_TRIGGER_CAMERA
 	  This enables direct flash/torch on/off by the driver, kernel space.
 	  If unsure, say Y.
 
+config LEDS_TRIGGER_PA18
+	tristate "LED Trigger for PA18 carrier"
+	depends on LEDS_TRIGGERS
+	help
+	  This enables led misc LED triggers for the PA18 system.
+	  If unsure, say Y.
+	  
 endif # LEDS_TRIGGERS

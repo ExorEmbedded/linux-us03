@@ -77,18 +77,21 @@
 			label = "usb_mem_write";
 			gpios = <&gpio1 28 0>;
 			default-state = "off";
+			linux,default-trigger = "usb-disk-wr";
 		};
 
 		led@7 {
 			label = "usb0";
 			gpios = <&gpio4 9 0>;
 			default-state = "off";
+			linux,default-trigger = "usbport"; /* The BSP will map this led to port "1-1-port1" */
 		};
 
 		led@8 {
 			label = "usb1";
 			gpios = <&gpio4 7 0>;
 			default-state = "off";
+			linux,default-trigger = "usbport"; /* The BSP will map this led to port "1-1-port2" */
 		};
 
 		led@9 {

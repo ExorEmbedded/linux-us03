@@ -241,14 +241,12 @@ struct imx_port {
 	struct delayed_work	tsk_dma_tx;
 	wait_queue_head_t	dma_wait;
 	unsigned int            saved_reg[10];
-	int					rts_gpio;         /* GPIO used as tx_en line for RS485 operation */
-	int					be15mode_gpio;    /* GPIO used as mode selection between RS485 (1) and RS422 (0) on BE15 carriers */
-	int					mode_gpio;        /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
-	int					rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
+	int			rts_gpio;         /* GPIO used as tx_en line for RS485 operation */
+	int			mode_gpio;        /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
+	int			rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
 
 #define DMA_TX_IS_WORKING 1
 	unsigned long		flags;
-	int                     rs485_invert_rts;
 	int                     mode_two_lines_only;
 };
 
@@ -711,7 +709,7 @@ static void imx_start_tx(struct uart_port *port)
 	  /*
 	   * If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
 	   */
-	  if (gpio_is_valid(sport->mode_gpio))
+//	  if (gpio_is_valid(sport->mode_gpio))
 	    if (gpio_is_valid(sport->rts_gpio)) 
 	    {
 		if(sport->mode_two_lines_only)

@@ -40,6 +40,8 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_leds>;
 
 		led@1 {
 			label = "ns01:dl:usr0";
@@ -50,6 +52,54 @@
 		led@2 {
 			label = "ns01:fault:usr0";
 			gpios = <&tca6408 6 0>;
+			default-state = "off";
+		};
+
+		led@3 {
+			label = "pwr";
+			gpios = <&gpio1 29 0>;
+			default-state = "on";
+		};
+
+		led@4 {
+			label = "con";
+			gpios = <&gpio1 30 0>;
+			default-state = "off";
+		};
+
+		led@5 {
+			label = "usr";
+			gpios = <&gpio1 31 0>;
+			default-state = "off";
+		};
+
+		led@6 {
+			label = "usb_mem_write";
+			gpios = <&gpio1 28 0>;
+			default-state = "off";
+		};
+
+		led@7 {
+			label = "usb0";
+			gpios = <&gpio4 9 0>;
+			default-state = "off";
+		};
+
+		led@8 {
+			label = "usb1";
+			gpios = <&gpio4 7 0>;
+			default-state = "off";
+		};
+
+		led@9 {
+			label = "com1";
+			gpios = <&gpio4 8 0>;
+			default-state = "off";
+		};
+
+		led@10 {
+			label = "com2";
+			gpios = <&gpio4 6 0>;
 			default-state = "off";
 		};
 	};
@@ -346,7 +396,19 @@
 				MX6UL_PAD_ENET2_TX_CLK__ENET2_REF_CLK2	0x4b01b0a8
 			>;
 		};
-		
+
+		pinctrl_leds: ledsgrp {
+			fsl,pins = <
+				MX6UL_PAD_UART4_RX_DATA__GPIO1_IO29  0x10b0
+				MX6UL_PAD_UART5_TX_DATA__GPIO1_IO30  0x10b0
+				MX6UL_PAD_UART5_RX_DATA__GPIO1_IO31  0x10b0
+				MX6UL_PAD_UART4_TX_DATA__GPIO1_IO28  0x10b0
+				MX6UL_PAD_NAND_DATA07__GPIO4_IO09    0x10b0
+				MX6UL_PAD_NAND_DATA05__GPIO4_IO07    0x10b0
+				MX6UL_PAD_NAND_DATA06__GPIO4_IO08    0x10b0
+				MX6UL_PAD_NAND_DATA04__GPIO4_IO06    0x10b0
+			>;
+		};
 	};
 };
 

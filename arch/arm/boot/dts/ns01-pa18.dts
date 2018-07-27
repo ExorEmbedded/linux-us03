@@ -98,11 +98,13 @@
 			label = "com1";
 			gpios = <&gpio4 8 0>;
 			default-state = "off";
+			linux,default-trigger = "ttymxc0-tx";
 		};
 
 		led@10 {
 			label = "com2";
 			gpios = <&gpio4 6 0>;
+			linux,default-trigger = "ttymxc1-tx";
 			default-state = "off";
 		};
 	};

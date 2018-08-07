@@ -327,8 +327,8 @@ static int hrs_parse_dt(struct device *dev, struct hrs_data *data)
     }
     else
     {
-        dev_err(dev, "Failed to get backlight node\n");
-        return -ENODEV;
+        dev_err(dev, "Missing backlight node\n");
+	data->backlight = NULL;
     }
 
     /* Parse the DT to find the I2C rtcnvram bindings*/
@@ -383,7 +383,11 @@ static int update_thread(void *p)
     while (!kthread_should_stop())
     {
         mutex_lock(&data->lock);
-        data->bl_enabled = pwm_backlight_is_enabled(data->backlight);
+	if(data->backlight)
+	  data->bl_enabled = pwm_backlight_is_enabled(data->backlight);
+	else
+	  data->bl_enabled = false;
+	  
         UpdateCounters(data);
         mutex_unlock(&data->lock);
         if (kthread_should_stop())

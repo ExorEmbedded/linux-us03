@@ -117,6 +117,12 @@
 	  gpio-names = "f1_in", "f2_in", "pgood";
 	};
 	
+	working_hours {
+	  compatible = "working_hours";
+	  eeprom = <&seeprom0>;
+	  rtcnvram = <&m41t83>;
+	  status = "okay";
+	};
 };
 
 &clks {

@@ -113,8 +113,8 @@
 	  compatible = "exor,gpio_initializer";
 	  pinctrl-names = "default";
 	  pinctrl-0 = <&pinctrl_dig_io>;
-	  gpios = <&gpio1 9 0x21>, <&gpio1 8 0x21>,  <&gpio1 5 0x21>; /* All pins are inputs, exported to sysfs (GPIOF_IN|GPIOF_EXPORT) please see gpio.h*/
-	  gpio-names = "f1_in", "f2_in", "pgood";
+	  gpios = <&gpio1 9 0x21>, <&gpio1 8 0x21>, <&gpio1 5 0x21>,  <&gpio4 20 0x21>; /* All pins are inputs, exported to sysfs (GPIOF_IN|GPIOF_EXPORT) please see gpio.h*/
+	  gpio-names = "f1_in", "f2_in", "pgood", "rst";
 	};
 	
 	working_hours {
@@ -435,6 +435,7 @@
 				MX6UL_PAD_GPIO1_IO08__GPIO1_IO08  0x10b0
 				MX6UL_PAD_GPIO1_IO09__GPIO1_IO09  0x10b0
 				MX6UL_PAD_GPIO1_IO05__GPIO1_IO05  0x10b0
+				MX6UL_PAD_CSI_HSYNC__GPIO4_IO20   0x10b0
 			>;
 		};
 	};

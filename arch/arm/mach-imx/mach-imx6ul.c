@@ -36,8 +36,8 @@ static void __init imx6ul_enet_clk_init(void)
 #else
 	  regmap_update_bits(gpr, IOMUXC_GPR1, IMX6UL_GPR1_ENET_CLK_SEL, IMX6UL_GPR1_ENET_CLK_SEL); //We use imx6UL with clock input from RMII phys
 	  regmap_update_bits(gpr, IOMUXC_GPR1, IMX6UL_GPR1_ENET_CLK_DIR, 0); //We use imx6UL with clock input from RMII phys
-	}
 #endif
+	}
 	else
 		pr_err("failed to find fsl,imx6ul-iomux-gpr regmap\n");
 

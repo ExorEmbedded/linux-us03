@@ -1012,6 +1012,11 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7561U_PID) },
 	{ USB_DEVICE(ICPDAS_VID, ICPDAS_I7563U_PID) },
 	{ USB_DEVICE(WICED_VID, WICED_USB20706V2_PID) },
+	/* #763: Specific entries for PA18 devices */
+	{ USB_DEVICE(0x0986, 0x0310) },
+	{ USB_DEVICE(0x0986, 0x0320) },
+	{ USB_DEVICE(0x04da, 0x4201) },
+	{ USB_DEVICE(0x10c4, 0xea60) },
 	{ }					/* Terminating entry */
 };
 

@@ -71,6 +71,8 @@
  *1.18			SS							28.03.2018  Modified display code #64: modified pixel clock from 1 to 0 due to wrong datasheet info
  *1.19			SS							09.07.2018  Added display code #67: FutureLabs FLC-101HML0000SA2 for ex710-hb
  *1.20			SS							25.09.2018  Modified display code #66: DISPJST-005N001 800x480 for Jsmart05, Max duty 70% in order to reduce brite to about 300cd/m2
+ *1.21			SS							03.10.2018  Modified display code #63: FutureLabs FLC-101HML0000SA2 for ex710-hb and pixel clock set to min (66.6MHz) to avoid vertical green
+ *                                                      line when driving with grey pattern (190,190,190)
 
  * NEXT AVAILABLE DISPLAY CODE: 68
  */
@@ -827,14 +829,14 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 10,
         .brightness_max = 100,
     },   
-    /* 63: FutureLabs FLT-1001Q2ETTXNH01 24 bit 1280x800 IMX.6 ONLY */
+    /* 63: FutureLabs FLC-101HML0000SA2 24 bit 1280x800 IMX.6 ONLY */
     {
         .dispid    = 63,
         .rezx      = 1280, 
         .rezy      = 800, 
         .bpp       = 24,
         
-        .pclk_freq = 71100, 
+        .pclk_freq = 66600,         //03.10.2018 min freq to avoid green line
         .pclk_inv  = 1,				//inverted clock polarity due to IMX.6 bug
         
         .hs_fp     = 30, 

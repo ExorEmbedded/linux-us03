@@ -365,4 +365,13 @@ config XILINX_XADC
 	  The driver can also be build as a module. If so, the module will be called
 	  xilinx-xadc.
 
+config ADS1000
+	tristate "ADS1000 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for ADS1000 ADC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ads1000.
+	  
 endmenu

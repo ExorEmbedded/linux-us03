@@ -94,6 +94,13 @@
       compatible = "pwm-beeper";
       pwms = <&pwm5 0 50000 0>;
     };
+
+    working_hours {
+        compatible = "working_hours";
+        eeprom = <&seeprom0>;
+        rtcnvram = <&m41t83>;
+        status = "okay";
+    };
 };
 
 &clks {
@@ -315,6 +322,12 @@
 
         ti,x-plate-ohms = <280>;
         ti,esd-recovery-timeout-ms = <8000>;
+    };
+
+    lm75@4c {
+        compatible = "lm75";
+        reg = <0x4C>;
+        status = "okay";
     };
 };
 

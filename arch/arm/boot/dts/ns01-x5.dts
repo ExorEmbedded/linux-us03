@@ -157,6 +157,16 @@
         rtcnvram = <&m41t83>;
         status = "okay";
     };
+
+    rotary@0 {
+        compatible = "rotary-encoder";
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_encoderpad>;
+        gpios = <&gpio4 10 0>, <&gpio4 12 0>;
+        linux,axis = <0>; /* REL_X */
+        rotary-encoder,encoding = "binary";
+        rotary-encoder,relative-axis;
+    };
 };
 
 &clks {
@@ -523,6 +533,13 @@
                 MX6UL_PAD_LCD_DATA17__GPIO3_IO22	    0x1b0b1
                 MX6UL_PAD_LCD_DATA18__GPIO3_IO23	    0x1b0b1
                 MX6UL_PAD_LCD_DATA19__GPIO3_IO24	    0x1b0b1
+            >;
+        };
+
+        pinctrl_encoderpad: encodergrp {
+            fsl,pins = <
+                MX6UL_PAD_NAND_ALE__GPIO4_IO10	        0x1b0b1
+                MX6UL_PAD_NAND_READY_B__GPIO4_IO12	    0x1b0b1
             >;
         };
     };

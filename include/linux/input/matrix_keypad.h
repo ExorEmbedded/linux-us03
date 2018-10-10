@@ -39,7 +39,7 @@ struct matrix_keymap_data {
  * @col_gpios: pointer to array of gpio numbers reporesenting colums
  * @num_row_gpios: actual number of row gpios used by device
  * @num_col_gpios: actual number of col gpios used by device
- * @col_scan_delay_us: delay, measured in microseconds, that is
+ * @col_scan_delay_ms: delay, measured in milliseconds, that is
  *	needed before we can keypad after activating column gpio
  * @debounce_ms: debounce interval in milliseconds
  * @clustered_irq: may be specified if interrupts of all row/column GPIOs
@@ -62,7 +62,7 @@ struct matrix_keypad_platform_data {
 	unsigned int	num_row_gpios;
 	unsigned int	num_col_gpios;
 
-	unsigned int	col_scan_delay_us;
+	unsigned int	col_scan_delay_ms;
 
 	/* key debounce interval in milli-second */
 	unsigned int	debounce_ms;
@@ -73,6 +73,7 @@ struct matrix_keypad_platform_data {
 	bool		active_low;
 	bool		wakeup;
 	bool		no_autorepeat;
+	bool		col_active_high;
 };
 
 int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,

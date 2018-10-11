@@ -27,59 +27,62 @@ struct ads1000 {
 
 static int ads1000_read_channel(struct ads1000 *adc, struct iio_chan_spec const *channel, int *value)
 {
-  int ret;
-  u8 req_channel; 
-  
-  mutex_lock(&adc->lock);
-  req_channel = channel->channel;
-  
-  //Select the input line by using the mux_gpio
-  if(req_channel == 0)
-    gpio_set_value(adc->mux_gpio, 0);
-  else
-    gpio_set_value(adc->mux_gpio, 1);
-  
-  //Wait for the free running ADC to acquire a valid sample
-  msleep(15);
-  
-  // Get the measured data
-  ret = i2c_smbus_read_byte_data(adc->i2c, ADS1000_OUT_REG);
-  if (ret < 0)
-    ret = i2c_smbus_read_byte_data(adc->i2c, ADS1000_OUT_REG);
-  
-  if (ret < 0)
-    goto err_read_channel;
-  
-  *value = ret;
-  
+    int ret;
+    u8 req_channel;
+
+    mutex_lock(&adc->lock);
+    req_channel = channel->channel;
+
+    //Select the input line by using the mux_gpio
+    if(req_channel == 0)
+        gpio_set_value(adc->mux_gpio, 0);
+    else
+        gpio_set_value(adc->mux_gpio, 1);
+
+    //Wait for the free running ADC to acquire a valid sample
+    msleep(15);
+
+    // Get the measured data
+    ret = i2c_smbus_read_word_swapped(adc->i2c, ADS1000_OUT_REG);
+    if (ret < 0)
+        ret = i2c_smbus_read_word_swapped(adc->i2c, ADS1000_OUT_REG);
+
+    if (ret < 0)
+        goto err_read_channel;
+
+    if(ret>2047)
+        ret=0;
+
+    *value = ret;
+
 err_read_channel:
-  mutex_unlock(&adc->lock);
-  return ret;
+    mutex_unlock(&adc->lock);
+    return ret;
 }
 
 static int ads1000_read_raw(struct iio_dev *iio, struct iio_chan_spec const *channel, int *value, int *shift, long mask)
 {
-  struct ads1000 *adc = iio_priv(iio);
-  int err;
-  
-  switch (mask) {
+    struct ads1000 *adc = iio_priv(iio);
+    int err;
+
+    switch (mask) {
     case IIO_CHAN_INFO_RAW:
-      err = ads1000_read_channel(adc, channel, value);
-      if (err < 0)
-	return -EINVAL;
-      return IIO_VAL_INT;
+        err = ads1000_read_channel(adc, channel, value);
+        if (err < 0)
+            return -EINVAL;
+        return IIO_VAL_INT;
     default:
-      break;
-  }
-  return -EINVAL;
+        break;
+    }
+    return -EINVAL;
 }
 
-#define ADS1000_CHANNEL(chan) {					\
-	.type = IIO_VOLTAGE,					\
-	.indexed = 1,						\
-	.channel = (chan),					\
-	.scan_index = (chan),					\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+#define ADS1000_CHANNEL(chan) {                     \
+    .type = IIO_VOLTAGE,                            \
+    .indexed = 1,                                   \
+    .channel = (chan),                              \
+    .scan_index = (chan),                           \
+    .info_mask_separate = BIT(IIO_CHAN_INFO_RAW),   \
 }
 
 static const struct iio_chan_spec ads1000_channel[] = {
@@ -101,7 +104,8 @@ static int ads1000_probe(struct i2c_client *client,
 	int err;
 	int ret;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
+    dev_info( &client->dev, "ADC ads1000 Start probing!\n");
+    if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
 	iio = devm_iio_device_alloc(&client->dev, sizeof(*adc));
@@ -114,20 +118,22 @@ static int ads1000_probe(struct i2c_client *client,
 	mutex_init(&adc->lock);
 
 	adc->mux_gpio = -EINVAL;
-	ret = of_get_named_gpio(np, "mux-gpio", 0);
+    ret = of_get_named_gpio(np, "mux-gpio", 0);
 	if (ret >= 0 && gpio_is_valid(ret))
 	{
 	  adc->mux_gpio = ret;
 	  
 	  ret = gpio_request(adc->mux_gpio, "mux-gpio");
 	  if(ret < 0)
-	    return ret;
+        return ret;
 	  
 	  ret = gpio_direction_output(adc->mux_gpio, 0);
 	  if(ret < 0)
 	    return ret;
-	}
-	
+    } else {
+        return -EPROBE_DEFER;
+    }
+
 	iio->dev.parent = &client->dev;
 	iio->name = dev_name(&client->dev);
 	iio->modes = INDIO_DIRECT_MODE;
@@ -143,6 +149,8 @@ static int ads1000_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, iio);
 	
 	i2c_smbus_write_byte_data(adc->i2c, ADS1000_CFG_REG, 0x00);
+
+    dev_info( &client->dev, "ADC ads1000 Probed!\n");
 
 	return 0;
 }

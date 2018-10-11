@@ -402,6 +402,13 @@
         reg = <0x4C>;
         status = "okay";
     };
+
+    ads1000@48 {
+        compatible = "exor,ads1000";
+        reg = <0x48>;
+        mux-gpio = <&gpio4 13 0>;
+        status = "okay";
+    };
 };
 
 &iomuxc {
@@ -447,6 +454,7 @@
                 MX6UL_PAD_UART2_RX_DATA__I2C4_SDA           0x4001b8b0
                 MX6UL_PAD_GPIO1_IO03__GPIO1_IO03            0x17059 /* IO EXP PCA6408 IRQ pin */
                 MX6UL_PAD_UART2_CTS_B__GPIO1_IO22           0x17059 /* TOUCH CONTR TSC2004 IRQ pin */
+                MX6UL_PAD_NAND_CE0_B__GPIO4_IO13            0x17059 /* ADC ADS1000 MUX pin */
 
             >;
         };

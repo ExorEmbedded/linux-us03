@@ -95,7 +95,7 @@
       pwms = <&pwm5 0 50000 0>;
     };
 
-    matrix-keypad {
+    matrix_keypad {
         compatible = "gpio-matrix-keypad";
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_keypad>;
@@ -158,7 +158,7 @@
         status = "okay";
     };
 
-    rotary@0 {
+    rot_enc_left {
         compatible = "rotary-encoder";
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_encoderpad>;
@@ -435,7 +435,6 @@
             fsl,pins = <
                 MX6UL_PAD_UART3_TX_DATA__GPIO1_IO24         0x17059 /* EN_VDD */
                 MX6UL_PAD_UART3_RX_DATA__GPIO1_IO25         0x17059 /* EN_BL */
-                MX6UL_PAD_NAND_ALE__GPIO4_IO10              0x17059 /* WIFI RESET GPIO4 IO10*/
 
                 MX6UL_PAD_NAND_DATA07__GPIO4_IO09           0x17059
                 MX6UL_PAD_GPIO1_IO09__GPIO1_IO09            0x17059
@@ -447,7 +446,7 @@
                 MX6UL_PAD_UART2_TX_DATA__I2C4_SCL           0x4001b8b0
                 MX6UL_PAD_UART2_RX_DATA__I2C4_SDA           0x4001b8b0
                 MX6UL_PAD_GPIO1_IO03__GPIO1_IO03            0x17059 /* IO EXP PCA6408 IRQ pin */
-                MX6UL_PAD_UART2_CTS_B__GPIO1_IO22           0x17059 /* IO EXP TSC2004 IRQ pin */
+                MX6UL_PAD_UART2_CTS_B__GPIO1_IO22           0x17059 /* TOUCH CONTR TSC2004 IRQ pin */
 
             >;
         };

@@ -524,15 +524,15 @@
 
         pinctrl_uart4: uart4grp {
             fsl,pins = <
-                MX6UL_PAD_UART4_RX_DATA__UART4_DCE_RX       0x1b0b1
-                MX6UL_PAD_UART4_RX_DATA__UART4_DTE_TX       0x1b0b1
+                MX6UL_PAD_UART4_RX_DATA__UART4_DCE_RX       0x0001B0B1
+                MX6UL_PAD_UART4_TX_DATA__UART4_DCE_TX       0x0001B0B1
             >;
         };
 
         pinctrl_uart5: uart5grp {
             fsl,pins = <
-                MX6UL_PAD_UART5_TX_DATA__UART5_DCE_TX       0x1b0b1
-                MX6UL_PAD_UART5_RX_DATA__UART5_DCE_RX       0x1b0b1
+                MX6UL_PAD_UART5_RX_DATA__UART5_DCE_RX       0x0001B0B1
+                MX6UL_PAD_UART5_TX_DATA__UART5_DCE_TX       0x0001B0B1
             >;
         };
 

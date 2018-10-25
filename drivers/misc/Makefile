@@ -57,3 +57,4 @@ obj-$(CONFIG_WORKING_HOURS)	+= working_hours.o
 obj-$(CONFIG_PLXX_MANAGER)	+= plxx_manager.o
 obj-y				+= mic/
 obj-$(CONFIG_GENWQE)		+= genwqe/
+obj-$(CONFIG_EXOR_DVI_PLUGIN)	+= dviplugin/

@@ -191,13 +191,15 @@
 };
 
 &ecspi1 {
-	fsl,spi-num-chipselects = <5>;
+	fsl,spi-num-chipselects = <6>;
 	cs-gpios = <&gpio5 25 0>, /* CS0 */
 	           <&gpio4 10 0>, /* CS1 */
 	           <&gpio4 11 0>, /* CS2 */
 	           <&gpio4 12 0>, /* CS3 */
-	           <&gpio5 19 0>; /* CS4 */
-	pinctrl-names = "default";
+	           <&gpio5 19 0>, /* CS4 */
+	           <&gpio5 20 0>; /* CS5 */
+
+	           pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
 
@@ -250,7 +252,13 @@
 		reg = <0xa00000 0xa00000>;
 		};
 	};
-	
+
+	DVIplugin: dviplugin@5 {
+		compatible = "exor,dvipluginhdaxx";
+		reg = <5>;
+		spi-max-frequency = <3000000>;
+		i2c-nr = <0>;
+	};
 };
 
 &ecspi2 {
@@ -476,6 +484,7 @@
 				MX6QDL_PAD_KEY_COL2__GPIO4_IO10   0x1b0b1 /* CS1  */
 				MX6QDL_PAD_CSI0_DAT7__GPIO5_IO25  0x1b0b1 /* CS0  */
 				MX6QDL_PAD_CSI0_MCLK__GPIO5_IO19  0x1b0b1 /* CS4  */
+				MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20 0x1b0b1 /* CS5  */
 				MX6QDL_PAD_CSI0_VSYNC__GPIO5_IO21 0x1b0b1 /* enable gpio for FPGA SPI Flash */
 			>;
 		};

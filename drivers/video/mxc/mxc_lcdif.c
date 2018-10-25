@@ -24,6 +24,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <video/displayconfig.h>
+#include <video/dviconfig.h>
 
 #include "mxc_dispdrv.h"
 
@@ -128,6 +129,62 @@ int dispid_get_fb_videomode(struct fb_videomode *fbmode, int dispid)
   return 0;
 }
 
+extern int dvi_dispid; //This is an exported variable holding the DVI id value (indicates the presence of the DVI plugin module and selected cfg)
+
+/*
+ * Writes the fb_videomode structure according with the contents of the dviconfig.h file and the passed dispid parameter.
+ * Returns 0 if success, -1 if failure (ie: no match found)
+ */
+int dviid_get_fb_videomode(struct fb_videomode *fbmode, int dispid)
+{
+  int i=0;
+  unsigned int htotal, vtotal;
+  
+  // Scan the dvi array to search for the required dispid
+  if(dispid == NODISPLAY)
+    return -1;
+  
+  while((dviconfig[i].dispid != NODISPLAY) && (dviconfig[i].dispid != dispid))
+    i++;
+  
+  if(dviconfig[i].dispid == NODISPLAY)
+    return -1;
+  
+  // If we are here, we have a valid array index pointing to the desired display
+  fbmode->xres         = dviconfig[i].rezx;
+  fbmode->left_margin  = dviconfig[i].hs_bp;     
+  fbmode->right_margin = dviconfig[i].hs_fp;
+  fbmode->hsync_len    = dviconfig[i].hs_w;
+  
+  fbmode->yres         = dviconfig[i].rezy;
+  fbmode->upper_margin = dviconfig[i].vs_bp;
+  fbmode->lower_margin = dviconfig[i].vs_fp;
+  fbmode->vsync_len    = dviconfig[i].vs_w;
+
+  /* prevent division by zero in KHZ2PICOS macro */
+  fbmode->pixclock = DVI_FIXEDCLKFREQ ? KHZ2PICOS(dviconfig[i].pclk_freq) : 0;
+  fbmode->sync = FB_SYNC_CLK_LAT_FALL;
+  fbmode->vmode = 0;
+  fbmode->flag = 0;
+  
+  htotal = dviconfig[i].rezx + dviconfig[i].hs_bp + dviconfig[i].hs_fp + dviconfig[i].hs_w;
+  vtotal = dviconfig[i].rezy + dviconfig[i].vs_bp + dviconfig[i].vs_fp + dviconfig[i].vs_w;
+
+  /* prevent division by zero */
+  if (htotal && vtotal) 
+  {
+    fbmode->refresh = DVI_FIXEDCLKFREQ / (htotal * vtotal);
+    /* a mode must have htotal and vtotal != 0 or it is invalid */
+  } 
+  else 
+  {
+    fbmode->refresh = 0;
+    return -EINVAL;
+  }
+  
+  return 0;
+}
+
 /*----------------------------------------------------------------------------------------------------------------*
  *----------------------------------------------------------------------------------------------------------------*/
 
@@ -141,7 +198,14 @@ static int lcdif_init(struct mxc_dispdrv_handle *disp,
 	struct fb_videomode *modedb = lcdif_modedb;
 	int modedb_sz = lcdif_modedb_sz;
 	
-	dispid_get_fb_videomode(modedb, hw_dispid);
+	/* If no local display present and we have a DVI plugin module installed
+	 * use the actual DVI resolution as system resolution, otherwise use the 
+	 * local LCD resolution as system resolution
+	 */
+	if((hw_dispid == NODISPLAY) && (dvi_dispid != NODISPLAY))
+	  dviid_get_fb_videomode(modedb, dvi_dispid);
+	else
+	  dispid_get_fb_videomode(modedb, hw_dispid);
 
 	/* use platform defined ipu/di */
 	ret = ipu_di_to_crtc(dev, plat_data->ipu_id,

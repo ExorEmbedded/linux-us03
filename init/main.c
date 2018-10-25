@@ -141,9 +141,24 @@ EXPORT_SYMBOL(hw_dispid);
 static int __init getdispid(char* str)
 {
   hw_dispid = simple_strtol(str, NULL, 0);
+  if(hw_dispid >= 255)
+    hw_dispid = 0xFFFF;
   return 1;
 }
 __setup("hw_dispid=",getdispid);
+
+/*----------------------------------------------------------------------------------------------------------------*
+Export the dvi_dispid variable, defining the DVI id if passed from cmdline.
+*----------------------------------------------------------------------------------------------------------------*/
+int dvi_dispid = 0xFFFF; //This variable will hold the DVI id value, when passed from the cmdline
+EXPORT_SYMBOL(dvi_dispid);
+
+static int __init getdvidispid(char* str)
+{
+  dvi_dispid = simple_strtol(str, NULL, 0);
+  return 1;
+}
+__setup("dvi_dispid=",getdvidispid);
 
 /*
  * Used to generate warnings if static_key manipulation functions are used

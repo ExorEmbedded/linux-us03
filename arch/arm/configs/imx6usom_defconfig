@@ -560,6 +560,11 @@ CONFIG_FONT_8x16=y
 CONFIG_PLXX_MANAGER=y
 
 #
+# Exor DVI plugin support
+#
+CONFIG_EXOR_DVI_PLUGIN=y
+
+#
 # Bus support
 #
 CONFIG_PCI=y

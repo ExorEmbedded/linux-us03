@@ -585,6 +585,7 @@ static int mxcfb_set_par(struct fb_info *fbi)
 	if (!mxc_fbi->overlay) {
 		uint32_t out_pixel_fmt;
 		extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+		extern int dvi_dispid; //This is the external variable indicating if the DVI plugin module is present and the selected DVI cfg.
 		int i = 0;
 		
 		/*
@@ -593,8 +594,9 @@ static int mxcfb_set_par(struct fb_info *fbi)
 		if(hw_dispid != NODISPLAY)
 		  while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != hw_dispid))
 		    i++;
-		  
-		if(displayconfig[i].dispid != NODISPLAY)
+		
+		if(hw_dispid != NODISPLAY)
+		  if(displayconfig[i].dispid != NODISPLAY)
 		{
 		  fbi->var.sync = 0;
 		  
@@ -609,6 +611,18 @@ static int mxcfb_set_par(struct fb_info *fbi)
 		  
 		  if(displayconfig[i].pclk_inv == 0)
 		    fbi->var.sync |= FB_SYNC_CLK_LAT_FALL;
+		}
+		
+		//If the DVI plugin module is present, use fixed sync polarities for feeding the module.
+		if(dvi_dispid != NODISPLAY)
+		{
+#if 1
+		  //NOTE: This is for the DVI plugin with LVDS input
+		  fbi->var.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT;
+#else
+		  //NOTE: This is for the DVI plugin with TTL RGB input
+		  fbi->var.sync = FB_SYNC_CLK_LAT_FALL;
+#endif
 		}
 
 		memset(&sig_cfg, 0, sizeof(sig_cfg));

@@ -1,0 +1,10 @@
+menu "Exor DVI plugin support"
+
+config EXOR_DVI_PLUGIN
+	tristate "Exor DVI plugin module, based on HDAxx board"
+	depends on I2C && SPI
+	help
+	  Enable this driver to get support for the Exor DVI plugin 
+	  modules, based on HDAxx boards.
+
+endmenu

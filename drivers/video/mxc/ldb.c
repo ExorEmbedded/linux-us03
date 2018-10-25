@@ -36,6 +36,7 @@
 #include <video/videomode.h>
 #include "mxc_dispdrv.h"
 #include <video/displayconfig.h>
+#include <video/dviconfig.h>
 
 #define DRIVER_NAME	"ldb"
 
@@ -295,7 +296,7 @@ MODULE_DEVICE_TABLE(of, ldb_dt_ids);
    cmdline.
  *----------------------------------------------------------------------------------------------------------------*/
 extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
-
+extern int dvi_dispid; //This is the external variable indicating if the DVI plugin module is installed and the selected cfg.
 /*
  * Writes the videomode structure according with the contents of the displayconfig.h file and the passed dispid parameter.
  * Returns 0 if success, -1 if failure (ie: no match found)
@@ -351,12 +352,52 @@ int dispid_get_videomode(struct videomode* vm, int dispid)
 }
 
 /*
+ * Writes the videomode structure according with the contents of the dviconfig.h file and the passed dispid parameter.
+ * Returns 0 if success, -1 if failure (ie: no match found)
+ */
+int dviid_get_videomode(struct videomode* vm, int dispid)
+{
+  int i=0;
+  
+  // Scan the display array to search for the required dispid
+  if(dispid == NODISPLAY)
+    return -1;
+  
+  while((dviconfig[i].dispid != NODISPLAY) && (dviconfig[i].dispid != dispid))
+    i++;
+  
+  if(dviconfig[i].dispid == NODISPLAY)
+    return -1;
+  
+  // If we are here, we have a valid array index pointing to the desired display
+  vm->hactive         = dviconfig[i].rezx;
+  vm->hback_porch  = dviconfig[i].hs_bp;     
+  vm->hfront_porch = dviconfig[i].hs_fp;
+  vm->hsync_len    = dviconfig[i].hs_w;
+  
+  vm->vactive         = dviconfig[i].rezy;
+  vm->vback_porch = dviconfig[i].vs_bp;
+  vm->vfront_porch = dviconfig[i].vs_fp;
+  vm->vsync_len    = dviconfig[i].vs_w;
+  vm->pixelclock = 1000 * DVI_FIXEDCLKFREQ;
+  
+  vm->flags = 0;
+  vm->flags = DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH | DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+  
+  return 0;
+}
+
+/*
  * Returns if DUAL LVDS mode is used, based on the resulting frame refresh frequency
  */
 bool dispid_get_splitmode(int dispid)
 {
   int i=0;
   int frefresh;
+  
+  // If the DVI plugin module is installed, we always go with single LVDS channel
+  if(dvi_dispid != NODISPLAY)
+    return false;
   
   // Scan the display array to search for the required dispid
   if(dispid == NODISPLAY)
@@ -935,7 +976,11 @@ static int ldb_probe(struct platform_device *pdev)
 		if (ret)
 			return -EINVAL;
 		
-		dispid_get_videomode(&chan->vm, hw_dispid); //Override the DTB timings, if a valid hw_dispid is mapped to the displayconfig.h file.
+		// Use the DVI resolution as system resolution if the DVI plugin module is installed
+		if((hw_dispid == NODISPLAY)&&(dvi_dispid != NODISPLAY))
+		  dviid_get_videomode(&chan->vm, dvi_dispid);
+		else
+		  dispid_get_videomode(&chan->vm, hw_dispid); //Override the DTB timings, if a valid hw_dispid is mapped to the displayconfig.h file.
 		// If DUAL LVDS mode, the effective pixelclock is doubled
 		if (ldb->spl_mode)
 		  chan->vm.pixelclock *= 2;

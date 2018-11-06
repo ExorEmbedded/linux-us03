@@ -160,6 +160,22 @@ static void imx2_wdt_set_timeout(int new_timeout)
 	__raw_writew(val, imx2_wdt.base + IMX2_WDT_WCR);
 }
 
+static inline void imx2_wdt_ping_if_active(void)
+{
+	u16 val = __raw_readw(imx2_wdt.base + IMX2_WDT_WCR);
+
+	if (val & IMX2_WDT_WCR_WDE) {
+		/* Must enable the clock, wdog service doesn't work otherwise */
+		clk_prepare_enable(imx2_wdt.clk);
+
+		set_bit(IMX2_WDT_STATUS_STARTED, &imx2_wdt.status);
+
+		/* Set new watchdog time-out value */
+		imx2_wdt_set_timeout(imx2_wdt.timeout);
+		imx2_wdt_timer_ping(0);
+	}
+}
+
 
 static int imx2_wdt_check_pretimeout_set(void)
 {
@@ -349,6 +365,8 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
+	imx2_wdt_ping_if_active();
+	
 	dev_info(&pdev->dev,
 		"IMX2+ Watchdog Timer enabled. timeout=%ds (nowayout=%d)\n",
 						imx2_wdt.timeout, nowayout);

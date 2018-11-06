@@ -147,6 +147,19 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 		unsigned long free_mem_ptr_end_p,
 		int arch_id)
 {
+#ifdef CONFIG_IMX2_WDT	
+/* This is for starting the wdt in advance (with timeout= 10s) to protect the early kernel boot stage */
+#define SRCREGBASE		(0x20d8000)
+#define IMXWDTBASE		(0x20bc000)
+
+#define IMX2_WDT_WCR		0x00		/* Control Register */
+#define IMX2_WDT_WSR		0x01		/* Service Register */
+#define IMX2_WDT_SEQ1		0x5555		/* -> service sequence 1 */
+#define IMX2_WDT_SEQ2		0xAAAA		/* -> service sequence 2 */
+	
+	volatile unsigned long*  srcregp = (volatile unsigned long*)SRCREGBASE;
+	volatile unsigned short* wdtregp = (volatile unsigned short*)IMXWDTBASE;
+#endif
 	int ret;
 
 	__stack_chk_guard_setup();
@@ -165,4 +178,12 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 		error("decompressor returned an error");
 	else
 		putstr(" done, booting the kernel.\n");
+	
+#ifdef CONFIG_IMX2_WDT	
+/* This is for starting the wdt in advance (with timeout= 10s) to protect the early kernel boot stage */
+	*srcregp = 0x520;
+	*(wdtregp + IMX2_WDT_WCR) = 0x1434;
+	*(wdtregp + IMX2_WDT_WSR) = IMX2_WDT_SEQ1;
+	*(wdtregp + IMX2_WDT_WSR) = IMX2_WDT_SEQ2;
+#endif
 }

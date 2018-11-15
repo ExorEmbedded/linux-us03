@@ -12,7 +12,7 @@
 #include "imx6ul.dtsi"
 
 / {
-	model = "Exor NanoSom01 i.MX6 UltraLite EK435 Board";
+	model = "Exor NanoSom01 i.MX6 UltraLite X5 BaseStation Board";
 	compatible = "exor,ns01-ek435", "fsl,imx6ul";
 
 	aliases {
@@ -68,20 +68,13 @@
 		};
 	};
 
-	pwm_bl00: backlight {
-		compatible = "pwm-backlight";
-		pwms = <&pwm4 0 50000>;
-		brightness-levels = <0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
-		default-brightness-level = <25>;
-		enable-gpios = <&gpio1 25 0>;
-		status = "okay";
-	};
-
 	beeper {
-	  compatible = "pwm-beeper";
-	  pwms = <&pwm5 0 50000 0>;
+	  /* Piezoelectric buzzer */
+	  compatible = "gpio-beeper";
+	  pinctrl-0 = <&pinctrl_beeper>;
+	  pinctrl-names = "default";
+	  gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
 	};
-	
 };
 
 &clks {
@@ -103,10 +96,13 @@
 	fsl,ldo-bypass = <1>; /* use ldo-bypass, u-boot will check it and configure */
 };
 
-
-
 &uart1 {
 	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	rts-gpio = <&gpio4 27 0>;
+	mode-gpio = <&gpio4 26 0>;
+	rxen-gpio = <&gpio4 28 0>;
 	status = "okay";
 };
 
@@ -278,19 +274,18 @@
 		reg = <0x21>;
 		restart-if-fails;
 	};
-
-	lis331dlh@18 {
-        /* Accelerometer */
-        compatible = "lis331dlh";
-        reg = <0x18>;
+	
+	lm75@4c {
+	  compatible = "lm75";
+	  reg = <0x4C>;
+	  status = "okay";
 	};
-
 };
 
 &iomuxc {
   	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog_1>;
-	imx6ul-evk {
+	imx6ul-ns01 {
 		pinctrl_usdhc1: usdhc1grp {
 			fsl,pins = <
 				MX6UL_PAD_SD1_CMD__USDHC1_CMD     0x17059
@@ -318,14 +313,9 @@
 			fsl,pins = <
 				MX6UL_PAD_UART3_TX_DATA__GPIO1_IO24	0x17059 /* EN_VDD */
 				MX6UL_PAD_UART3_RX_DATA__GPIO1_IO25	0x17059 /* EN_BL */
-				MX6UL_PAD_NAND_ALE__GPIO4_IO10          0x17059 /* WIFI RESET GPIO4 IO10*/
-
-
-                MX6UL_PAD_NAND_DATA07__GPIO4_IO09   0x17059
-                MX6UL_PAD_GPIO1_IO09__GPIO1_IO09    0x17059
-
-
-			>;
+				MX6UL_PAD_NAND_DATA07__GPIO4_IO09       0x17059
+				MX6UL_PAD_GPIO1_IO09__GPIO1_IO09	0x17059
+				>;
 		};
 
 		pinctrl_i2c4: i2c4grp {
@@ -336,45 +326,9 @@
 			>;
 		};
 
-		pinctrl_lcdif_ctrl: lcdifctrlgrp {
-			fsl,pins = <
-				MX6UL_PAD_LCD_CLK__LCDIF_CLK	    0x79
-				MX6UL_PAD_LCD_ENABLE__LCDIF_ENABLE  0x79
-				MX6UL_PAD_LCD_HSYNC__LCDIF_HSYNC    0x79
-				MX6UL_PAD_LCD_VSYNC__LCDIF_VSYNC    0x79
-			>;
-		};
-
-		pinctrl_lcdif_dat: lcdifdatgrp {
-			fsl,pins = <
-				MX6UL_PAD_LCD_DATA00__LCDIF_DATA00  0x79
-				MX6UL_PAD_LCD_DATA01__LCDIF_DATA01  0x79
-				MX6UL_PAD_LCD_DATA02__LCDIF_DATA02  0x79
-				MX6UL_PAD_LCD_DATA03__LCDIF_DATA03  0x79
-				MX6UL_PAD_LCD_DATA04__LCDIF_DATA04  0x79
-				MX6UL_PAD_LCD_DATA05__LCDIF_DATA05  0x79
-				MX6UL_PAD_LCD_DATA06__LCDIF_DATA06  0x79
-				MX6UL_PAD_LCD_DATA07__LCDIF_DATA07  0x79
-				MX6UL_PAD_LCD_DATA08__LCDIF_DATA08  0x79
-				MX6UL_PAD_LCD_DATA09__LCDIF_DATA09  0x79
-				MX6UL_PAD_LCD_DATA10__LCDIF_DATA10  0x79
-				MX6UL_PAD_LCD_DATA11__LCDIF_DATA11  0x79
-				MX6UL_PAD_LCD_DATA12__LCDIF_DATA12  0x79
-				MX6UL_PAD_LCD_DATA13__LCDIF_DATA13  0x79
-				MX6UL_PAD_LCD_DATA14__LCDIF_DATA14  0x79
-				MX6UL_PAD_LCD_DATA15__LCDIF_DATA15  0x79
-			>;
-		};
-
-		pinctrl_pwm4: pwm4grp {
-			fsl,pins = <
-				MX6UL_PAD_NAND_WP_B__PWM4_OUT   0x110b0
-			>;
-		};
-		
-		pinctrl_pwm5: pwm5grp {
-			fsl,pins = <
-				MX6UL_PAD_NAND_DQS__PWM5_OUT   0x110b0
+		pinctrl_beeper: beeper0grp {
+		  fsl,pins = <
+				MX6UL_PAD_NAND_DQS__GPIO4_IO16          0x110b0
 			>;
 		};
 		
@@ -388,13 +342,25 @@
 				MX6UL_PAD_ENET1_TX_DATA0__ENET1_TDATA00	0x1b0b0
 				MX6UL_PAD_ENET1_TX_DATA1__ENET1_TDATA01	0x1b0b0
 				MX6UL_PAD_ENET1_TX_CLK__ENET1_REF_CLK1	0x4b01b0a8
-
-				MX6UL_PAD_GPIO1_IO07__ENET2_MDC		0x1b0b0
-				MX6UL_PAD_GPIO1_IO06__ENET2_MDIO	0x1b0b0
-                MX6UL_PAD_NAND_DATA06__GPIO4_IO08   0x1b0b0
+				MX6UL_PAD_NAND_DATA06__GPIO4_IO08   0x1b0b0
 			>;
 		};
 
+		pinctrl_enet2: enet2grp {
+			fsl,pins = <
+				MX6UL_PAD_GPIO1_IO07__ENET2_MDC		0x1b0b0
+				MX6UL_PAD_GPIO1_IO06__ENET2_MDIO	0x1b0b0
+				MX6UL_PAD_ENET2_RX_EN__ENET2_RX_EN	0x1b0b0
+				MX6UL_PAD_ENET2_RX_ER__ENET2_RX_ER	0x1b0b0
+				MX6UL_PAD_ENET2_RX_DATA0__ENET2_RDATA00	0x1b0b0
+				MX6UL_PAD_ENET2_RX_DATA1__ENET2_RDATA01	0x1b0b0
+				MX6UL_PAD_ENET2_TX_EN__ENET2_TX_EN	0x1b0b0
+				MX6UL_PAD_ENET2_TX_DATA0__ENET2_TDATA00	0x1b0b0
+				MX6UL_PAD_ENET2_TX_DATA1__ENET2_TDATA01	0x1b0b0
+				MX6UL_PAD_ENET2_TX_CLK__ENET2_REF_CLK2	0x4b01b0a8
+			>;
+		};
+		
 		pinctrl_leds: ledsgrp {
 			fsl,pins = <
 				MX6UL_PAD_LCD_DATA22__GPIO3_IO27  0x10b0
@@ -402,6 +368,13 @@
 			>;
 		};
 
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX6UL_PAD_CSI_DATA05__GPIO4_IO26	0x1b0b1
+				MX6UL_PAD_CSI_DATA06__GPIO4_IO27	0x1b0b1
+				MX6UL_PAD_CSI_DATA07__GPIO4_IO28	0x1b0b1
+			>;
+		};
 
 		pinctrl_uart4: uart4grp {
 			fsl,pins = <
@@ -409,66 +382,14 @@
 				MX6UL_PAD_UART4_RX_DATA__UART4_DTE_TX	0x1b0b1
 			>;
 		};
-
+		
 		pinctrl_uart5: uart5grp {
 			fsl,pins = <
 				MX6UL_PAD_UART5_TX_DATA__UART5_DCE_TX	0x1b0b1
 				MX6UL_PAD_UART5_RX_DATA__UART5_DCE_RX	0x1b0b1
 			>;
 		};
-
-		
 	};
-};
-
-&lcdif {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_lcdif_dat
-		     &pinctrl_lcdif_ctrl>;
-	display = <&lcdout0>;
-	status = "okay";
-	enable-gpios = <&gpio1 24 0>;
-
-	lcdout0: lcdout {
-		bits-per-pixel = <16>;
-		bus-width = <16>;
-
-		display-timings {
-			native-mode = <&timing0>;
-			timing0: timing0 {
-			clock-frequency = <9200000>;
-			hactive = <480>;
-			vactive = <272>;
-			hfront-porch = <8>;
-			hback-porch = <4>;
-			hsync-len = <41>;
-			vback-porch = <2>;
-			vfront-porch = <4>;
-			vsync-len = <10>;
-
-			hsync-active = <0>;
-			vsync-active = <0>;
-			de-active = <1>;
-			pixelclk-active = <0>;
-			};
-		};
-	};
-};
-
-&pwm4 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm4>;
-	clocks = <&clks IMX6UL_CLK_PWM4>,
-	 <&clks IMX6UL_CLK_PWM4>;
-	status = "okay";
-};
-
-&pwm5 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm5>;
-	clocks = <&clks IMX6UL_CLK_PWM5>,
-	 <&clks IMX6UL_CLK_PWM5>;
-	status = "okay";
 };
 
 &fec1 {
@@ -485,6 +406,7 @@
 
 &fec2 {
 	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rmii";
 	phy-handle = <&ethphy1>;
 	status = "okay";
@@ -493,12 +415,14 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ethphy0: ethernet-phy@0 {
+		ethphy0: ethernet-phy@1 {
 			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
 		};
 
-		ethphy1: ethernet-phy@1 {
+		ethphy1: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
 		};
 	};
 };

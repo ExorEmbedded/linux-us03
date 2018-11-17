@@ -476,9 +476,12 @@
 	fsl,spi-num-chipselects = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
+	spi-clkhi;
 	status = "okay";
 	
 	spidev1_0: spi1@0 {
+		spi-cpol;
+		spi-cpha;
 		compatible = "generic,spidev";
 		reg = <0>;
 		spi-max-frequency = <1000000>;

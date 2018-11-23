@@ -98,6 +98,14 @@
       gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
     };
     
+    working_hours {
+      compatible = "working_hours";
+      eeprom = <&seeprom0>;
+      backlight = <&pwm_bl00>;
+      rtcnvram = <&m41t83>;
+      status = "okay";
+    };
+    
     matrix_keypad {
         compatible = "gpio-matrix-keypad";
         pinctrl-names = "default";

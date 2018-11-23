@@ -77,6 +77,13 @@
 	  pinctrl-names = "default";
 	  gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
 	};
+
+	working_hours {
+	  compatible = "working_hours";
+	  eeprom = <&seeprom0>;
+	  rtcnvram = <&m41t83>;
+	  status = "okay";
+	};
 	
 	plxx0: plugin0 {
 	  compatible = "exor,plxx_manager";

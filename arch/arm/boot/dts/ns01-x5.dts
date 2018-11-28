@@ -51,6 +51,15 @@
 	    regulator-boot-on;
         };
 
+        vdd_reg: regulator@1 {
+            compatible = "regulator-fixed";
+            reg = <1>;
+            regulator-name = "vdd-supply";
+	    gpio = <&gpio1 24 0>;
+	    enable-active-high;
+	    regulator-boot-on;
+	    regulator-always-on;
+        };
     };
 
     leds {
@@ -600,7 +609,6 @@
     pinctrl-0 = <&pinctrl_lcdif>;
     display = <&lcdout0>;
     status = "okay";
-    enable-gpios = <&gpio1 24 0>;
 
     lcdout0: lcdout {
         bits-per-pixel = <16>;

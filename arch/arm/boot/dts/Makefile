@@ -405,6 +405,13 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-utilite-pro.dtb \
 	imx6q-wandboard.dtb \
 	imx6q-wandboard-revb1.dtb \
+	usom_wu16.dtb \
+	usom_etop7xx.dtb \
+	usom_etop7xxq.dtb \
+	usom_jsmart.dtb \
+	usom_jsmartq.dtb \
+	usom_jsmartttl.dtb \
+	usom_evkitq.dtb \
 	imx6qp-nitrogen6_max.dtb \
 	imx6qp-sabreauto.dtb \
 	imx6qp-sabresd.dtb
@@ -418,6 +425,12 @@ dtb-$(CONFIG_SOC_IMX6SX) += \
 	imx6sx-sdb-sai.dtb \
 	imx6sx-sdb.dtb
 dtb-$(CONFIG_SOC_IMX6UL) += \
+	ns01-evk.dtb \
+	ns01-ek435.dtb \
+	ns01-pa18.dtb \
+	ns01-keb01.dtb \
+	ns01-x5.dtb \
+	ns01-x5bs.dtb \
 	imx6ul-14x14-evk.dtb \
 	imx6ul-geam-kit.dtb \
 	imx6ul-pico-hobbit.dtb \

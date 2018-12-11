@@ -42,6 +42,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -51,6 +52,7 @@
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+#include <video/displayconfig.h>
 
 #define REG_SET	4
 #define REG_CLR	8
@@ -209,6 +211,64 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 };
 
 #define to_imxfb_host(x) (container_of(x, struct mxsfb_info, fb_info))
+
+/*----------------------------------------------------------------------------------------------------------------*
+   Helper functions to retrieve the display id value, when passed from the cmdline, and use it to set the
+   display parameters/timings (the contents of the DTB file are overridden, if a valid dispaly id is passed from
+   cmdline.
+ *----------------------------------------------------------------------------------------------------------------*/
+extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+
+static int mxsfb_dispid_get_videomode(struct videomode* vm, int dispid)
+{
+	int i=0;
+
+	// Scan the display array to search for the required dispid
+	if(dispid == NODISPLAY)
+		return -1;
+
+	while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
+		i++;
+
+	if(displayconfig[i].dispid == NODISPLAY)
+		return -1;
+
+	// If we are here, we have a valid array index pointing to the desired display
+	vm->hactive         = displayconfig[i].rezx;
+	vm->hback_porch  = displayconfig[i].hs_bp;
+	vm->hfront_porch = displayconfig[i].hs_fp;
+	vm->hsync_len    = displayconfig[i].hs_w;
+
+	vm->vactive         = displayconfig[i].rezy;
+	vm->vback_porch = displayconfig[i].vs_bp;
+	vm->vfront_porch = displayconfig[i].vs_fp;
+	vm->vsync_len    = displayconfig[i].vs_w;
+	vm->pixelclock = 1000 * displayconfig[i].pclk_freq;
+
+	vm->flags = 0;
+	if(displayconfig[i].hs_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_HSYNC_LOW;
+
+	if(displayconfig[i].vs_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_VSYNC_LOW;
+
+	if(displayconfig[i].blank_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_DE_LOW;
+
+	if(displayconfig[i].pclk_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+	else
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+
+	return 0;
+}
+
 
 /* mask and shift depends on architecture */
 static inline u32 set_hsync_pulse_width(struct mxsfb_info *host, unsigned val)
@@ -736,8 +796,24 @@ static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host,
 	struct device_node *display_np;
 	struct videomode vm;
 	u32 width;
+	int en_vdd_gpio;
+	enum of_gpio_flags flags;
 	int ret;
 
+	//LCD enable pin handling (if defined)
+	en_vdd_gpio = of_get_named_gpio_flags(np, "enable-gpios", 0, &flags);
+	if (en_vdd_gpio == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if (gpio_is_valid(en_vdd_gpio))
+	{
+		ret = gpio_request(en_vdd_gpio, "en_vdd_gpio");
+		if(ret < 0)
+		return ret;
+
+		gpio_direction_output(en_vdd_gpio,1);
+	}
+	
 	display_np = of_parse_phandle(np, "display", 0);
 	if (!display_np) {
 		dev_err(dev, "failed to find display phandle\n");
@@ -775,11 +851,16 @@ static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host,
 		dev_err(dev, "failed to get property bits-per-pixel\n");
 		goto put_display_node;
 	}
-
-	ret = of_get_videomode(display_np, &vm, OF_USE_NATIVE_MODE);
-	if (ret) {
-		dev_err(dev, "failed to get videomode from DT\n");
-		goto put_display_node;
+	
+	ret = mxsfb_dispid_get_videomode(&vm, hw_dispid);
+	if (ret)
+	{
+	  ret = of_get_videomode(display_np, &vm, OF_USE_NATIVE_MODE);
+	  if (ret) 
+	  {
+	    dev_err(dev, "failed to get videomode from DT\n");
+	    goto put_display_node;
+	  }
 	}
 
 	ret = fb_videomode_from_videomode(&vm, vmode);

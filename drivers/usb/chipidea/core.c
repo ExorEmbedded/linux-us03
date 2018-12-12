@@ -1008,7 +1008,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ci->supports_runtime_pm) {
 		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
-		pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
+		pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
 		pm_runtime_mark_last_busy(ci->dev);
 		pm_runtime_use_autosuspend(&pdev->dev);
 	}

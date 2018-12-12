@@ -101,6 +101,16 @@
             startup-delay-us = <500>;
             enable-active-high;
         };
+	
+	vdd_reg: regulator@2 {
+	  compatible = "regulator-fixed";
+	  reg = <2>;
+	  regulator-name = "vdd-supply";
+	  gpio = <&gpio7 1 0>;
+	  enable-active-high;
+	  regulator-boot-on;
+	  regulator-always-on;
+	};
     };
 
     mxcfb1: fb@0 {
@@ -121,7 +131,6 @@
         default_ifmt = "RGB565";
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_ipu1>;
-        enable-gpios = <&gpio7 1 0>;
         status = "okay";
     };
 

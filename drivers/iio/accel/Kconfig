@@ -297,4 +297,10 @@ config STK8BA50
 	  Choosing M will build the driver as a module. If so, the module
 	  will be called stk8ba50.
 
+config SENSORS_LIS331DLH
+	tristate "STMicro LIS331DLH driver"
+	depends on I2C
+	help
+	    Driver for STMicro LIS331DLH
+	  
 endmenu

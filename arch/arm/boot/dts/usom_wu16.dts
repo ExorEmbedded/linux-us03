@@ -201,9 +201,9 @@
 
 	working_hours {
 	  compatible = "working_hours";
-	  eeprom = <&seeprom0>;
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
 	  backlight = <&pwm_bl00>;
-	  rtcnvram = <&m41t83>;
 	  status = "okay";
 	};
 };

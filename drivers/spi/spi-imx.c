@@ -1267,6 +1267,13 @@ static int spi_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "bitbang start failed with %d\n", ret);
 		goto out_clk_put;
 	}
+	
+	//Set Initial SCLK level to hi if required 
+	if (of_find_property(np, "spi-clkhi", NULL))
+	{
+	  writel(MX51_ECSPI_CTRL_MODE_MASK | MX51_ECSPI_CTRL_ENABLE, spi_imx->base + MX51_ECSPI_CTRL);
+	  writel(MX51_ECSPI_CONFIG_SCLKCTL(0) | MX51_ECSPI_CONFIG_SCLKPOL(0), spi_imx->base + MX51_ECSPI_CONFIG);
+	}
 
 	if (!master->cs_gpios) {
 		dev_err(&pdev->dev, "No CS GPIOs available\n");

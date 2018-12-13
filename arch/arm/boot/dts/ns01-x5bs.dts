@@ -102,8 +102,8 @@
 	
 	plxx0: plugin0 {
 	  compatible = "exor,plxx_manager";
-	  eeprom = <&plxxseeprom>;
-	  ioexp = <&plxxioexp>;
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
 	  sel-gpio = <&gpio3 15 0>;
 	  index = <0>;
 	  status = "okay";
@@ -111,8 +111,8 @@
 
 	plxx1: plugin1 {
 	  compatible = "exor,plxx_manager";
-	  eeprom = <&plxxseeprom>;
-	  ioexp = <&plxxioexp>;
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
 	  sel-gpio = <&gpio3 16 0>;
 	  index = <1>;
 	  status = "okay";

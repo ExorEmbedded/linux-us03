@@ -780,7 +780,13 @@ config WORKING_HOURS
 	depends on EEPROM_AT24 && BACKLIGHT_PWM
 	help
 	    Say Y to add working hours counters in I2C EEPROM.
-	  
+
+config PLXX_MANAGER
+	tristate "Plugin plxx modules manager"
+	depends on EEPROM_AT24
+	help
+	    Say Y to add the plugin plxx manager driver.
+
 config EXGPIO_INIT
 	tristate "Exor GPIO initializer, based on dtb"
 	depends on OF

@@ -43,22 +43,26 @@
         #address-cells = <1>;
         #size-cells = <0>;
 
-        dummy_reg: regulator@0 {
+        wlan_en_reg: fixedregulator@2 {
             compatible = "regulator-fixed";
-            reg = <0>;
-            regulator-name = "dummy-supply";
-	    gpio = <&gpio1 9 0>;
-	    regulator-boot-on;
+            regulator-name = "wlan-en-regulator";
+            regulator-min-microvolt = <1800000>;
+            regulator-max-microvolt = <1800000>;
+            /* WLAN_EN GPIO for this board */
+            gpio = <&gpio1 9 0>;
+            /* WLAN card specific delay */
+            startup-delay-us = <70000>;
+            enable-active-high;
         };
 
         vdd_reg: regulator@1 {
             compatible = "regulator-fixed";
             reg = <1>;
             regulator-name = "vdd-supply";
-	    gpio = <&gpio1 24 0>;
-	    enable-active-high;
-	    regulator-boot-on;
-	    regulator-always-on;
+            gpio = <&gpio1 24 0>;
+            enable-active-high;
+            regulator-boot-on;
+            regulator-always-on;
         };
     };
 
@@ -247,25 +251,26 @@
 };
 
 &usdhc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc1>;
-	bus-width = <4>;
-	non-removable;		/* non-removable is not a variable, the fact it is */
-						/* listed is all that is used by driver  */
-	cap-power-off-card;
-	#address-cells = <1>;
-	#size-cells = <0>;
-	keep-power-in-suspend;
-	enable-sdio-wakeup;
-	max-frequency = <10000000>;
-	status = "okay";
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_usdhc1>;
+    bus-width = <4>;
+    vmmc-supply = <&wlan_en_reg>;
+    non-removable;            /* non-removable is not a variable, the fact it is */
+                              /* listed is all that is used by driver  */
+    cap-power-off-card;
+    #address-cells = <1>;
+    #size-cells = <0>;
+    keep-power-in-suspend;
+    enable-sdio-wakeup;
+    max-frequency = <25000000>;
+    status = "okay";
 
-	wlcore: wlcore@0 {
-		compatible = "ti,wl1835";
-		reg = <2>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
-	};
+    wlcore: wlcore@0 {
+        compatible = "ti,wl1837";
+        reg = <2>;
+        interrupt-parent = <&gpio1>;
+        interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
+    };
 };
 
 &usdhc2 {
@@ -417,7 +422,6 @@
     tsc2004@4b {
         compatible = "ti,tsc2004";
         reg = <0x4B>;
-        vio-supply = <&dummy_reg>;
 
         //MX6UL_PAD_UART2_CTS_B__GPIO1_IO22
         //reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;

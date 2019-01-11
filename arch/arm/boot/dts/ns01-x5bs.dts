@@ -45,12 +45,17 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		dummy_reg: regulator@0 {
+		wlan_en_reg: fixedregulator@2 {
 			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "dummy-supply";
+			reg = <2>;
+			regulator-name = "wlan-en-regulator";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			/* WLAN_EN GPIO for this board */
 			gpio = <&gpio1 9 0>;
-			regulator-boot-on;
+			/* WLAN card specific delay */
+			startup-delay-us = <70000>;
+			enable-active-high;
 		};
 
 	};
@@ -73,15 +78,15 @@
 		};
 
 		led@3 {
-			label = "ns01:front:green";
+			label = "x5bs:front:green";
 			gpios = <&gpio3 27 0>;
 			default-state = "on";
 		};
 
 		led@4 {
-			label = "ns01:front:red";
+			label = "x5bs:front:red";
 			gpios = <&gpio3 28 0>;
-			default-state = "on";
+			default-state = "off";
 		};
 	};
 
@@ -183,6 +188,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <4>;
+	vmmc-supply = <&wlan_en_reg>;
 	non-removable;		/* non-removable is not a variable, the fact it is */
 						/* listed is all that is used by driver  */
 	cap-power-off-card;
@@ -190,11 +196,11 @@
 	#size-cells = <0>;
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
-	max-frequency = <10000000>;
+	max-frequency = <25000000>;
 	status = "okay";
 
 	wlcore: wlcore@0 {
-		compatible = "ti,wl1835";
+		compatible = "ti,wl1837";
 		reg = <2>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <27 IRQ_TYPE_EDGE_FALLING>;

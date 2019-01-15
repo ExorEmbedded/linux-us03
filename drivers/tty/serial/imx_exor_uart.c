@@ -4088,7 +4088,7 @@ static void imx_rs485_stop_tx(struct imx_port *sport)
 	    gpio_set_value(sport->rts_gpio, 0);
 	
 	if(sport->is_plugin_module == 1)
-	  if ((sport->rts_gpio < 0) && (sport->rs485.flags & SER_RS485_ENABLED))
+	  if ((sport->rts_gpio < 0) && (sport->rs485.flags & SER_RS485_ENABLED) &&  !(sport->rs485.flags & SER_RS485_RX_DURING_TX))
 	    writel(readl(sport->port.membase + UCR2) & ~UCR2_CTS, sport->port.membase + UCR2);
 	
 	if ((sport->rs485.flags & SER_RS485_ENABLED) && !(sport->rs485.flags & SER_RS485_RX_DURING_TX)) 
@@ -4384,7 +4384,7 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 				cmd = RS422_485_IF_SETFD;
 				  else
 				cmd = RS422_485_IF_SETHD;
-#if defined(CONFIG_CONFIG_PLXX_MANAGER) || defined(CONFIG_CONFIG_PLXX_MANAGER_MODULE)
+#if defined(CONFIG_PLXX_MANAGER) || defined(CONFIG_PLXX_MANAGER_MODULE)
 				  if(sport->plugin1dev)
 				plxx_manager_sendcmd(sport->plugin1dev , cmd);
 				  if(sport->plugin2dev)

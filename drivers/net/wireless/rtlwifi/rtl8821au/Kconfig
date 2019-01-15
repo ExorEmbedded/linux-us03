@@ -1,0 +1,8 @@
+config RTL8821AU
+	tristate "Realtek 8821A USB WiFi"
+	depends on USB
+        select RTLWIFI
+        select RTLWIFI_USB
+	---help---
+	  Help message of RTL8821AU
+

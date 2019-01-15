@@ -101,4 +101,7 @@ config RTL8192C_COMMON
 	depends on RTL8192CE || RTL8192CU
 	default y
 
+source "drivers/net/wireless/rtlwifi/rtl8192eu/Kconfig"
+source "drivers/net/wireless/rtlwifi/rtl8821au/Kconfig"
+
 endif

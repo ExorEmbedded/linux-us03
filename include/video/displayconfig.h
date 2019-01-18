@@ -73,6 +73,7 @@
  *1.20			SS							25.09.2018  Modified display code #66: DISPJST-005N001 800x480 for Jsmart05, Max duty 70% in order to reduce brite to about 300cd/m2
  *1.21			SS							03.10.2018  Modified display code #63: FutureLabs FLC-101HML0000SA2 for ex710-hb and pixel clock set to min (66.6MHz) to avoid vertical green
  *                                                      line when driving with grey pattern (190,190,190)
+ *1.22			SS							18.01.2019  Modified display code #66: DISPJST-005N001 800x480 for Jsmart05, modified pixel clock from 0 to 1 due to wrong datasheet info
 
  * NEXT AVAILABLE DISPLAY CODE: 68
  */
@@ -915,7 +916,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 16,
         
         .pclk_freq = 30000, 
-        .pclk_inv  = 0,
+        .pclk_inv  = 1,         //18.01.2019 inverted clock due to initial error in datasheet
         
         .hs_fp     = 210, 
         .hs_bp     = 23, 

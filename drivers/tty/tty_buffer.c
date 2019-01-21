@@ -37,8 +37,6 @@
 
 #define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
 
-static void flush_to_ldisc(struct work_struct *work);
-
 /**
  *	tty_buffer_lock_exclusive	-	gain exclusive access to buffer
  *	tty_buffer_unlock_exclusive	-	release exclusive access
@@ -406,9 +404,6 @@ void tty_schedule_flip(struct tty_port *port)
 	 * flush_to_ldisc() sees buffer data.
 	 */
 	smp_store_release(&buf->tail->commit, buf->tail->used);
-  if (port->low_latency)
-    flush_to_ldisc(&buf->work);
-  else
 	queue_work(system_unbound_wq, &buf->work);
 }
 EXPORT_SYMBOL(tty_schedule_flip);

@@ -156,12 +156,18 @@
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
+	fsl,uart-has-rtscts;
+	dmas = <&sdma 31 4 0>, <&sdma 32 4 0>;
+	dma-names = "rx", "tx";
 	status = "okay";
 };
 
 &uart5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
+	fsl,uart-has-rtscts;
+	dmas = <&sdma 33 4 0>, <&sdma 34 4 0>;
+	dma-names = "rx", "tx";
 	status = "okay";
 };
 

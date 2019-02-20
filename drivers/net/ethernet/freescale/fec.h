@@ -17,6 +17,11 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 
+#define HAVE_AG_RING
+//#define HAVE_AG_RING_DMA
+//#define HAVE_AG_RING_WAITQUEUE
+
+
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
     defined(CONFIG_ARCH_MXC) || defined(CONFIG_SOC_IMX28)
@@ -363,6 +368,10 @@ struct bufdesc_ex {
 #define FEC_ENET_TS_AVAIL       ((uint)0x00010000)
 #define FEC_ENET_TS_TIMER       ((uint)0x00008000)
 
+#ifdef HAVE_AG_RING
+#define FEC_AGRING_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_TS_TIMER)
+#endif
+
 #define FEC_DEFAULT_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII | FEC_ENET_TS_TIMER)
 #define FEC_RX_DISABLED_IMASK (FEC_DEFAULT_IMASK & (~FEC_ENET_RXF))
 
@@ -562,6 +571,39 @@ struct fec_enet_private {
 	unsigned int reload_period;
 	int pps_enable;
 	unsigned int next_counter;
+
+#ifdef HAVE_AG_RING
+	struct {
+		bool inited;
+		atomic_t usage_counter;
+	
+		unsigned int tx_len[TX_RING_SIZE];
+
+		unsigned int num_buffers;
+
+		u_char** tx_buffers;
+		u_char* tx_curr_buffer;
+		u_int64_t tx_mem_size;
+
+		u_char** rx_buffers;
+		u_char* rx_curr_buffer;
+		u_int64_t rx_mem_size;
+		unsigned int rx_len;
+
+#ifdef HAVE_AG_RING_DMA
+		dma_addr_t* rx_dmas;
+		dma_addr_t* tx_dmas;
+#else
+		u_char* tx_ptr;
+		u_char* rx_ptr;
+#endif
+
+#ifdef HAVE_AG_RING_WAITQUEUE		
+		wait_queue_head_t rx_ready;
+#endif
+
+	} agring;
+#endif
 };
 
 void fec_ptp_init(struct platform_device *pdev);

@@ -219,6 +219,22 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 
 static int mii_cnt;
 
+#ifdef HAVE_AG_RING
+
+#include <linux/vmalloc.h>
+#include <linux/init.h>
+
+static unsigned int enable_debug = 0;
+
+#define debug_on(debug_level) (unlikely(enable_debug >= debug_level))
+#define debug_printk(debug_level, fmt, ...) { if (debug_on(debug_level)) \
+  printk("[AGRING][DEBUG] %s:%d " fmt,  __FUNCTION__, __LINE__, ## __VA_ARGS__); }
+
+static unsigned int enable_agrings = 1;
+module_param(enable_agrings, uint, S_IRUGO | S_IWUSR | S_IWGRP);
+MODULE_PARM_DESC(enable_agrings, "enable or disable use of AG ring technology");
+#endif
+
 static inline
 struct bufdesc *fec_enet_get_nextdesc(struct bufdesc *bdp,
 				      struct fec_enet_private *fep,
@@ -783,6 +799,14 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct netdev_queue *nq;
 	int ret;
 
+#ifdef HAVE_AG_RING
+	if (enable_agrings)
+	{
+		if (atomic_read(&fep->agring.usage_counter))
+			return NETDEV_TX_BUSY;
+	}
+#endif
+
 	queue = skb_get_queue_mapping(skb);
 	txq = fep->tx_queue[queue];
 	nq = netdev_get_tx_queue(ndev, queue);
@@ -800,6 +824,119 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	return NETDEV_TX_OK;
 }
+
+#ifdef HAVE_AG_RING
+static int fec_enet_txq_submit_raw(struct fec_enet_priv_tx_q *txq,
+				   char* data, unsigned int datalen, struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct bufdesc *bdp, *last_bdp;
+	void *bufaddr;
+	dma_addr_t addr;
+	unsigned short status;
+	unsigned short buflen;
+	unsigned short queue;
+	unsigned int estatus = 0;
+	unsigned int index;
+
+	/* Fill in a Tx ring entry */
+	bdp = txq->cur_tx;
+	status = bdp->cbd_sc;
+	status &= ~BD_ENET_TX_STATS;
+
+	queue = 0;
+	index = fec_enet_get_bd_index(txq->tx_bd_base, bdp, fep);
+
+	/* Set buffer length and buffer pointer */
+#ifdef HAVE_AG_RING_DMA
+	bufaddr = data;
+#else
+	memcpy(txq->tx_bounce[index], data, datalen);
+	bufaddr = txq->tx_bounce[index];
+#endif
+
+	buflen = datalen;
+
+	fep->agring.tx_len[index] = datalen;
+
+	if (fep->quirks & FEC_QUIRK_SWAP_FRAME)
+		swap_buffer(bufaddr, buflen);
+
+	/* Push the data cache so the CPM does not get stale memory data. */
+	addr = dma_map_single(&fep->pdev->dev, bufaddr, buflen, DMA_TO_DEVICE);
+	if (dma_mapping_error(&fep->pdev->dev, addr)) {
+		return NETDEV_TX_OK;
+	}
+
+	status |= (BD_ENET_TX_INTR | BD_ENET_TX_LAST);
+	if (fep->bufdesc_ex) {
+		estatus = BD_ENET_TX_INT;
+	}
+
+	if (fep->bufdesc_ex) {
+
+		struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
+
+		if (fep->quirks & FEC_QUIRK_HAS_AVB)
+			estatus |= FEC_TX_BD_FTYPE(queue);
+
+		ebdp->cbd_bdu = 0;
+		ebdp->cbd_esc = estatus;
+	}
+
+	last_bdp = txq->cur_tx;
+	index = fec_enet_get_bd_index(txq->tx_bd_base, last_bdp, fep);
+
+	bdp->cbd_datlen = buflen;
+	bdp->cbd_bufaddr = addr;
+
+	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
+	 * it's the last BD of the frame, and to put the CRC on the end.
+	 */
+	status |= (BD_ENET_TX_READY | BD_ENET_TX_TC);
+	bdp->cbd_sc = status;
+
+	/* If this was the last BD in the ring, start at the beginning again. */
+	bdp = fec_enet_get_nextdesc(last_bdp, fep, queue);
+
+	txq->cur_tx = bdp;
+
+
+	/* Trigger transmission start */
+	writel(0, fep->hwp + FEC_X_DES_ACTIVE(queue));
+
+	return 0;
+}
+
+static netdev_tx_t
+fec_enet_start_xmit_raw(unsigned int datalen, struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	int entries_free;
+	unsigned short queue;
+	struct fec_enet_priv_tx_q *txq;
+	struct netdev_queue *nq;
+	int ret;
+
+	queue = 0;
+
+	txq = fep->tx_queue[queue];
+	nq = netdev_get_tx_queue(ndev, queue);
+
+	ret = fec_enet_txq_submit_raw(txq, fep->agring.tx_curr_buffer, datalen, ndev);
+	if (ret)
+		return ret;
+
+	entries_free = fec_enet_get_free_txdesc_num(fep, txq);
+	if (entries_free <= txq->tx_stop_threshold)
+	{
+		debug_printk(2, "Queue %d is stopping: only %d free entries\n", queue, entries_free);
+		netif_tx_stop_queue(nq);
+	}
+
+	return NETDEV_TX_OK;
+}
+#endif
 
 /* Init RX & TX buffer descriptors
  */
@@ -909,6 +1046,10 @@ static void fec_enet_reset_skb(struct net_device *ndev)
 			if (txq->tx_skbuff[j]) {
 				dev_kfree_skb_any(txq->tx_skbuff[j]);
 				txq->tx_skbuff[j] = NULL;
+
+#ifdef HAVE_AG_RING
+				fep->agring.tx_len[i] = 0;
+#endif
 			}
 		}
 	}
@@ -1055,6 +1196,14 @@ fec_restart(struct net_device *ndev)
 
 	writel(rcntl, fep->hwp + FEC_R_CNTRL);
 
+#ifdef HAVE_AG_RING
+	if (enable_agrings && atomic_read(&fep->agring.usage_counter))
+	{
+		netdev_info(ndev, "Enabling promiscous mode\n");
+		ndev->flags |= IFF_PROMISC;
+	}
+#endif
+
 	/* Setup multicast filter. */
 	set_multicast_list(ndev);
 #ifndef CONFIG_M5272
@@ -1065,8 +1214,17 @@ fec_restart(struct net_device *ndev)
 	if (fep->quirks & FEC_QUIRK_ENET_MAC) {
 		/* enable ENET endian swap */
 		ecntl |= (1 << 8);
+
 		/* enable ENET store and forward mode */
-		writel(1 << 8, fep->hwp + FEC_X_WMRK);
+		if (enable_agrings && atomic_read(&fep->agring.usage_counter))
+		{
+			netdev_info(ndev, "Enabling watermark\n");
+
+			/* Enable watermwarking (128 bytes) */
+			writel(0x00000002, fep->hwp + FEC_X_WMRK);
+		}
+		else
+			writel(1 << 8, fep->hwp + FEC_X_WMRK);
 	}
 
 	if (fep->bufdesc_ex)
@@ -1092,7 +1250,6 @@ fec_restart(struct net_device *ndev)
 
 	/* Init the interrupt coalescing */
 	fec_enet_itr_coal_init(ndev);
-
 }
 
 static void
@@ -1582,14 +1739,274 @@ fec_enet_collect_events(struct fec_enet_private *fep, uint int_events)
 	return true;
 }
 
+#ifdef HAVE_AG_RING
+
+static void
+fec_enet_agring_tx_queue(struct net_device *ndev, u16 queue_id)
+{
+	struct	fec_enet_private *fep;
+	struct bufdesc *bdp;
+	unsigned short status;
+	unsigned int tx_len;
+	struct fec_enet_priv_tx_q *txq;
+	struct netdev_queue *nq;
+	int	index = 0;
+	int	entries_free;
+
+	fep = netdev_priv(ndev);
+
+	queue_id = FEC_ENET_GET_QUQUE(queue_id);
+
+	txq = fep->tx_queue[queue_id];
+	/* get next bdp of dirty_tx */
+	nq = netdev_get_tx_queue(ndev, queue_id);
+	bdp = txq->dirty_tx;
+
+	/* get next bdp of dirty_tx */
+	bdp = fec_enet_get_nextdesc(bdp, fep, queue_id);
+
+	while (((status = bdp->cbd_sc) & BD_ENET_TX_READY) == 0) {
+
+		/* current queue is empty */
+		if (bdp == txq->cur_tx)
+			break;
+
+		index = fec_enet_get_bd_index(txq->tx_bd_base, bdp, fep);
+
+		tx_len = fep->agring.tx_len[index];
+
+		fep->agring.tx_len[index] = 0;
+		txq->tx_skbuff[index] = NULL;
+		if (!IS_TSO_HEADER(txq, bdp->cbd_bufaddr))
+			dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr,
+					bdp->cbd_datlen, DMA_TO_DEVICE);
+		bdp->cbd_bufaddr = 0;
+		
+		if (!tx_len) {
+			bdp = fec_enet_get_nextdesc(bdp, fep, queue_id);
+			continue;
+		}
+
+		/* Check for errors. */
+		if (status & (BD_ENET_TX_HB | BD_ENET_TX_LC |
+				   BD_ENET_TX_RL | BD_ENET_TX_UN |
+				   BD_ENET_TX_CSL)) {
+			ndev->stats.tx_errors++;
+			if (status & BD_ENET_TX_HB)  /* No heartbeat */
+				ndev->stats.tx_heartbeat_errors++;
+			if (status & BD_ENET_TX_LC)  /* Late collision */
+				ndev->stats.tx_window_errors++;
+			if (status & BD_ENET_TX_RL)  /* Retrans limit */
+				ndev->stats.tx_aborted_errors++;
+			if (status & BD_ENET_TX_UN)  /* Underrun */
+				ndev->stats.tx_fifo_errors++;
+			if (status & BD_ENET_TX_CSL) /* Carrier lost */
+				ndev->stats.tx_carrier_errors++;
+		} else {
+			ndev->stats.tx_packets++;
+			//ndev->stats.tx_bytes += skb->len;
+			ndev->stats.tx_bytes += tx_len;
+		}
+
+		/* Deferred means some collisions occurred during transmit,
+		 * but we eventually sent the packet OK.
+		 */
+		if (status & BD_ENET_TX_DEF)
+			ndev->stats.collisions++;
+
+		/* Free the sk buffer associated with this last transmit */
+
+		txq->dirty_tx = bdp;
+
+		/* Update pointer to next buffer descriptor to be transmitted */
+		bdp = fec_enet_get_nextdesc(bdp, fep, queue_id);
+
+		/* Since we have freed up a buffer, the ring is no longer full
+		 */
+		if (netif_queue_stopped(ndev)) {
+			entries_free = fec_enet_get_free_txdesc_num(fep, txq);
+			if (entries_free >= txq->tx_wake_threshold)
+				netif_tx_wake_queue(nq);
+		}
+	}
+
+	/* ERR006538: Keep the transmitter going */
+	if (bdp != txq->cur_tx &&
+	    readl(fep->hwp + FEC_X_DES_ACTIVE(queue_id)) == 0)
+		writel(0, fep->hwp + FEC_X_DES_ACTIVE(queue_id));
+}
+
+static void
+fec_enet_agring_tx(struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	u16 queue_id;
+	/* First process class A queue, then Class B and Best Effort queue */
+	for_each_set_bit(queue_id, &fep->work_tx, FEC_ENET_MAX_TX_QS) {
+		clear_bit(queue_id, &fep->work_tx);
+		fec_enet_agring_tx_queue(ndev, queue_id);
+	}
+	return;
+}
+
+static int
+fec_enet_agring_rx_queue(struct net_device *ndev, u16 queue_id)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct fec_enet_priv_rx_q *rxq;
+	struct bufdesc *bdp;
+	unsigned short status;
+	struct  sk_buff *skb;
+	ushort	pkt_len = 0;
+	int	pkt_received = 0;
+	int	index = 0;
+	bool	need_swap = fep->quirks & FEC_QUIRK_SWAP_FRAME;
+
+#ifdef CONFIG_M532x
+	flush_cache_all();
+#endif
+	queue_id = FEC_ENET_GET_QUQUE(queue_id);
+	rxq = fep->rx_queue[queue_id];
+
+	/* First, grab all of the stats for the incoming packet.
+	 * These get messed up if we get called due to a busy condition.
+	 */
+	bdp = rxq->cur_rx;
+
+	while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) {
+
+		pkt_received++;
+
+		/* Since we have allocated space to hold a complete frame,
+		 * the last indicator should be set.
+		 */
+		if ((status & BD_ENET_RX_LAST) == 0)
+			netdev_err(ndev, "rcv is not +last\n");
+
+		/* Check for errors. */
+		if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_NO |
+			   BD_ENET_RX_CR | BD_ENET_RX_OV)) {
+			ndev->stats.rx_errors++;
+			if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH)) {
+				/* Frame too long or too short. */
+				ndev->stats.rx_length_errors++;
+			}
+			if (status & BD_ENET_RX_NO)	/* Frame alignment */
+				ndev->stats.rx_frame_errors++;
+			if (status & BD_ENET_RX_CR)	/* CRC Error */
+				ndev->stats.rx_crc_errors++;
+			if (status & BD_ENET_RX_OV)	/* FIFO overrun */
+				ndev->stats.rx_fifo_errors++;
+		}
+
+		/* Report late collisions as a frame error.
+		 * On this error, the BD is closed, but we don't know what we
+		 * have in the buffer.  So, just drop this frame on the floor.
+		 */
+		if (status & BD_ENET_RX_CL) {
+			ndev->stats.rx_errors++;
+			ndev->stats.rx_frame_errors++;
+			goto rx_processing_done;
+		}
+
+		/* Process the incoming frame. */
+		ndev->stats.rx_packets++;
+		pkt_len = bdp->cbd_datlen;
+		ndev->stats.rx_bytes += pkt_len;
+
+		index = fec_enet_get_bd_index(rxq->rx_bd_base, bdp, fep);
+		skb = rxq->rx_skbuff[index];
+
+		dma_sync_single_for_cpu(&fep->pdev->dev, bdp->cbd_bufaddr,
+			FEC_ENET_RX_FRSIZE - fep->rx_align,
+			DMA_FROM_DEVICE);
+
+		if (!need_swap)
+			memcpy(fep->agring.rx_curr_buffer, skb->data, pkt_len-4);
+		else
+			swap_buffer2(fep->agring.rx_curr_buffer, skb->data, pkt_len-4);
+
+		dma_sync_single_for_device(&fep->pdev->dev, bdp->cbd_bufaddr,
+					   FEC_ENET_RX_FRSIZE - fep->rx_align,
+					   DMA_FROM_DEVICE);
+
+rx_processing_done:
+		/* Clear the status flags for this buffer */
+		status &= ~BD_ENET_RX_STATS;
+
+		/* Mark the buffer empty */
+		status |= BD_ENET_RX_EMPTY;
+		bdp->cbd_sc = status;
+
+		if (fep->bufdesc_ex) {
+			struct bufdesc_ex *ebdp = (struct bufdesc_ex *)bdp;
+
+			ebdp->cbd_esc = BD_ENET_RX_INT;
+			ebdp->cbd_prot = 0;
+			ebdp->cbd_bdu = 0;
+		}
+
+		fep->agring.rx_len = pkt_len - 4;
+
+#ifdef HAVE_AG_RING_WAITQUEUE
+		wake_up(&fep->agring.rx_ready);
+#endif
+
+		/* Update BD pointer to next entry */
+		bdp = fec_enet_get_nextdesc(bdp, fep, queue_id);
+
+		/* Doing this here will keep the FEC running while we process
+		 * incoming frames.  On a heavily loaded network, we should be
+		 * able to keep up at the expense of system resources.
+		 */
+		writel(0, fep->hwp + FEC_R_DES_ACTIVE(queue_id));
+	}
+	rxq->cur_rx = bdp;
+	return pkt_received;
+}
+
+static int
+fec_enet_agring_rx(struct net_device *ndev)
+{
+        int     pkt_received = 0; 
+        u16     queue_id;
+        struct fec_enet_private *fep = netdev_priv(ndev);
+
+        for_each_set_bit(queue_id, &fep->work_rx, FEC_ENET_MAX_RX_QS) {
+                int ret; 
+
+                ret = fec_enet_agring_rx_queue(ndev,
+                                        queue_id);
+
+                clear_bit(queue_id, &fep->work_rx);
+                pkt_received += ret; 
+        }
+        return pkt_received;
+}
+
+static void fec_enet_agring_intr(struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	unsigned int tmp;
+
+	tmp = readl(fep->hwp + RMON_R_PACKETS);
+
+	fec_enet_agring_rx(ndev);
+
+	fec_enet_agring_tx(ndev);
+}
+#endif
+	
 static irqreturn_t
 fec_enet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *ndev = dev_id;
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	uint int_events;
+	uint retries = 0;
 	irqreturn_t ret = IRQ_NONE;
 
+checkAgain:
 	int_events = readl(fep->hwp + FEC_IEVENT);
 	writel(int_events, fep->hwp + FEC_IEVENT);
 	fec_enet_collect_events(fep, int_events);
@@ -1597,10 +2014,20 @@ fec_enet_interrupt(int irq, void *dev_id)
 	if ((fep->work_tx || fep->work_rx) && fep->link) {
 		ret = IRQ_HANDLED;
 
-		if (napi_schedule_prep(&fep->napi)) {
-			/* Disable the NAPI interrupts */
-			writel(FEC_ENET_MII, fep->hwp + FEC_IMASK);
-			__napi_schedule(&fep->napi);
+#ifdef HAVE_AG_RING
+		if (enable_agrings && atomic_read(&fep->agring.usage_counter))
+		{
+			// fast processing
+			fec_enet_agring_intr(ndev);
+		}
+		else
+#endif
+		{
+			if (napi_schedule_prep(&fep->napi)) {
+				/* Disable the NAPI interrupts */
+				writel(FEC_ENET_MII, fep->hwp + FEC_IMASK);
+				__napi_schedule(&fep->napi);
+			}
 		}
 	}
 
@@ -1609,6 +2036,20 @@ fec_enet_interrupt(int irq, void *dev_id)
 		complete(&fep->mdio_done);
 	}
 
+#ifdef HAVE_AG_RING
+	if ((ret != IRQ_NONE) && enable_agrings && atomic_read(&fep->agring.usage_counter))
+	{
+		retries ++;
+		if (retries < 2)
+			goto checkAgain;
+
+		writel(FEC_AGRING_IMASK, fep->hwp + FEC_IMASK);
+	}
+#endif
+
+#ifdef HAVE_AG_RING
+	if ((!enable_agrings) || (enable_agrings && (!atomic_read(&fep->agring.usage_counter))))
+#endif
 	if (fep->bufdesc_ex)
 		fec_ptp_check_pps_event(fep);
 
@@ -1623,7 +2064,20 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	static unsigned int totpkts;
 	unsigned int tmp;
 	static int count;
-	
+
+#ifdef HAVE_AG_RING
+	if (atomic_read(&fep->agring.usage_counter))
+	{
+		debug_printk(0, "ERROR: got NAPI call when in EtherCAT mode!!\n");
+		fec_enet_agring_intr(ndev);
+		napi_complete(napi);
+
+		writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
+
+		return 0;
+	}
+#endif
+
 	tmp = readl(fep->hwp + RMON_R_PACKETS);
 
 	pkts = fec_enet_rx(ndev, budget);
@@ -2999,18 +3453,23 @@ fec_set_mac_address(struct net_device *ndev, void *p)
  * Polled functionality used by netconsole and others in non interrupt mode
  *
  */
-static void fec_poll_controller(struct net_device *dev)
+static int fec_poll_controller(struct net_device *dev)
 {
 	int i;
+	int ret = 0;
 	struct fec_enet_private *fep = netdev_priv(dev);
 
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		if (fep->irq[i] > 0) {
 			disable_irq(fep->irq[i]);
-			fec_enet_interrupt(fep->irq[i], dev);
+			if (fec_enet_interrupt(fep->irq[i], dev) != IRQ_NONE)
+				ret = 1;
+
 			enable_irq(fep->irq[i]);
 		}
 	}
+
+	return ret;
 }
 #endif
 
@@ -3102,6 +3561,287 @@ static const struct net_device_ops fec_netdev_ops = {
 	.ndo_set_features	= fec_set_features,
 };
 
+#ifdef HAVE_AG_RING
+#define SUCCESS   0
+
+static u_char *fec_agring_allocate_shared_memory(u_int64_t *mem_len)
+{
+  u_int64_t tot_mem = *mem_len;
+  u_char *shared_mem;
+
+  tot_mem = PAGE_ALIGN(tot_mem);
+
+  /* Alignment necessary on ARM platforms */
+  tot_mem += SHMLBA - (tot_mem % SHMLBA);
+
+  /* Memory is already zeroed */
+  shared_mem = vmalloc_user(tot_mem);
+
+  *mem_len = tot_mem;
+  return shared_mem;
+}
+
+static void fec_agring_allocate_buffers(struct fec_enet_private* fep, unsigned int num_buffers)
+{
+	int i;
+	u_int64_t mem_len;
+
+	fep->agring.num_buffers = num_buffers;
+	fep->agring.tx_buffers = kzalloc(num_buffers * sizeof(u_char*), GFP_KERNEL);
+	fep->agring.rx_buffers = kzalloc(num_buffers * sizeof(u_char*), GFP_KERNEL);
+
+	fep->agring.tx_mem_size = PAGE_SIZE;
+	fep->agring.rx_mem_size = PAGE_SIZE;
+
+#ifdef HAVE_AG_RING_DMA
+	fep->agring.tx_dmas = kzalloc(num_buffers * sizeof(dma_addr_t), GFP_KERNEL);
+#endif
+
+	fep->agring.tx_mem_size = PAGE_SIZE;
+	fep->agring.rx_mem_size = PAGE_SIZE;
+
+	for (i=0; i<num_buffers; i++)
+	{
+#ifdef HAVE_AG_RING_DMA
+		fep->agring.tx_buffers[i] = dma_alloc_coherent(NULL,
+					PAGE_SIZE,
+					&fep->agring.tx_dmas[i],
+					GFP_KERNEL);
+
+#else
+
+		mem_len = fep->agring.tx_mem_size;
+		fep->agring.tx_buffers[i] = fec_agring_allocate_shared_memory(&mem_len);
+#endif
+
+		fep->agring.rx_buffers[i] = fep->agring.tx_buffers[i] + FEC_ENET_TX_FRSIZE;
+	}
+
+	fep->agring.tx_curr_buffer = fep->agring.tx_buffers[0];
+	fep->agring.rx_curr_buffer = fep->agring.rx_buffers[0];
+}
+
+static void fec_agring_deallocate_buffers(struct fec_enet_private* fep)
+{
+	int i;
+
+	for (i=0; i<fep->agring.num_buffers; i++)
+	{
+#ifdef HAVE_AG_RING_DMA
+		if (fep->agring.tx_buffers[i] != NULL)
+		{
+			dma_free_coherent(NULL,
+						  FEC_ENET_TX_FRSIZE,
+						  fep->agring.tx_buffers[i],
+						  fep->agring.tx_dmas[i]);
+		}
+#else
+		if (fep->agring.tx_buffers[i] != NULL)
+		{
+			vfree(fep->agring.tx_buffers[i]);
+			fep->agring.tx_buffers[i] = NULL;
+		}
+#endif
+	}
+
+
+#ifdef HAVE_AG_RING_DMA
+	kfree(fep->agring.tx_dmas);
+#endif
+
+	kfree(fep->agring.tx_buffers);
+	kfree(fep->agring.rx_buffers);
+
+	fep->agring.tx_curr_buffer = NULL;
+	fep->agring.rx_curr_buffer = NULL;
+}
+
+static int fec_agring_open(struct inode* node, struct file* f);
+static int fec_agring_close(struct inode* node, struct file* f);
+static long fec_agring_ioctl(struct file* f, unsigned int ioctl_num, unsigned long ioctl_param);
+static int fec_agring_mmap(struct file* f, struct vm_area_struct* vma);
+
+static const struct file_operations fec_agring_fops = {
+  .owner   = THIS_MODULE,
+  .read    = NULL,
+  .poll    = NULL,
+  .write   = NULL,
+  .unlocked_ioctl = fec_agring_ioctl,
+  .open    = fec_agring_open,
+  .release = fec_agring_close,
+  .fasync  = NULL,
+  .llseek  = NULL,
+  .mmap    = fec_agring_mmap 
+};
+
+static struct miscdevice fec_agring_miscdev = {
+  .minor    = 0,
+  .name   = "fec_agr",
+  .fops   = &fec_agring_fops
+};
+
+static int fec_agring_open(struct inode* node, struct file* f)
+{
+	return SUCCESS;
+}
+
+static int fec_agring_close(struct inode* node, struct file* f)
+{
+	return SUCCESS;
+}
+
+static long fec_agring_ioctl(struct file* f, unsigned int ioctl_num, unsigned long ioctl_param)
+{
+	struct miscdevice* dev = (struct miscdevice*)f->private_data;
+	struct net_device *ndev = (struct net_device*)dev_get_drvdata(dev->this_device);
+	struct fec_enet_private* fep = netdev_priv(ndev);
+	struct platform_device* pdev = fep->pdev;
+	unsigned int tx_idx;
+	unsigned int tx_len;
+	unsigned int rx_idx;
+	int rc = SUCCESS;
+	int ret;
+	int i;
+
+	debug_printk(6, "ioctl_num: %04X, ioctl_param %lu\n", ioctl_num, ioctl_param);
+
+	/* Switch according to the ioctl called */
+	switch (ioctl_num) 
+	{
+		case 0x7000: // transmit
+			tx_len = (unsigned int)(ioctl_param & 0xFFFF);
+			
+			ioctl_param = ioctl_param >> 16;
+			tx_idx = (unsigned int)(ioctl_param & 0xFF);
+
+			ioctl_param = ioctl_param >> 8;
+			rx_idx = (unsigned int)(ioctl_param & 0xFF);
+
+			debug_printk(7, "transmit %u, %u, %u\n", tx_len, tx_idx, rx_idx);
+			fep->agring.tx_curr_buffer = fep->agring.tx_buffers[tx_idx];
+			fep->agring.rx_curr_buffer = fep->agring.rx_buffers[rx_idx];
+			fep->agring.rx_len = 0;
+
+#ifdef HAVE_AG_RING_WAITQUEUE			
+			wait_event_timeout(fep->agring.rx_ready, (fep->agring.rx_len != 0), msecs_to_jiffies(0));
+#endif			
+
+			fec_enet_start_xmit_raw(tx_len, ndev);
+			break;
+		case 0x7001: // receive
+#ifdef HAVE_AG_RING_WAITQUEUE			
+			wait_event_timeout(fep->agring.rx_ready, (fep->agring.rx_len != 0), msecs_to_jiffies(10));
+#endif
+			rc = fep->agring.rx_len;
+			break;
+		case 0x700A: // enable
+			if (atomic_read(&fep->agring.usage_counter) == 0)
+			{
+				atomic_inc(&fep->agring.usage_counter);
+
+				debug_printk(0, "enabling AGRING (num. buffers: %lu)\n", ioctl_param);
+
+				for (i = 0; i < FEC_IRQ_NUM; i++) {
+					if (fep->irq[i] != 0)
+						devm_free_irq(&pdev->dev, fep->irq[i], ndev);
+				}
+
+				for (i = 0; i < FEC_IRQ_NUM; i++) {
+					if (fep->irq[i] == 0)
+						continue;
+
+					ret = devm_request_irq(&pdev->dev, fep->irq[i], fec_enet_interrupt,
+								IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_NO_THREAD | IRQF_NO_SUSPEND, pdev->name, ndev);
+					if (ret)
+						netdev_err(ndev, "Failed to register IRQ %d\n", fep->irq[i]);
+					else
+						netdev_info(ndev, "registered IRQ %d\n", fep->irq[i]);
+				}
+
+				fec_agring_allocate_buffers(fep, ioctl_param);
+
+				netif_tx_lock_bh(ndev);
+				fec_restart(ndev);
+				netif_wake_queue(ndev);
+				netif_tx_unlock_bh(ndev);
+			}
+			else
+			{
+				debug_printk(0, "AGRING already in use\n");
+				rc = -ENOENT;
+			}
+			break;
+		case 0x700B: // disable
+			if (atomic_read(&fep->agring.usage_counter) > 0)
+			{
+				atomic_dec(&fep->agring.usage_counter);
+
+				debug_printk(0, "disabling AGRING\n");
+				for (i = 0; i < FEC_IRQ_NUM; i++) {
+					if (fep->irq[i] != 0)
+						devm_free_irq(&pdev->dev, fep->irq[i], ndev);
+				}
+
+				for (i = 0; i < FEC_IRQ_NUM; i++) {
+					if (fep->irq[i] == 0)
+						continue;
+
+					ret = devm_request_irq(&pdev->dev, fep->irq[i], fec_enet_interrupt,
+								0, pdev->name, ndev);
+					if (ret)
+						netdev_err(ndev, "Failed to register IRQ %d\n", fep->irq[i]);
+					else
+						netdev_info(ndev, "registered IRQ %d\n", fep->irq[i]);
+				}
+
+				fec_agring_deallocate_buffers(fep);
+
+				netif_tx_lock_bh(ndev);
+				fec_restart(ndev);
+				netif_wake_queue(ndev);
+				netif_tx_unlock_bh(ndev);
+			}
+			else
+			{
+				debug_printk(0, "AGRING is not in use\n");
+				rc = -ENOENT;
+			}
+			break;
+	}
+
+	return rc;
+}
+
+static int fec_agring_mmap(struct file* f, struct vm_area_struct* vma)
+{
+	struct miscdevice* dev = (struct miscdevice*)f->private_data;
+	struct net_device *ndev = (struct net_device*)dev_get_drvdata(dev->this_device);
+	struct fec_enet_private* fep = netdev_priv(ndev);
+	unsigned long mem_id = vma->vm_pgoff; /* using vm_pgoff as memory id */
+	int rc = -ENODEV;
+
+	debug_printk(6, "called, mem_id: %lu\n", mem_id);
+
+#ifdef HAVE_AG_RING_DMA
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (mem_id < fep->agring.num_buffers)
+		rc = remap_pfn_range(vma, vma->vm_start, __pa(fep->agring.tx_buffers[mem_id]) >> PAGE_SHIFT, PAGE_SIZE, PAGE_SHARED);
+	else 
+		rc = -ENOENT;
+#else
+	if (mem_id < fep->agring.num_buffers)
+		rc = remap_vmalloc_range(vma, fep->agring.tx_buffers[mem_id], 0);
+	else 
+		rc = -ENOENT;
+#endif
+
+	debug_printk(7, "return: %d\n", rc);
+
+	return rc;
+}
+#endif
+
  /*
   * XXX:  We need to clean up on failure exits here.
   *
@@ -3115,6 +3855,9 @@ static int fec_enet_init(struct net_device *ndev)
 	dma_addr_t bd_dma;
 	int bd_size;
 	unsigned int i;
+#ifdef HAVE_AG_RING
+	int res;
+#endif
 
 #if defined(CONFIG_ARM)
 	fep->rx_align = 0xf;
@@ -3206,6 +3949,31 @@ static int fec_enet_init(struct net_device *ndev)
 	}
 
 	ndev->hw_features = ndev->features;
+
+	netdev_info(ndev, "AGRING is %s enabled\n", enable_agrings? "" : "NOT");
+
+#ifdef HAVE_AG_RING
+	if (enable_agrings)
+	{
+		res = misc_register(&fec_agring_miscdev);
+		fep->agring.inited = (res == 0);
+		
+		if (!res)
+		{
+			dev_set_drvdata(fec_agring_miscdev.this_device, ndev);
+
+#ifdef HAVE_AG_RING_WAITQUEUE		
+			init_waitqueue_head(&fep->agring.rx_ready);
+#endif		
+
+			netdev_info(ndev, "AGRING device registered successfully\n");
+		}
+		else
+		{
+			netdev_err(ndev, "failed to register AGRING device\n");
+		}
+	}
+#endif
 
 	fec_restart(ndev);
 
@@ -3438,6 +4206,7 @@ fec_probe(struct platform_device *pdev)
 			ret = irq;
 			goto failed_irq;
 		}
+
 		ret = devm_request_irq(&pdev->dev, irq, fec_enet_interrupt,
 				       0, pdev->name, ndev);
 		if (ret)
@@ -3504,6 +4273,20 @@ fec_drv_remove(struct platform_device *pdev)
 		ptp_clock_unregister(fep->ptp_clock);
 	fec_enet_clk_enable(ndev, false);
 	of_node_put(fep->phy_node);
+
+#ifdef HAVE_AG_RING
+	if (enable_agrings)
+	{
+		if (atomic_read(&fep->agring.usage_counter) > 0)
+			fec_agring_deallocate_buffers(fep);
+
+		if (fep->agring.inited)
+		{
+			misc_deregister(&fec_agring_miscdev);
+		}
+	}
+#endif
+
 	free_netdev(ndev);
 
 	return 0;

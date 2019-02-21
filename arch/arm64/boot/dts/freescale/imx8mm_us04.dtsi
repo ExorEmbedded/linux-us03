@@ -24,6 +24,9 @@
 	aliases {
 		mmc0 = &usdhc2;
 		mmc1 = &usdhc1;
+		spi0 = &ecspi1;
+		spi1 = &ecspi3;
+		spi2 = &ecspi2;
 	};
     
 	chosen {
@@ -213,6 +216,30 @@
 		pinctrl_wdog: wdoggrp {
 			fsl,pins = <
 				MX8MM_IOMUXC_GPIO1_IO02_WDOG1_WDOG_B		0xc6
+			>;
+		};
+
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX8MQ_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK    0x11
+				MX8MQ_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI    0x11
+				MX8MQ_IOMUXC_ECSPI1_MISO_ECSPI1_MISO    0x11
+				MX8MQ_IOMUXC_ECSPI1_SS0_GPIO5_IO9       0x11
+				MX8MM_IOMUXC_UART4_TXD_GPIO5_IO29       0x11
+				MX8MM_IOMUXC_SAI2_TXC_GPIO4_IO25        0x11
+				MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27       0x11
+			>;
+		};
+        
+		pinctrl_ecspi3: ecspi3grp {
+			fsl,pins = <
+                MX8MM_IOMUXC_UART1_RXD_ECSPI3_SCLK      0x11
+                MX8MM_IOMUXC_UART1_TXD_ECSPI3_MOSI      0x11
+                MX8MM_IOMUXC_UART2_RXD_ECSPI3_MISO      0x11
+                MX8MM_IOMUXC_SAI3_RXFS_GPIO4_IO28       0x11
+                MX8MM_IOMUXC_SAI2_TXD0_GPIO4_IO26       0x11
+                MX8MM_IOMUXC_UART2_TXD_GPIO5_IO25       0x11
+                MX8MM_IOMUXC_UART4_RXD_GPIO5_IO28       0x11
 			>;
 		};
 	};
@@ -433,6 +460,70 @@
 &pcie0{
 	ext_osc = <1>;
 };
+
+&ecspi1 {
+    fsl,spi-num-chipselects = <4>;
+    cs-gpios = <&gpio5 9 0>,  /* CS0 */
+               <&gpio5 29 0>, /* CS1 */
+               <&gpio4 25 0>, /* CS2 */
+               <&gpio4 27 0>; /* CS3 */
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi1>;
+    status = "okay";
+  
+    spidev0: spi0@0 {
+        compatible = "spidev";
+        reg = <0>;
+        spi-max-frequency = <3000000>;
+    };
+
+    spidev1: spi0@1 {
+        compatible = "spidev";
+        reg = <1>;
+        spi-max-frequency = <3000000>;
+    };
+
+    adcus: mcp3204@2 {
+        compatible = "mcp3204";
+        reg = <2>;
+        spi-max-frequency = <500000>;
+    };
+    
+    fram: at25@3 {
+        compatible = "atmel,at25", "st,m95256";
+        reg = <3>;
+        spi-max-frequency = <20000000>;
+        pagesize = <64>;
+        size = <65536>;
+        address-width = <16>;
+    };
+};
+
+&ecspi3 {
+    fsl,spi-num-chipselects = <4>;
+    cs-gpios = <&gpio4 28 0>,  /* CS0 */
+               <&gpio4 26 0>, /* CS1 */
+               <&gpio5 25 0>, /* CS2 */
+               <&gpio5 28 0>; /* CS3 */
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi3>;
+    status = "okay";
+  
+    spidev2: spi1@0 {
+        compatible = "spidev";
+        reg = <0>;
+        spi-max-frequency = <3000000>;
+    };
+
+    spidev3: spi1@1 {
+        compatible = "spidev";
+        reg = <1>;
+        spi-max-frequency = <3000000>;
+    };
+    
+    /*TODO: Add SPI CAN devices*/
+};
+
 
 &uart1 { 
 	assigned-clocks = <&clk IMX8MM_CLK_UART1_SRC>;

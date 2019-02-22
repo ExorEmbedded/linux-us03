@@ -33,6 +33,7 @@
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
 #endif
+#include <linux/nvmem-provider.h>
 
 #define M41T80_REG_SSEC		0x00
 #define M41T80_REG_SEC		0x01
@@ -55,6 +56,8 @@
 	(M41T80_REG_ALARM_SEC + 1 - M41T80_REG_ALARM_MON)
 
 #define M41T80_SQW_MAX_FREQ	32768
+#define M41T80_SRAM_BASE        0x19
+#define M41T80_SRAM_SIZE        7
 
 #define M41T80_SEC_ST		BIT(7)	/* ST: Stop Bit */
 #define M41T80_ALMON_AFE	BIT(7)	/* AFE: AF Enable Bit */
@@ -72,6 +75,7 @@
 #define M41T80_FEATURE_SQ	BIT(2)	/* Squarewave feature */
 #define M41T80_FEATURE_WD	BIT(3)	/* Extra watchdog resolution */
 #define M41T80_FEATURE_SQ_ALT	BIT(4)	/* RSx bits are in reg 4 */
+#define M41T80_FEATURE_NVRAM	BIT(5)	/* NVRAM resuorce avail */
 
 static DEFINE_MUTEX(m41t80_rtc_mutex);
 static const struct i2c_device_id m41t80_id[] = {
@@ -80,8 +84,8 @@ static const struct i2c_device_id m41t80_id[] = {
 	{ "m41t80", M41T80_FEATURE_SQ },
 	{ "m41t81", M41T80_FEATURE_HT | M41T80_FEATURE_SQ},
 	{ "m41t81s", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
-	{ "m41t82", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
-	{ "m41t83", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
+	{ "m41t82", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ | M41T80_FEATURE_NVRAM },
+	{ "m41t83", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ | M41T80_FEATURE_NVRAM },
 	{ "m41st84", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
 	{ "m41st85", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
 	{ "m41st87", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
@@ -113,11 +117,11 @@ static const struct of_device_id m41t80_of_match[] = {
 	},
 	{
 		.compatible = "st,m41t82",
-		.data = (void *)(M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ)
+		.data = (void *)(M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ | M41T80_FEATURE_NVRAM)
 	},
 	{
 		.compatible = "st,m41t83",
-		.data = (void *)(M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ)
+		.data = (void *)(M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ | M41T80_FEATURE_NVRAM)
 	},
 	{
 		.compatible = "st,m41t84",
@@ -152,6 +156,8 @@ struct m41t80_data {
 	unsigned long features;
 	struct i2c_client *client;
 	struct rtc_device *rtc;
+	struct nvmem_config nvmem_config;
+	struct nvmem_device *nvmem;
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw sqw;
 	unsigned long freq;
@@ -872,6 +878,140 @@ static struct notifier_block wdt_notifier = {
 };
 #endif /* CONFIG_RTC_DRV_M41T80_WDT */
 
+/*----------------------------------------------------------------------*
+  NVRAM support related stuff
+ *----------------------------------------------------------------------*/
+static ssize_t m41t80_nvram_read_lowlevel(struct i2c_client  *client, char *buf, loff_t off, size_t count)
+{
+    int result;
+    u8 nvram_addr;
+    struct i2c_msg msgs[2];
+    
+    struct m41t80_data* m41t80 = i2c_get_clientdata(client);
+    struct mutex *lock = &m41t80->rtc->ops_lock;
+    
+    if(off >= M41T80_SRAM_SIZE)
+	return 0;
+
+    if ((off + count) > M41T80_SRAM_SIZE)
+	count = M41T80_SRAM_SIZE - off;
+
+    if(!count)
+	return 0;
+
+    mutex_lock(lock);
+    
+    nvram_addr = M41T80_SRAM_BASE + off;
+
+    msgs[0].addr  = client->addr;
+    msgs[0].flags = 0;
+    msgs[0].len   = 1;
+    msgs[0].buf   = &nvram_addr;
+
+    msgs[1].addr  = client->addr;
+    msgs[1].flags = I2C_M_RD;
+    msgs[1].len   = count;
+    msgs[1].buf   = buf;
+
+    result = i2c_transfer(client->adapter, msgs, 2);
+    if (result < 0)
+    {
+	dev_err(&client->dev, "%s error %d\n", "nvram read", result);
+	mutex_unlock(lock);
+	return result;
+    }
+    
+    mutex_unlock(lock);
+    return count;
+}
+
+static ssize_t m41t80_nvram_read(struct file *filp, struct kobject *kobj, struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+    struct i2c_client  *client;
+
+    client = kobj_to_i2c_client(kobj);
+
+    return m41t80_nvram_read_lowlevel(client, buf, off, count);
+}
+
+static int m41t80_nvmem_read(void *priv, unsigned int off, void *val, size_t count)
+{
+  struct m41t80_data* m41t80 = priv;
+  struct i2c_client *client = to_i2c_client(m41t80->nvmem_config.dev);    
+
+  return m41t80_nvram_read_lowlevel(client, val, off, count);
+}
+
+static ssize_t m41t80_nvram_write_lowlevel(struct i2c_client  *client, char *buf, loff_t off, size_t count)
+{
+    int result;
+    u8 nvram_addr;
+    struct i2c_msg msgs[1];
+    u8 wbuf[M41T80_SRAM_SIZE + 1];
+    int i;
+    struct m41t80_data* m41t80 = i2c_get_clientdata(client);
+    struct mutex *lock = &m41t80->rtc->ops_lock;
+
+    if(off >= M41T80_SRAM_SIZE)
+	return 0;
+
+    if ((off + count) > M41T80_SRAM_SIZE)
+	count = M41T80_SRAM_SIZE - off;
+
+    if(!count)
+	return 0;
+
+    nvram_addr = M41T80_SRAM_BASE + off;
+    wbuf[0] = nvram_addr;
+
+    mutex_lock(lock);
+    
+    for(i=0; i < count; i++)
+	wbuf[i+1] = buf[i];
+
+    msgs[0].addr  = client->addr;
+    msgs[0].flags = 0;
+    msgs[0].len   = 1 + count;
+    msgs[0].buf   = wbuf;
+
+    result = i2c_transfer(client->adapter, msgs, 1);
+    if (result < 0)
+    {
+	dev_err(&client->dev, "%s error %d\n", "nvram write", result);
+	mutex_unlock(lock);
+	return result;
+    }
+
+    mutex_unlock(lock);
+    return count;
+}
+
+static ssize_t m41t80_nvram_write(struct file *filp, struct kobject *kobj, struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+    struct i2c_client  *client;
+
+    client = kobj_to_i2c_client(kobj);
+    return m41t80_nvram_write_lowlevel(client, buf, off, count);
+}
+
+static int m41t80_nvmem_write(void *priv, unsigned int off, void *val, size_t count)
+{
+  struct m41t80_data* m41t80 = priv;
+  struct i2c_client *client = to_i2c_client(m41t80->nvmem_config.dev);
+  
+  return m41t80_nvram_write_lowlevel(client, val, off, count);
+}
+
+static struct bin_attribute m41t80_nvram_attr = {
+    .attr = {
+	.name = "nvram",
+	.mode = S_IRUGO | S_IWUSR,
+    },
+    .read = m41t80_nvram_read,
+    .write = m41t80_nvram_write,
+    .size = M41T80_SRAM_SIZE,
+};
+
 /*
  *****************************************************************************
  *
@@ -997,19 +1137,56 @@ static int m41t80_probe(struct i2c_client *client,
 	if (rc)
 		return rc;
 
+	if (m41t80_data->features & M41T80_FEATURE_NVRAM)
+	{
+	  m41t80_data->nvmem_config.name = dev_name(&client->dev);
+	  m41t80_data->nvmem_config.dev = &client->dev;
+	  m41t80_data->nvmem_config.read_only = false;
+	  m41t80_data->nvmem_config.root_only = true;
+	  m41t80_data->nvmem_config.owner = THIS_MODULE;
+	  m41t80_data->nvmem_config.compat = true;
+	  m41t80_data->nvmem_config.base_dev = &client->dev;
+	  m41t80_data->nvmem_config.reg_read = m41t80_nvmem_read;
+	  m41t80_data->nvmem_config.reg_write = m41t80_nvmem_write;
+	  m41t80_data->nvmem_config.priv = m41t80_data;
+	  m41t80_data->nvmem_config.stride = 1;
+	  m41t80_data->nvmem_config.word_size = 1;
+	  m41t80_data->nvmem_config.size = M41T80_SRAM_SIZE;
+	  
+	  m41t80_data->nvmem = nvmem_register(&m41t80_data->nvmem_config);
+	  if (IS_ERR(m41t80_data->nvmem)) 
+	  {
+		rc = PTR_ERR(m41t80_data->nvmem);
+		dev_err(&client->dev, "ERROR nvmem_register\n");
+		return rc;
+	  }
+	  
+	  rc = sysfs_create_bin_file(&client->dev.kobj, &m41t80_nvram_attr);
+	  if (rc)
+	  {
+	    dev_err(&client->dev, "ERROR sysfs_create_bin_file\n");
+	    return rc;
+	  }
+	}
+
 	return 0;
 }
 
 static int m41t80_remove(struct i2c_client *client)
 {
-#ifdef CONFIG_RTC_DRV_M41T80_WDT
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
+#ifdef CONFIG_RTC_DRV_M41T80_WDT
 
 	if (clientdata->features & M41T80_FEATURE_HT) {
 		misc_deregister(&wdt_dev);
 		unregister_reboot_notifier(&wdt_notifier);
 	}
 #endif
+
+    if (clientdata->features & M41T80_FEATURE_NVRAM)
+    {
+        sysfs_remove_bin_file(&client->dev.kobj, &m41t80_nvram_attr);
+    }
 
 	return 0;
 }

@@ -12,6 +12,64 @@
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+#include <video/displayconfig.h>
+
+/*----------------------------------------------------------------------------------------------------------------*
+   Helper functions to retrieve the display id value, when passed from the cmdline, and use it to set the
+   display parameters/timings (the contents of the DTB file are overridden, if a valid dispaly id is passed from
+   cmdline.
+ *----------------------------------------------------------------------------------------------------------------*/
+extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+
+int dispid_get_videomode(struct videomode* vm, int dispid)
+{
+	int i=0;
+
+	// Scan the display array to search for the required dispid
+	if(dispid == NODISPLAY)
+		return -1;
+
+	while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
+		i++;
+
+	if(displayconfig[i].dispid == NODISPLAY)
+		return -1;
+
+	// If we are here, we have a valid array index pointing to the desired display
+	vm->hactive         = displayconfig[i].rezx;
+	vm->hback_porch  = displayconfig[i].hs_bp;
+	vm->hfront_porch = displayconfig[i].hs_fp;
+	vm->hsync_len    = displayconfig[i].hs_w;
+
+	vm->vactive         = displayconfig[i].rezy;
+	vm->vback_porch = displayconfig[i].vs_bp;
+	vm->vfront_porch = displayconfig[i].vs_fp;
+	vm->vsync_len    = displayconfig[i].vs_w;
+	vm->pixelclock = 1000 * displayconfig[i].pclk_freq;
+
+	vm->flags = 0;
+	if(displayconfig[i].hs_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_HSYNC_LOW;
+
+	if(displayconfig[i].vs_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_VSYNC_LOW;
+
+	if(displayconfig[i].blank_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_DE_LOW;
+
+	if(displayconfig[i].pclk_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+	else
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+
+	return 0;
+}
 
 /**
  * of_get_videomode - get the videomode #<index> from devicetree
@@ -33,6 +91,9 @@ int of_get_videomode(struct device_node *np, struct videomode *vm,
 {
 	struct display_timings *disp;
 	int ret;
+	
+	if(!dispid_get_videomode(vm, hw_dispid))
+	    return 0;
 
 	disp = of_get_display_timings(np);
 	if (!disp) {

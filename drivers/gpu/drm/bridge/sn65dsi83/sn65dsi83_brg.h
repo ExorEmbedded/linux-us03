@@ -26,6 +26,7 @@ struct sn65dsi83_brg {
     u32 bpp;
 
     u8 num_dsi_lanes;
+    u8 num_lvds_channels;
     struct sn65dsi83_brg_funcs *funcs;
 };
 struct sn65dsi83_brg *sn65dsi83_brg_get(void);
@@ -36,6 +37,7 @@ struct sn65dsi83_brg *sn65dsi83_brg_get(void);
 #define BPP(A) (A)->bpp
 #define FORMAT(A) (A)->format
 #define DSI_LANES(A) (A)->num_dsi_lanes
+#define LVDS_CHANNELS(A) (A)->num_lvds_channels
 
 /* The caller has to have a vm structure defined */
 #define PIXCLK vm->pixelclock

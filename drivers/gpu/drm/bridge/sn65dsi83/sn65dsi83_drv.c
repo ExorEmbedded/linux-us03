@@ -207,6 +207,7 @@ static int sn65dsi83_parse_dt(struct device_node *np,
 {
     struct device *dev = &sn65dsi83->brg->client->dev;
     u32 num_lanes = 2, bpp = 24, format = 2, width = 149, height = 93;
+    u32 frefresh;
     struct device_node *endpoint;
 
     endpoint = of_graph_get_next_endpoint(np, NULL);
@@ -246,6 +247,19 @@ static int sn65dsi83_parse_dt(struct device_node *np,
     /* Read default timing if there is not device tree node for */
     if ((of_get_videomode(np, &sn65dsi83->brg->vm, 0)) < 0)
         videomode_from_timing(&panel_default_timing, &sn65dsi83->brg->vm);
+        
+    /* Check if we are in dual LVDS mode, based on the resulting display refresh frequency */
+    frefresh = (sn65dsi83->brg->vm.pixelclock) /
+               ((sn65dsi83->brg->vm.hactive + sn65dsi83->brg->vm.hback_porch + sn65dsi83->brg->vm.hfront_porch + sn65dsi83->brg->vm.hsync_len) * 
+               (sn65dsi83->brg->vm.vactive + sn65dsi83->brg->vm.vback_porch + sn65dsi83->brg->vm.vfront_porch + sn65dsi83->brg->vm.vsync_len));
+    
+    if(frefresh < 40)
+    {
+        sn65dsi83->brg->num_lvds_channels = 2;
+        sn65dsi83->brg->vm.pixelclock *= 2;
+    }
+    else
+        sn65dsi83->brg->num_lvds_channels = 1;
 
     of_node_put(endpoint);
     of_node_put(sn65dsi83->host_node);

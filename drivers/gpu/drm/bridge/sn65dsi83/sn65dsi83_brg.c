@@ -57,6 +57,9 @@
     #define LVDS_LINK_CFG_SHIFT   4
     #define CHA_24BPP_MODE_SHIFT  3
     #define CHA_24BPP_FMT1_SHIFT  1
+    #define CHB_24BPP_FMT1_SHIFT  0
+    #define CHB_24BPP_MODE_SHIFT  2
+    
 
 #define SN65DSI83_LVDS_SIGN           0x19
 #define SN65DSI83_LVDS_TERM           0x1A
@@ -235,11 +238,10 @@ static int sn65dsi83_brg_configure(struct sn65dsi83_brg *brg)
     SN65DSI83_WRITE(SN65DSI83_PLL_EN,0x00);
 
     /* LVDS clock setup */
-    if  ((25000000 <= PIXCLK) && (PIXCLK < 37500000))
+    if  ((25000000 <= (PIXCLK/LVDS_CHANNELS(brg))) && ((PIXCLK/LVDS_CHANNELS(brg)) < 37500000))
         regval = 0;
     else
-        regval = sn65dsi83_calk_clk_range(0x01, 0x05, 37500000, 25000000,
-                    PIXCLK);
+        regval = sn65dsi83_calk_clk_range(0x01, 0x05, 37500000, 25000000, (PIXCLK/LVDS_CHANNELS(brg)));
 
     if (regval < 0) {
         dev_err(&client->dev, "failed to configure LVDS clock");
@@ -259,7 +261,7 @@ static int sn65dsi83_brg_configure(struct sn65dsi83_brg *brg)
     SN65DSI83_WRITE(SN65DSI83_CHA_DSI_CLK_RNG,regval);
 
     /* DSI clock divider */
-    regval = sn65dsi83_calk_div(0x0, 0x18, 1, 1, dsi_clk, PIXCLK);
+    regval = sn65dsi83_calk_div(0x0, 0x18, 1, 1, dsi_clk, (PIXCLK/LVDS_CHANNELS(brg)));
     if (regval < 0) {
         dev_err(&client->dev, "failed to calculate DSI clock divider");
         return -EINVAL;
@@ -295,7 +297,17 @@ static int sn65dsi83_brg_configure(struct sn65dsi83_brg *brg)
     if (FORMAT(brg) == 1)
         regval |= (1 << CHA_24BPP_FMT1_SHIFT);
 
-    regval |= (1 << LVDS_LINK_CFG_SHIFT);
+    if(LVDS_CHANNELS(brg) == 1)
+        regval |= (1 << LVDS_LINK_CFG_SHIFT);
+    else
+    {
+        if (BPP(brg) == 24)
+            regval |= (1 << CHB_24BPP_MODE_SHIFT);
+            
+        if (FORMAT(brg) == 1)
+            regval |= (1 << CHB_24BPP_FMT1_SHIFT);
+    }
+        
     SN65DSI83_WRITE(SN65DSI83_LVDS_MODE,regval);
 
     /* Voltage and pins */

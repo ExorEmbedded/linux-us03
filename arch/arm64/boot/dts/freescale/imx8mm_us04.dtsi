@@ -414,20 +414,44 @@
         restart-if-fails;
     };
     
-	adv_bridge: adv7535@3d {
-		compatible = "adi,adv7533";
-		reg = <0x3d>;
-		adi,addr-cec = <0x3b>;
-		adi,dsi-lanes = <4>;
+	dsi_lvds_bridge: sn65dsi84@2c {
+		compatible = "ti,sn65dsi83";
+		reg = <0x2c>;
+		ti,dsi-lanes = <4>;
+		ti,lvds-format = <1>;
+		ti,lvds-bpp = <24>;
+		ti,width-mm = <218>;
+		ti,height-mm = <136>;
+		enable-gpios = <&tca6408 1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
 		status = "okay";
 
+		display-timings {
+			lvds {
+				clock-frequency = <33000000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <40>;
+				hfront-porch = <40>;
+				vback-porch = <29>;
+				vfront-porch = <13>;
+				hsync-len = <48>;
+				vsync-len = <3>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+		};
+
 		port {
-			adv7535_from_dsim: endpoint {
-				remote-endpoint = <&dsim_to_adv7535>;
+			lvds_from_dsi: endpoint {
+				remote-endpoint = <&dsi_to_lvds>;
 			};
 		};
 	};
 };
+
 
 &lcdif {
 	status = "okay";
@@ -437,8 +461,8 @@
 	status = "okay";
 
 	port@1 {
-		dsim_to_adv7535: endpoint {
-			remote-endpoint = <&adv7535_from_dsim>;
+		dsi_to_lvds: endpoint {
+			remote-endpoint = <&lvds_from_dsi>;
 		};
 	};
 };

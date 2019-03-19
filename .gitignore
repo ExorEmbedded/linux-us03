@@ -114,3 +114,13 @@ all.config
 
 # Kdevelop4
 *.kdev4
+
+#Qtcreator filed
+*.config
+*.creator
+*.creator.user
+*.files
+*.includes
+
+#Log files
+build.log

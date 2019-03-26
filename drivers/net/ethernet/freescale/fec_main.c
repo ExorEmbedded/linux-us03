@@ -60,6 +60,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/busfreq-imx6.h>
 #include <linux/prefetch.h>
+#include <linux/kthread.h>
 
 #include <asm/cacheflush.h>
 
@@ -233,6 +234,22 @@ static unsigned int enable_debug = 0;
 static unsigned int enable_agrings = 1;
 module_param(enable_agrings, uint, S_IRUGO | S_IWUSR | S_IWGRP);
 MODULE_PARM_DESC(enable_agrings, "enable or disable use of AG ring technology");
+
+void fec_agring_tx_next(struct fec_enet_private* fep, struct net_device* ndev, int force);
+void fec_agring_tx_next_delayed(struct fec_enet_private* fep);
+void fec_agring_tx_complete(struct fec_enet_private* fep);
+
+int fec_agring_enable(struct fec_enet_private* fep, unsigned int num_buffers);
+int fec_agring_disable(struct fec_enet_private* fep);
+
+void fec_agring_link_timer_start(struct fec_enet_private* fep);
+void fec_agring_link_timer_stop(struct fec_enet_private* fep);
+
+
+int fec_agring_is_active(struct fec_enet_private* fep)
+{
+	return (atomic_read(&fep->agring.usage_counter) && (!atomic_read(&fep->agring.suspended)));
+}
 #endif
 
 static inline
@@ -802,7 +819,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 #ifdef HAVE_AG_RING
 	if (enable_agrings)
 	{
-		if (atomic_read(&fep->agring.usage_counter))
+		if (fec_agring_is_active(fep))
 			return NETDEV_TX_BUSY;
 	}
 #endif
@@ -917,13 +934,17 @@ fec_enet_start_xmit_raw(unsigned int datalen, struct net_device *ndev)
 	struct fec_enet_priv_tx_q *txq;
 	struct netdev_queue *nq;
 	int ret;
+	u_char* txptr = fep->agring.tx_curr_buffer;
+
+	if (txptr == NULL)
+		return NETDEV_TX_BUSY;
 
 	queue = 0;
 
 	txq = fep->tx_queue[queue];
 	nq = netdev_get_tx_queue(ndev, queue);
 
-	ret = fec_enet_txq_submit_raw(txq, fep->agring.tx_curr_buffer, datalen, ndev);
+	ret = fec_enet_txq_submit_raw(txq, txptr, datalen, ndev);
 	if (ret)
 		return ret;
 
@@ -1197,7 +1218,7 @@ fec_restart(struct net_device *ndev)
 	writel(rcntl, fep->hwp + FEC_R_CNTRL);
 
 #ifdef HAVE_AG_RING
-	if (enable_agrings && atomic_read(&fep->agring.usage_counter))
+	if (enable_agrings && fec_agring_is_active(fep))
 	{
 		netdev_info(ndev, "Enabling promiscous mode\n");
 		ndev->flags |= IFF_PROMISC;
@@ -1216,7 +1237,7 @@ fec_restart(struct net_device *ndev)
 		ecntl |= (1 << 8);
 
 		/* enable ENET store and forward mode */
-		if (enable_agrings && atomic_read(&fep->agring.usage_counter))
+		if (enable_agrings && fec_agring_is_active(fep))
 		{
 			netdev_info(ndev, "Enabling watermark\n");
 
@@ -1860,6 +1881,7 @@ fec_enet_agring_rx_queue(struct net_device *ndev, u16 queue_id)
 	ushort	pkt_len = 0;
 	int	pkt_received = 0;
 	int	index = 0;
+	u_char* rxptr;
 	bool	need_swap = fep->quirks & FEC_QUIRK_SWAP_FRAME;
 
 #ifdef CONFIG_M532x
@@ -1921,10 +1943,14 @@ fec_enet_agring_rx_queue(struct net_device *ndev, u16 queue_id)
 			FEC_ENET_RX_FRSIZE - fep->rx_align,
 			DMA_FROM_DEVICE);
 
-		if (!need_swap)
-			memcpy(fep->agring.rx_curr_buffer, skb->data, pkt_len-4);
-		else
-			swap_buffer2(fep->agring.rx_curr_buffer, skb->data, pkt_len-4);
+		rxptr = fep->agring.rx_curr_buffer;
+		if (rxptr != NULL)
+		{
+			if (!need_swap)
+				memcpy(rxptr, skb->data, pkt_len-4);
+			else
+				swap_buffer2(rxptr, skb->data, pkt_len-4);
+		}
 
 		dma_sync_single_for_device(&fep->pdev->dev, bdp->cbd_bufaddr,
 					   FEC_ENET_RX_FRSIZE - fep->rx_align,
@@ -1946,11 +1972,10 @@ rx_processing_done:
 			ebdp->cbd_bdu = 0;
 		}
 
-		fep->agring.rx_len = pkt_len - 4;
+		if (fep->agring.prx_curr_len != NULL)
+			*fep->agring.prx_curr_len = (pkt_len - 4);
 
-#ifdef HAVE_AG_RING_WAITQUEUE
-		wake_up(&fep->agring.rx_ready);
-#endif
+		fec_agring_tx_complete(fep);
 
 		/* Update BD pointer to next entry */
 		bdp = fec_enet_get_nextdesc(bdp, fep, queue_id);
@@ -1984,16 +2009,19 @@ fec_enet_agring_rx(struct net_device *ndev)
         return pkt_received;
 }
 
-static void fec_enet_agring_intr(struct net_device *ndev)
+static uint fec_enet_agring_intr(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	unsigned int tmp;
+	int pkt_received;
 
 	tmp = readl(fep->hwp + RMON_R_PACKETS);
 
-	fec_enet_agring_rx(ndev);
+	pkt_received = fec_enet_agring_rx(ndev);
 
 	fec_enet_agring_tx(ndev);
+
+	return pkt_received;
 }
 #endif
 	
@@ -2003,6 +2031,7 @@ fec_enet_interrupt(int irq, void *dev_id)
 	struct net_device *ndev = dev_id;
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	uint int_events;
+	uint pkt_received = 0;
 	uint retries = 0;
 	irqreturn_t ret = IRQ_NONE;
 
@@ -2015,10 +2044,10 @@ checkAgain:
 		ret = IRQ_HANDLED;
 
 #ifdef HAVE_AG_RING
-		if (enable_agrings && atomic_read(&fep->agring.usage_counter))
+		if (enable_agrings && fec_agring_is_active(fep))
 		{
 			// fast processing
-			fec_enet_agring_intr(ndev);
+			pkt_received = fec_enet_agring_intr(ndev);
 		}
 		else
 #endif
@@ -2037,7 +2066,7 @@ checkAgain:
 	}
 
 #ifdef HAVE_AG_RING
-	if ((ret != IRQ_NONE) && enable_agrings && atomic_read(&fep->agring.usage_counter))
+	if ((ret != IRQ_NONE) && enable_agrings && fec_agring_is_active(fep))
 	{
 		retries ++;
 		if (retries < 2)
@@ -2045,6 +2074,12 @@ checkAgain:
 
 		writel(FEC_AGRING_IMASK, fep->hwp + FEC_IMASK);
 	}
+
+#ifdef HAVE_AG_RING_MULTI
+	if (pkt_received)
+		fec_agring_tx_next_delayed(fep);
+#endif
+
 #endif
 
 #ifdef HAVE_AG_RING
@@ -2066,7 +2101,7 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
 	static int count;
 
 #ifdef HAVE_AG_RING
-	if (atomic_read(&fep->agring.usage_counter))
+	if (fec_agring_is_active(fep))
 	{
 		debug_printk(0, "ERROR: got NAPI call when in EtherCAT mode!!\n");
 		fec_enet_agring_intr(ndev);
@@ -2198,6 +2233,8 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 	struct phy_device *phy_dev = fep->phy_dev;
 	int status_change = 0;
 
+	debug_printk(7, "timeout: %d, state: %d, link: %d/%d\n", fep->mii_timeout, phy_dev->state, fep->link, phy_dev->link);
+
 	/* Prevent a state halted on mii error */
 	if (fep->mii_timeout && phy_dev->state == PHY_HALTED) {
 		phy_dev->state = PHY_RESUMING;
@@ -2229,6 +2266,14 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 
 		/* if any of the above changed restart the FEC */
 		if (status_change) {
+#ifdef HAVE_AG_RING
+			// re-enable AG ring mode 
+			if (atomic_read(&fep->agring.usage_counter) && atomic_read(&fep->agring.suspended))
+			{
+				fec_agring_link_timer_start(fep);
+			}
+#endif
+
 			napi_disable(&fep->napi);
 			netif_tx_lock_bh(ndev);
 			fec_restart(ndev);
@@ -2238,6 +2283,14 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 		}
 	} else {
 		if (fep->link) {
+#ifdef HAVE_AG_RING
+			// temporary disable AG ring mode (if enabled)
+			if (fec_agring_is_active(fep))
+			{
+				fec_agring_link_timer_stop(fep);
+			}
+#endif
+
 			napi_disable(&fep->napi);
 			netif_tx_lock_bh(ndev);
 			fec_stop(ndev);
@@ -2269,9 +2322,9 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	time_left = wait_for_completion_timeout(&fep->mdio_done,
 			usecs_to_jiffies(FEC_MII_TIMEOUT));
 	if (time_left == 0) {
-		//fep->mii_timeout = 1;
+		fep->mii_timeout = 1;
 		netdev_err(fep->netdev, "MDIO read timeout\n");
-		//return -ETIMEDOUT;
+		return -ETIMEDOUT;
 	}
 
 	/* return value */
@@ -3566,19 +3619,19 @@ static const struct net_device_ops fec_netdev_ops = {
 
 static u_char *fec_agring_allocate_shared_memory(u_int64_t *mem_len)
 {
-  u_int64_t tot_mem = *mem_len;
-  u_char *shared_mem;
+	u_int64_t tot_mem = *mem_len;
+	u_char *shared_mem;
 
-  tot_mem = PAGE_ALIGN(tot_mem);
+	tot_mem = PAGE_ALIGN(tot_mem);
 
-  /* Alignment necessary on ARM platforms */
-  tot_mem += SHMLBA - (tot_mem % SHMLBA);
+	/* Alignment necessary on ARM platforms */
+	tot_mem += SHMLBA - (tot_mem % SHMLBA);
 
-  /* Memory is already zeroed */
-  shared_mem = vmalloc_user(tot_mem);
+	/* Memory is already zeroed */
+	shared_mem = vmalloc_user(tot_mem);
 
-  *mem_len = tot_mem;
-  return shared_mem;
+	*mem_len = tot_mem;
+	return shared_mem;
 }
 
 static void fec_agring_allocate_buffers(struct fec_enet_private* fep, unsigned int num_buffers)
@@ -3589,6 +3642,8 @@ static void fec_agring_allocate_buffers(struct fec_enet_private* fep, unsigned i
 	fep->agring.num_buffers = num_buffers;
 	fep->agring.tx_buffers = kzalloc(num_buffers * sizeof(u_char*), GFP_KERNEL);
 	fep->agring.rx_buffers = kzalloc(num_buffers * sizeof(u_char*), GFP_KERNEL);
+	fep->agring.rx_lens = kzalloc(num_buffers * sizeof(u32), GFP_KERNEL);
+	fep->agring.tx_lens = kzalloc(num_buffers * sizeof(u32), GFP_KERNEL);
 
 	fep->agring.tx_mem_size = PAGE_SIZE;
 	fep->agring.rx_mem_size = PAGE_SIZE;
@@ -3625,6 +3680,9 @@ static void fec_agring_deallocate_buffers(struct fec_enet_private* fep)
 {
 	int i;
 
+	fep->agring.tx_curr_buffer = NULL;
+	fep->agring.rx_curr_buffer = NULL;
+
 	for (i=0; i<fep->agring.num_buffers; i++)
 	{
 #ifdef HAVE_AG_RING_DMA
@@ -3649,11 +3707,292 @@ static void fec_agring_deallocate_buffers(struct fec_enet_private* fep)
 	kfree(fep->agring.tx_dmas);
 #endif
 
-	kfree(fep->agring.tx_buffers);
-	kfree(fep->agring.rx_buffers);
+	if (fep->agring.tx_buffers)
+	{
+		kfree(fep->agring.tx_buffers);
+		fep->agring.tx_buffers = NULL;
+	}
 
-	fep->agring.tx_curr_buffer = NULL;
-	fep->agring.rx_curr_buffer = NULL;
+	if (fep->agring.rx_buffers != NULL)
+	{
+		kfree(fep->agring.rx_buffers);
+		fep->agring.rx_buffers = NULL;
+	}
+
+	if (fep->agring.tx_lens != NULL)
+	{
+		kfree(fep->agring.tx_lens);
+		fep->agring.tx_lens = NULL;
+	}
+
+	if (fep->agring.rx_lens != NULL)
+	{
+		kfree(fep->agring.rx_lens);
+		fep->agring.rx_lens = NULL;
+	}
+}
+
+static wait_queue_head_t fep_event;
+
+void fec_agring_link_ready(unsigned long p)
+{
+	struct fec_enet_private* fep = (struct fec_enet_private*)p;	
+
+	debug_printk(0, "Link is now ready\n");
+	mutex_lock(&fep->agring.link_mutex);
+
+	if (atomic_read(&fep->agring.suspended))
+	{
+		atomic_dec(&fep->agring.suspended);
+		del_timer(&fep->agring.link_timer);
+	}
+
+	mutex_unlock(&fep->agring.link_mutex);
+}
+
+void fec_agring_link_timer_start(struct fec_enet_private* fep)
+{
+	mutex_lock(&fep->agring.link_mutex);
+	
+	if (!atomic_read(&fep->agring.suspended))
+	{
+		fep->agring.link_timer.expires = jiffies+(10*HZ);
+		add_timer(&fep->agring.link_timer);
+	}
+	else
+	{		
+		mod_timer(&fep->agring.link_timer, jiffies+(10*HZ));
+	}
+
+	mutex_unlock(&fep->agring.link_mutex);
+}
+
+void fec_agring_link_timer_stop(struct fec_enet_private* fep)
+{
+	mutex_lock(&fep->agring.link_mutex);
+
+	if (!atomic_read(&fep->agring.suspended))
+		atomic_inc(&fep->agring.suspended);
+
+	mutex_unlock(&fep->agring.link_mutex);
+}
+
+void fec_agring_tx_abort(unsigned long p)
+{
+	struct fec_enet_private* fep = (struct fec_enet_private*)p;	
+	
+	//debug_printk(0, "fec_agring_tx_abort\n");
+	fec_agring_tx_complete(fep);
+	wake_up_interruptible(&fep_event);
+}
+
+void fec_agring_rx_to_start(struct fec_enet_private* fep)
+{
+	mod_timer(&fep->agring.rx_to_timer, jiffies+100);
+}
+
+void fec_agring_tx_complete(struct fec_enet_private* fep)
+{
+	// WARNING: this is called in an IRQ
+	// Do NOT call any suspending function
+	if (atomic_read(&fep->agring.op_pending))
+		atomic_dec(&fep->agring.op_pending);
+}
+
+void fec_agring_tx_append(struct fec_enet_private* fep, int tx_idx, int tx_len)
+{
+#ifdef HAVE_AG_RING_MULTI
+	mutex_lock(&fep->agring.link_mutex);
+#endif
+
+	/*
+	if (fep->agring.tx_lens[tx_idx])
+		debug_printk(0, "dropping tx packet %d - %d\n", tx_idx, fep->agring.tx_lens[tx_idx]);
+	*/
+
+	fep->agring.tx_lens[tx_idx] = tx_len;
+
+#ifdef HAVE_AG_RING_MULTI
+	mutex_unlock(&fep->agring.link_mutex);
+#endif
+}
+
+void fec_agring_tx_next(struct fec_enet_private* fep, struct net_device* ndev, int force)
+{
+	unsigned int idx;
+	unsigned int tx_len;
+	
+#ifdef HAVE_AG_RING_MULTI
+	mutex_lock(&fep->agring.tx_mutex);
+#endif
+
+	if (atomic_read(&fep->agring.op_pending))
+	{
+		if (!force)
+		{
+#ifdef HAVE_AG_RING_MULTI
+			mutex_unlock(&fep->agring.tx_mutex);
+#endif
+			return;
+		}
+
+		atomic_dec(&fep->agring.op_pending);
+	}
+
+	for (idx=0; idx<fep->agring.num_buffers; idx++)
+	{
+		if (fep->agring.tx_lens[idx] != 0)
+			break;
+	}
+
+	if (idx >= fep->agring.num_buffers)
+	{
+#ifdef HAVE_AG_RING_MULTI
+		mutex_unlock(&fep->agring.tx_mutex);
+#endif
+		return;
+	}
+
+	atomic_inc(&fep->agring.op_pending);
+
+	tx_len = fep->agring.tx_lens[idx];
+	fep->agring.tx_lens[idx] = 0;
+
+	fep->agring.tx_curr_buffer = fep->agring.tx_buffers[idx];
+	fep->agring.rx_curr_buffer = fep->agring.rx_buffers[idx];
+	fep->agring.prx_curr_len = &fep->agring.rx_lens[idx];
+	*fep->agring.prx_curr_len = 0;
+
+	if (fec_agring_is_active(fep))
+	{
+		fec_enet_start_xmit_raw(tx_len, ndev);
+#ifdef HAVE_AG_RING_MULTI		
+		fec_agring_rx_to_start(fep);
+#endif
+	}
+
+#ifdef HAVE_AG_RING_MULTI
+	mutex_unlock(&fep->agring.tx_mutex);
+#endif
+}
+
+int fec_agring_tx_next_to(void* p)
+{
+	struct fec_enet_private* fep = (struct fec_enet_private*)p;
+
+	while (!kthread_should_stop())
+	{
+		wait_event_interruptible(fep_event, 1);
+		if (kthread_should_stop())
+			break;
+
+		fec_agring_tx_next(fep, fep->netdev, 1);
+	}
+
+	return 0;
+}
+
+void fec_agring_tx_next_delayed(struct fec_enet_private* fep)
+{
+	wake_up_interruptible(&fep_event);
+}
+
+void fec_agring_init_timers(struct fec_enet_private* fep)
+{
+	init_timer(&fep->agring.link_timer);
+	fep->agring.link_timer.function = fec_agring_link_ready;
+	fep->agring.link_timer.data = (unsigned long)fep;
+
+#ifdef HAVE_AG_RING_MULTI
+	init_timer(&fep->agring.rx_to_timer);
+	fep->agring.rx_to_timer.function = fec_agring_tx_abort;
+	fep->agring.rx_to_timer.data = (unsigned long)fep;
+	fep->agring.rx_to_timer.expires = 0xFFFFFFFF;
+	add_timer(&fep->agring.rx_to_timer);
+
+	init_waitqueue_head(&fep_event);
+	fep->agring.defer_thread = kthread_create(fec_agring_tx_next_to, fep, "fec_defer");
+	wake_up_process(fep->agring.defer_thread);
+#endif
+}
+
+void fec_agring_deinit_timers(struct fec_enet_private* fep)
+{
+	del_timer_sync(&fep->agring.link_timer);
+
+#ifdef HAVE_AG_RING_MULTI
+	del_timer_sync(&fep->agring.rx_to_timer);
+
+	wake_up_interruptible(&fep_event);
+	kthread_stop(fep->agring.defer_thread);
+#endif
+}
+
+int fec_agring_enable(struct fec_enet_private* fep, unsigned int num_buffers)
+{
+	struct net_device* ndev = fep->netdev;
+	struct platform_device* pdev = fep->pdev;
+	int rc = SUCCESS;
+	int ret;
+	int i;
+
+	debug_printk(0, "enabling AGRING (num. buffers: %d)\n", num_buffers);
+
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		if (fep->irq[i] != 0)
+			devm_free_irq(&pdev->dev, fep->irq[i], ndev);
+	}
+
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		if (fep->irq[i] == 0)
+			continue;
+
+		ret = devm_request_irq(&pdev->dev, fep->irq[i], fec_enet_interrupt,
+					IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_NO_THREAD | IRQF_NO_SUSPEND, pdev->name, ndev);
+		if (ret)
+			netdev_err(ndev, "Failed to register IRQ %d\n", fep->irq[i]);
+		else
+			netdev_info(ndev, "registered IRQ %d\n", fep->irq[i]);
+	}
+
+	fec_agring_allocate_buffers(fep, num_buffers);
+	fec_agring_init_timers(fep);
+
+	return rc;
+}
+
+int fec_agring_disable(struct fec_enet_private* fep)
+{
+	struct net_device* ndev = fep->netdev;
+	struct platform_device* pdev = fep->pdev;
+	int rc = SUCCESS;
+	int ret;
+	int i;
+
+	debug_printk(0, "disabling AGRING\n");
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		if (fep->irq[i] != 0)
+			devm_free_irq(&pdev->dev, fep->irq[i], ndev);
+	}
+
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		if (fep->irq[i] == 0)
+			continue;
+
+		ret = devm_request_irq(&pdev->dev, fep->irq[i], fec_enet_interrupt,
+					0, pdev->name, ndev);
+		if (ret)
+			netdev_err(ndev, "Failed to register IRQ %d\n", fep->irq[i]);
+		else
+			netdev_info(ndev, "registered IRQ %d\n", fep->irq[i]);
+	}
+
+	fec_agring_deallocate_buffers(fep);
+	fec_agring_deinit_timers(fep);
+
+	atomic_set(&fep->agring.op_pending, 0);
+
+	return rc;
 }
 
 static int fec_agring_open(struct inode* node, struct file* f);
@@ -3695,13 +4034,10 @@ static long fec_agring_ioctl(struct file* f, unsigned int ioctl_num, unsigned lo
 	struct miscdevice* dev = (struct miscdevice*)f->private_data;
 	struct net_device *ndev = (struct net_device*)dev_get_drvdata(dev->this_device);
 	struct fec_enet_private* fep = netdev_priv(ndev);
-	struct platform_device* pdev = fep->pdev;
 	unsigned int tx_idx;
 	unsigned int tx_len;
 	unsigned int rx_idx;
 	int rc = SUCCESS;
-	int ret;
-	int i;
 
 	debug_printk(6, "ioctl_num: %04X, ioctl_param %lu\n", ioctl_num, ioctl_param);
 
@@ -3709,56 +4045,44 @@ static long fec_agring_ioctl(struct file* f, unsigned int ioctl_num, unsigned lo
 	switch (ioctl_num) 
 	{
 		case 0x7000: // transmit
-			tx_len = (unsigned int)(ioctl_param & 0xFFFF);
-			
-			ioctl_param = ioctl_param >> 16;
-			tx_idx = (unsigned int)(ioctl_param & 0xFF);
+			if (fec_agring_is_active(fep))
+			{
+				tx_len = (unsigned int)(ioctl_param & 0xFFFF);
+				
+				ioctl_param = ioctl_param >> 16;
+				tx_idx = (unsigned int)(ioctl_param & 0xFF);
 
-			ioctl_param = ioctl_param >> 8;
-			rx_idx = (unsigned int)(ioctl_param & 0xFF);
+				ioctl_param = ioctl_param >> 8;
+				rx_idx = (unsigned int)(ioctl_param & 0xFF);
 
-			debug_printk(7, "transmit %u, %u, %u\n", tx_len, tx_idx, rx_idx);
-			fep->agring.tx_curr_buffer = fep->agring.tx_buffers[tx_idx];
-			fep->agring.rx_curr_buffer = fep->agring.rx_buffers[rx_idx];
-			fep->agring.rx_len = 0;
+				debug_printk(7, "transmit %u, %u, %u, %u\n", tx_len, tx_idx, rx_idx, atomic_read(&fep->agring.op_pending));
 
-#ifdef HAVE_AG_RING_WAITQUEUE			
-			wait_event_timeout(fep->agring.rx_ready, (fep->agring.rx_len != 0), msecs_to_jiffies(0));
-#endif			
-
-			fec_enet_start_xmit_raw(tx_len, ndev);
+				fec_agring_tx_append(fep, tx_idx, tx_len);
+#ifdef HAVE_AG_RING_MULTI
+				fec_agring_tx_next(fep, ndev, 0);
+#else
+				fec_agring_tx_next(fep, ndev, 1);
+#endif
+			}
+			else
+				rc = -ENODEV;
 			break;
 		case 0x7001: // receive
-#ifdef HAVE_AG_RING_WAITQUEUE			
-			wait_event_timeout(fep->agring.rx_ready, (fep->agring.rx_len != 0), msecs_to_jiffies(10));
-#endif
-			rc = fep->agring.rx_len;
+			rx_idx = (unsigned int)(ioctl_param & 0xFF);
+			debug_printk(7, "checking %u --> %u, %u\n", rx_idx, fep->agring.rx_lens[0], fep->agring.rx_lens[1]);
+
+			rc = fep->agring.rx_lens[rx_idx];
+			break;
+		case 0x7002: // check if tx in progress
+			rc = atomic_read(&fep->agring.op_pending);
 			break;
 		case 0x700A: // enable
 			if (atomic_read(&fep->agring.usage_counter) == 0)
 			{
 				atomic_inc(&fep->agring.usage_counter);
+				atomic_set(&fep->agring.suspended, fep->link? 0 : 1);
 
-				debug_printk(0, "enabling AGRING (num. buffers: %lu)\n", ioctl_param);
-
-				for (i = 0; i < FEC_IRQ_NUM; i++) {
-					if (fep->irq[i] != 0)
-						devm_free_irq(&pdev->dev, fep->irq[i], ndev);
-				}
-
-				for (i = 0; i < FEC_IRQ_NUM; i++) {
-					if (fep->irq[i] == 0)
-						continue;
-
-					ret = devm_request_irq(&pdev->dev, fep->irq[i], fec_enet_interrupt,
-								IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_NO_THREAD | IRQF_NO_SUSPEND, pdev->name, ndev);
-					if (ret)
-						netdev_err(ndev, "Failed to register IRQ %d\n", fep->irq[i]);
-					else
-						netdev_info(ndev, "registered IRQ %d\n", fep->irq[i]);
-				}
-
-				fec_agring_allocate_buffers(fep, ioctl_param);
+				rc = fec_agring_enable(fep, (unsigned int)ioctl_param);
 
 				netif_tx_lock_bh(ndev);
 				fec_restart(ndev);
@@ -3775,26 +4099,7 @@ static long fec_agring_ioctl(struct file* f, unsigned int ioctl_num, unsigned lo
 			if (atomic_read(&fep->agring.usage_counter) > 0)
 			{
 				atomic_dec(&fep->agring.usage_counter);
-
-				debug_printk(0, "disabling AGRING\n");
-				for (i = 0; i < FEC_IRQ_NUM; i++) {
-					if (fep->irq[i] != 0)
-						devm_free_irq(&pdev->dev, fep->irq[i], ndev);
-				}
-
-				for (i = 0; i < FEC_IRQ_NUM; i++) {
-					if (fep->irq[i] == 0)
-						continue;
-
-					ret = devm_request_irq(&pdev->dev, fep->irq[i], fec_enet_interrupt,
-								0, pdev->name, ndev);
-					if (ret)
-						netdev_err(ndev, "Failed to register IRQ %d\n", fep->irq[i]);
-					else
-						netdev_info(ndev, "registered IRQ %d\n", fep->irq[i]);
-				}
-
-				fec_agring_deallocate_buffers(fep);
+				rc = fec_agring_disable(fep);
 
 				netif_tx_lock_bh(ndev);
 				fec_restart(ndev);
@@ -3961,17 +4266,18 @@ static int fec_enet_init(struct net_device *ndev)
 		if (!res)
 		{
 			dev_set_drvdata(fec_agring_miscdev.this_device, ndev);
-
-#ifdef HAVE_AG_RING_WAITQUEUE		
-			init_waitqueue_head(&fep->agring.rx_ready);
-#endif		
-
 			netdev_info(ndev, "AGRING device registered successfully\n");
 		}
 		else
 		{
 			netdev_err(ndev, "failed to register AGRING device\n");
 		}
+
+		mutex_init(&fep->agring.tx_mutex);
+		mutex_init(&fep->agring.link_mutex);
+
+		atomic_set(&fep->agring.usage_counter, 0);
+		atomic_set(&fep->agring.suspended, 0);
 	}
 #endif
 

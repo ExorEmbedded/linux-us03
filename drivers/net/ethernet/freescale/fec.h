@@ -19,8 +19,7 @@
 
 #define HAVE_AG_RING
 //#define HAVE_AG_RING_DMA
-//#define HAVE_AG_RING_WAITQUEUE
-
+//#define HAVE_AG_RING_MULTI
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
@@ -369,7 +368,7 @@ struct bufdesc_ex {
 #define FEC_ENET_TS_TIMER       ((uint)0x00008000)
 
 #ifdef HAVE_AG_RING
-#define FEC_AGRING_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_TS_TIMER)
+#define FEC_AGRING_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII | FEC_ENET_TS_TIMER)
 #endif
 
 #define FEC_DEFAULT_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII | FEC_ENET_TS_TIMER)
@@ -576,7 +575,7 @@ struct fec_enet_private {
 	struct {
 		bool inited;
 		atomic_t usage_counter;
-	
+
 		unsigned int tx_len[TX_RING_SIZE];
 
 		unsigned int num_buffers;
@@ -584,11 +583,23 @@ struct fec_enet_private {
 		u_char** tx_buffers;
 		u_char* tx_curr_buffer;
 		u_int64_t tx_mem_size;
+		u32* tx_lens;
 
 		u_char** rx_buffers;
 		u_char* rx_curr_buffer;
 		u_int64_t rx_mem_size;
-		unsigned int rx_len;
+		u32* rx_lens;
+		u32* prx_curr_len;
+
+		atomic_t op_pending;
+
+		atomic_t suspended;
+		struct mutex link_mutex;
+		struct timer_list link_timer;
+
+		struct timer_list rx_to_timer;
+		struct task_struct* defer_thread;
+		struct mutex tx_mutex;
 
 #ifdef HAVE_AG_RING_DMA
 		dma_addr_t* rx_dmas;
@@ -596,10 +607,6 @@ struct fec_enet_private {
 #else
 		u_char* tx_ptr;
 		u_char* rx_ptr;
-#endif
-
-#ifdef HAVE_AG_RING_WAITQUEUE		
-		wait_queue_head_t rx_ready;
 #endif
 
 	} agring;

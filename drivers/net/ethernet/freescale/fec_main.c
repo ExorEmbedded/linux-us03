@@ -3738,13 +3738,13 @@ void fec_agring_link_ready(unsigned long p)
 {
 	struct fec_enet_private* fep = (struct fec_enet_private*)p;	
 
-	debug_printk(0, "Link is now ready\n");
+	debug_printk(0, "Link is UP\n");
 	mutex_lock(&fep->agring.link_mutex);
 
 	if (atomic_read(&fep->agring.suspended))
 	{
-		atomic_dec(&fep->agring.suspended);
 		del_timer(&fep->agring.link_timer);
+		atomic_dec(&fep->agring.suspended);
 	}
 
 	mutex_unlock(&fep->agring.link_mutex);
@@ -3769,6 +3769,7 @@ void fec_agring_link_timer_start(struct fec_enet_private* fep)
 
 void fec_agring_link_timer_stop(struct fec_enet_private* fep)
 {
+	debug_printk(0, "Link is DOWN\n");
 	mutex_lock(&fep->agring.link_mutex);
 
 	if (!atomic_read(&fep->agring.suspended))

@@ -68,7 +68,7 @@
 
         reg_usb2_otg_vbus: usb2_regulator {
             compatible = "regulator-fixed";
-            reg = <0>;
+            reg = <1>;
             regulator-name = "usb2_vbus";
             regulator-min-microvolt = <5000000>;
             regulator-max-microvolt = <5000000>;
@@ -79,18 +79,25 @@
 		reg_sd1_vmmc: sd1_regulator {
 			compatible = "regulator-fixed";
 			regulator-name = "emmc_enable";
+			reg = <2>;
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+			regulator-boot-on;
+			regulator-always-on;
 			enable-active-high;
 		};
 
 		reg_usdhc2_vmmc: regulator-usdhc2 {
 			compatible = "regulator-fixed";
 			regulator-name = "sdcard_enable";
+			reg = <3>;
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			enable-active-high;
+			gpio = <&tca6408 0 GPIO_ACTIVE_HIGH>;
+			regulator-boot-on;
+			regulator-always-on;
+			enable-active-low;
 		};
 	};
 };
@@ -185,7 +192,6 @@
 				MX8MM_IOMUXC_SD2_DATA1_USDHC2_DATA1	0x1d0
 				MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2	0x1d0
 				MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3	0x1d0
-				MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT	0x1d0
 			>;
 		};
 
@@ -197,7 +203,6 @@
 				MX8MM_IOMUXC_SD2_DATA1_USDHC2_DATA1	0x1d4
 				MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2	0x1d4
 				MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3	0x1d4
-				MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT	0x1d0
 			>;
 		};
 
@@ -209,7 +214,6 @@
 				MX8MM_IOMUXC_SD2_DATA1_USDHC2_DATA1	0x1d6
 				MX8MM_IOMUXC_SD2_DATA2_USDHC2_DATA2	0x1d6
 				MX8MM_IOMUXC_SD2_DATA3_USDHC2_DATA3	0x1d6
-				MX8MM_IOMUXC_GPIO1_IO04_USDHC2_VSELECT	0x1d0
 			>;
 		};
 
@@ -601,9 +605,14 @@
 	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_gpio>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_gpio>;
-	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio2 12 0>;
+	cd-inverted;
 	bus-width = <4>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
+	pm-ignore-notify;
+	keep-power-in-suspend;
+	no-1-8-v;
+	cd-debounce-delay-ms = <200>;
 	status = "okay";
 };
 

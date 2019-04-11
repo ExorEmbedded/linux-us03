@@ -99,7 +99,9 @@
 
 static int sn65dsi83_brg_power_on(struct sn65dsi83_brg *brg)
 {
-    dev_dbg(&brg->client->dev,"%s\n",__func__);
+    dev_info(&brg->client->dev,"%s\n",__func__);
+    gpiod_set_value_cansleep(brg->gpio_envdd, 1);
+    msleep(100);
     gpiod_set_value_cansleep(brg->gpio_enable, 1);
     /* Wait for 1ms for the internal voltage regulator to stabilize */
     msleep(1);
@@ -109,13 +111,11 @@ static int sn65dsi83_brg_power_on(struct sn65dsi83_brg *brg)
 
 static void sn65dsi83_brg_power_off(struct sn65dsi83_brg *brg)
 {
-    dev_dbg(&brg->client->dev,"%s\n",__func__);
+    dev_info(&brg->client->dev,"%s\n",__func__);
     gpiod_set_value_cansleep(brg->gpio_enable, 0);
-    /*
-     * The EN pin must be held low for at least 10 ms
-     * before being asserted high
-     */
     msleep(10);
+    gpiod_set_value_cansleep(brg->gpio_envdd, 0);
+    msleep(100);
 }
 
 static int sn65dsi83_write(struct i2c_client *client, u8 reg, u8 val)
@@ -127,7 +127,7 @@ static int sn65dsi83_write(struct i2c_client *client, u8 reg, u8 val)
     if (ret)
         dev_err(&client->dev, "failed to write at 0x%02x", reg);
 
-    dev_dbg(&client->dev, "%s: write reg 0x%02x data 0x%02x", __func__, reg, val);
+    dev_info(&client->dev, "%s: write reg 0x%02x data 0x%02x", __func__, reg, val);
 
     return ret;
 }
@@ -137,7 +137,7 @@ static int sn65dsi83_read(struct i2c_client *client, u8 reg)
 {
     int ret;
 
-    dev_dbg(&client->dev, "client 0x%p", client);
+    dev_info(&client->dev, "client 0x%p", client);
     ret = i2c_smbus_read_byte_data(client, reg);
 
     if (ret < 0) {
@@ -145,7 +145,7 @@ static int sn65dsi83_read(struct i2c_client *client, u8 reg)
         return ret;
     }
 
-    dev_dbg(&client->dev, "%s: read reg 0x%02x data 0x%02x", __func__, reg, ret);
+    dev_info(&client->dev, "%s: read reg 0x%02x data 0x%02x", __func__, reg, ret);
 
     return ret;
 }
@@ -156,7 +156,7 @@ static int sn65dsi83_brg_start_stream(struct sn65dsi83_brg *brg)
     int regval;
     struct i2c_client *client = I2C_CLIENT(brg);
 
-    dev_dbg(&client->dev,"%s\n",__func__);
+    dev_info(&client->dev,"%s\n",__func__);
     /* Set the PLL_EN bit (CSR 0x0D.0) */
     SN65DSI83_WRITE(SN65DSI83_PLL_EN, 0x1);
     /* Wait for the PLL_LOCK bit to be set (CSR 0x0A.7) */
@@ -167,7 +167,7 @@ static int sn65dsi83_brg_start_stream(struct sn65dsi83_brg *brg)
 
     /* Read CHA Error register */
     regval = SN65DSI83_READ(SN65DSI83_CHA_ERR);
-    dev_dbg(&client->dev, "CHA (0x%02x) = 0x%02x",
+    dev_info(&client->dev, "CHA (0x%02x) = 0x%02x",
          SN65DSI83_CHA_ERR, regval);
 
     return 0;
@@ -176,7 +176,7 @@ static int sn65dsi83_brg_start_stream(struct sn65dsi83_brg *brg)
 static void sn65dsi83_brg_stop_stream(struct sn65dsi83_brg *brg)
 {
     struct i2c_client *client = I2C_CLIENT(brg);
-    dev_dbg(&client->dev,"%s\n",__func__);
+    dev_info(&client->dev,"%s\n",__func__);
     /* Clear the PLL_EN bit (CSR 0x0D.0) */
     SN65DSI83_WRITE(SN65DSI83_PLL_EN, 0x00);
 }
@@ -364,7 +364,7 @@ static int sn65dsi83_brg_configure(struct sn65dsi83_brg *brg)
 static int sn65dsi83_brg_setup(struct sn65dsi83_brg *brg)
 {
     struct i2c_client *client = I2C_CLIENT(brg);
-    dev_dbg(&client->dev,"%s\n",__func__);
+    dev_info(&client->dev,"%s\n",__func__);
     sn65dsi83_brg_power_on(brg);
     return sn65dsi83_brg_configure(brg);
 }
@@ -374,7 +374,7 @@ static int sn65dsi83_brg_reset(struct sn65dsi83_brg *brg)
     /* Soft Reset reg value at power on should be 0x00 */
     struct i2c_client *client = I2C_CLIENT(brg);
     int ret = SN65DSI83_READ(SN65DSI83_SOFT_RESET);
-    dev_dbg(&client->dev,"%s\n",__func__);
+    dev_info(&client->dev,"%s\n",__func__);
     if (ret != 0x00) {
         dev_err(&client->dev,"Failed to reset the device");
         return -ENODEV;

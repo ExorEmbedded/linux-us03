@@ -111,6 +111,7 @@
 			fsl,pins = <
                 MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12      0x1c4
                 MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14      0x1c4
+                MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4
 			>;
 		};
 
@@ -427,6 +428,7 @@
 		ti,width-mm = <218>;
 		ti,height-mm = <136>;
 		enable-gpios = <&tca6408 1 GPIO_ACTIVE_HIGH>;
+		envdd-gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		status = "okay";
 

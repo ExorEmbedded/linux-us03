@@ -228,7 +228,7 @@ static int sn65dsi83_brg_configure(struct sn65dsi83_brg *brg)
     struct i2c_client *client = I2C_CLIENT(brg);
     struct videomode *vm = VM(brg);
 
-    u32 dsi_clk = (((PIXCLK * BPP(brg)) / DSI_LANES(brg)) >> 1);
+    u32 dsi_clk = (((PIXCLK * BPP(brg)) / DSI_LANES(brg)));
 
     dev_info(&client->dev, "DSI clock [ %u ] Hz\n",dsi_clk);
     dev_info(&client->dev, "GeoMetry [ %d x %d ] Hz\n",HACTIVE,VACTIVE);

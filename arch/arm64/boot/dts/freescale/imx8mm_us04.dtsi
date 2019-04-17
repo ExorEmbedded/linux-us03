@@ -507,13 +507,13 @@
     status = "okay";
   
     spidev0: spi0@0 {
-        compatible = "spidev";
+        compatible = "generic,spidev";
         reg = <0>;
         spi-max-frequency = <3000000>;
     };
 
     spidev1: spi0@1 {
-        compatible = "spidev";
+        compatible = "generic,spidev";
         reg = <1>;
         spi-max-frequency = <3000000>;
     };
@@ -545,13 +545,13 @@
     status = "okay";
   
     spidev2: spi1@0 {
-        compatible = "spidev";
+        compatible = "generic,spidev";
         reg = <0>;
         spi-max-frequency = <3000000>;
     };
 
     spidev3: spi1@1 {
-        compatible = "spidev";
+        compatible = "generic,spidev";
         reg = <1>;
         spi-max-frequency = <3000000>;
     };

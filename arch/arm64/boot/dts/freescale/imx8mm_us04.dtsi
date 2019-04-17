@@ -34,6 +34,10 @@
 		stdout-path = &uart2;
 	};
 
+    backlight0: backlight {
+		status = "disabled";
+    };
+    
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -431,6 +435,7 @@
 		envdd-gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		status = "okay";
+		backlight = <&backlight0>;
 
 		display-timings {
 			lvds {

@@ -101,7 +101,7 @@ static int sn65dsi83_brg_power_on(struct sn65dsi83_brg *brg)
 {
     dev_info(&brg->client->dev,"%s\n",__func__);
     gpiod_set_value_cansleep(brg->gpio_envdd, 1);
-    msleep(100);
+    msleep(1);
     gpiod_set_value_cansleep(brg->gpio_enable, 1);
     /* Wait for 1ms for the internal voltage regulator to stabilize */
     msleep(1);
@@ -113,9 +113,9 @@ static void sn65dsi83_brg_power_off(struct sn65dsi83_brg *brg)
 {
     dev_info(&brg->client->dev,"%s\n",__func__);
     gpiod_set_value_cansleep(brg->gpio_enable, 0);
-    msleep(10);
+    msleep(1);
     gpiod_set_value_cansleep(brg->gpio_envdd, 0);
-    msleep(100);
+    msleep(10);
 }
 
 static int sn65dsi83_write(struct i2c_client *client, u8 reg, u8 val)
@@ -167,9 +167,14 @@ static int sn65dsi83_brg_start_stream(struct sn65dsi83_brg *brg)
 
     /* Read CHA Error register */
     regval = SN65DSI83_READ(SN65DSI83_CHA_ERR);
-    dev_info(&client->dev, "CHA (0x%02x) = 0x%02x",
-         SN65DSI83_CHA_ERR, regval);
+    dev_dbg(&client->dev, "CHA (0x%02x) = 0x%02x", SN65DSI83_CHA_ERR, regval);
 
+    /* Start deferred delayed work to enable and update the backlight */
+	if (brg->backlight) 
+    {
+        schedule_delayed_work(&brg->work, msecs_to_jiffies(200));
+	}
+    
     return 0;
 }
 
@@ -177,6 +182,16 @@ static void sn65dsi83_brg_stop_stream(struct sn65dsi83_brg *brg)
 {
     struct i2c_client *client = I2C_CLIENT(brg);
     dev_info(&client->dev,"%s\n",__func__);
+
+	if (brg->backlight) 
+    {
+       	flush_work(&brg->work.work);
+		brg->backlight->props.power = FB_BLANK_POWERDOWN;
+		brg->backlight->props.state |= BL_CORE_FBBLANK;
+		backlight_update_status(brg->backlight);
+        msleep(10);
+	}
+
     /* Clear the PLL_EN bit (CSR 0x0D.0) */
     SN65DSI83_WRITE(SN65DSI83_PLL_EN, 0x00);
 }

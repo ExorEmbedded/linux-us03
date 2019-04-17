@@ -38,6 +38,18 @@ struct sn65dsi83 {
 
 static int sn65dsi83_attach_dsi(struct sn65dsi83 *sn65dsi83);
 #define DRM_DEVICE(A) A->dev->dev
+
+/* Deferred work function to enable and update the backlight status */
+static void backlight_update_status_work(struct work_struct *work)
+{
+	struct sn65dsi83_brg *brg =	container_of(work, struct sn65dsi83_brg, work.work);
+    
+    brg->backlight->props.state &= ~BL_CORE_FBBLANK;
+	brg->backlight->props.power = FB_BLANK_UNBLANK;
+
+    backlight_update_status(brg->backlight);
+}
+
 /* Connector funcs */
 static struct sn65dsi83 *connector_to_sn65dsi83(struct drm_connector *connector)
 {
@@ -209,6 +221,7 @@ static int sn65dsi83_parse_dt(struct device_node *np,
     u32 num_lanes = 2, bpp = 24, format = 2, width = 149, height = 93;
     u32 frefresh;
     struct device_node *endpoint;
+    struct device_node *blnp;
 
     endpoint = of_graph_get_next_endpoint(np, NULL);
     if (!endpoint)
@@ -218,6 +231,16 @@ static int sn65dsi83_parse_dt(struct device_node *np,
     if (!sn65dsi83->host_node) {
         of_node_put(endpoint);
         return -ENODEV;
+    }
+    
+    blnp = of_parse_phandle(np, "backlight", 0);
+    if (blnp) 
+    {
+       sn65dsi83->brg->backlight = of_find_backlight_by_node(blnp);
+       of_node_put(blnp);
+
+       if (!sn65dsi83->brg->backlight)
+          return -EPROBE_DEFER;
     }
 
     of_property_read_u32(np, "ti,dsi-lanes", &num_lanes);
@@ -291,6 +314,7 @@ static int sn65dsi83_probe(struct i2c_client *i2c,
     /* Initialize it before DT parser */
     sn65dsi83->brg = sn65dsi83_brg_get();
     sn65dsi83->brg->client = i2c;
+    INIT_DELAYED_WORK(&sn65dsi83->brg->work, backlight_update_status_work);
 
     sn65dsi83->powered = false;
     sn65dsi83->status = connector_status_disconnected;
@@ -378,6 +402,9 @@ static int sn65dsi83_remove(struct i2c_client *i2c)
 
     sn65dsi83_detach_dsi(sn65dsi83);
     drm_bridge_remove(&sn65dsi83->bridge);
+    
+    if (sn65dsi83->brg->backlight)
+    	put_device(&sn65dsi83->brg->backlight->dev);
 
     return 0;
 }

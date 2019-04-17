@@ -29,6 +29,9 @@ struct sn65dsi83_brg {
     u8 num_dsi_lanes;
     u8 num_lvds_channels;
     struct sn65dsi83_brg_funcs *funcs;
+
+    struct backlight_device *backlight;
+    struct delayed_work work;
 };
 struct sn65dsi83_brg *sn65dsi83_brg_get(void);
 

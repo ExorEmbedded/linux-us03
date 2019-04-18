@@ -4628,7 +4628,7 @@ CONFIG_IIO=y
 # CONFIG_DMARD06 is not set
 # CONFIG_DMARD09 is not set
 # CONFIG_DMARD10 is not set
-# CONFIG_IIO_ST_ACCEL_3AXIS is not set
+CONFIG_IIO_ST_ACCEL_3AXIS=y
 # CONFIG_KXSD9 is not set
 # CONFIG_KXCJK1013 is not set
 # CONFIG_MC3230 is not set

@@ -34,6 +34,12 @@
 		stdout-path = &uart2;
 	};
 
+	clkcan20m: clk20m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <20000000>;
+	};
+	
     backlight0: backlight {
 		status = "disabled";
     };
@@ -249,6 +255,8 @@
                 MX8MM_IOMUXC_SAI2_TXD0_GPIO4_IO26       0x11
                 MX8MM_IOMUXC_UART2_TXD_GPIO5_IO25       0x11
                 MX8MM_IOMUXC_UART4_RXD_GPIO5_IO28       0x11
+                MX8MM_IOMUXC_SAI3_MCLK_GPIO5_IO2        0x11
+                MX8MM_IOMUXC_SAI1_RXD7_GPIO4_IO9        0x11
 			>;
 		};
 	};
@@ -555,8 +563,24 @@
         reg = <1>;
         spi-max-frequency = <3000000>;
     };
-    
-    /*TODO: Add SPI CAN devices*/
+
+	can0: can@2 {
+		compatible = "microchip,mcp2515";
+		reg = <2>;
+		clocks = <&clkcan20m>;
+		spi-max-frequency = <10000000>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 GPIO_ACTIVE_LOW>;
+	};
+
+	can1: can@3 {
+		compatible = "microchip,mcp2515";
+		reg = <3>;
+		clocks = <&clkcan20m>;
+		spi-max-frequency = <10000000>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <9 GPIO_ACTIVE_LOW>;
+	};
 };
 
 

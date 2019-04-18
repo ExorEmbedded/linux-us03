@@ -40,6 +40,11 @@
 		compatible = "st,lis331dlh-accel";
 		reg = <0x18>;
 	};
+	lps22hb@5d {
+		/* Pressure */
+		compatible = "st,lps22hb-press";
+		reg = <0x5d>;
+	};
 };
 
 &fec1 {

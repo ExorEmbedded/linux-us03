@@ -4897,7 +4897,7 @@ CONFIG_IMX8QXP_ADC=y
 # CONFIG_MPL3115 is not set
 # CONFIG_MS5611 is not set
 # CONFIG_MS5637 is not set
-# CONFIG_IIO_ST_PRESS is not set
+CONFIG_IIO_ST_PRESS=y
 # CONFIG_T5403 is not set
 # CONFIG_HP206C is not set
 # CONFIG_ZPA2326 is not set

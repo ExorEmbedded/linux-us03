@@ -45,6 +45,12 @@
 		compatible = "st,lps22hb-press";
 		reg = <0x5d>;
 	};
+	
+	htu21@40 {
+		/* Humidity */
+		compatible = "meas,htu21";
+		reg = <0x40>;
+	};
 };
 
 &fec1 {

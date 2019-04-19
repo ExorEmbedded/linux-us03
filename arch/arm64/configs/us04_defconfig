@@ -4795,7 +4795,7 @@ CONFIG_IMX8QXP_ADC=y
 # CONFIG_DHT11 is not set
 # CONFIG_HDC100X is not set
 # CONFIG_HTS221 is not set
-# CONFIG_HTU21 is not set
+CONFIG_HTU21=y
 # CONFIG_SI7005 is not set
 # CONFIG_SI7020 is not set
 

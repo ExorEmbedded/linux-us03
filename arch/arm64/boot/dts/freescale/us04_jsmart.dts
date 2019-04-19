@@ -102,12 +102,28 @@
 	};
 };
 
+&leds {
+	pinctrl-0 = <&pinctrl_leds>;
+	
+	led@4 {
+		label = "us03:sel_low_high";
+		gpios = <&gpio4 14 0>;
+		default-state = "off";
+	};
+};
+
 &iomuxc {
 	imx8mm-evk {
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
                 MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
                 MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+			>;
+		};
+
+		pinctrl_leds: ledsgrp {
+			fsl,pins = <
+                MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14         0x1c4
 			>;
 		};
 		

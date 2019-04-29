@@ -310,6 +310,12 @@
 		ethphy3: ethernet-phy@3 {
 			reg = <3>;
 		};
+
+		ethphy2: ethernet-phy@2 {
+		};
+
+		ethphy1: ethernet-phy@1 {
+		};
 	};
 };
 
@@ -317,12 +323,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rmii";
+	phy-handle = <&ethphy2>;
 	status = "okay";
 
-	fixed-link {
-		speed = <100>;
-		full-duplex;
-	};
 };
 
 &ecspi1 {

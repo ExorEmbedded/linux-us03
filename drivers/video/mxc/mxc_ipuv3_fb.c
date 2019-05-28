@@ -1177,10 +1177,28 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 	case MXCFB_SET_GAMMA:
 		{
 			struct mxcfb_gamma gamma;
+			int i;
+			extern int f_zerodimm;
+			
 			if (copy_from_user(&gamma, (void *)arg, sizeof(gamma))) {
 				retval = -EFAULT;
 				break;
 			}
+			
+			/* BSP-1559: Override the gamma curve if f_zerodimm */
+			if(f_zerodimm)
+			  if(gamma.enable)
+			  {
+			    int m = (gamma.constk[15] + gamma.slopek[15]) / 48  + 10;
+			    if (m>15) m = 15;
+			    if(m<10) m= 10;
+			    for(i=0; i<16; i++)
+			    {
+			      gamma.slopek[i] = m;
+			      gamma.constk[i] = m*i;
+			    }
+			  }
+			  
 			retval = ipu_disp_set_gamma_correction(mxc_fbi->ipu,
 							mxc_fbi->ipu_ch,
 							gamma.enable,

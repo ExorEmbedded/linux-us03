@@ -72,11 +72,15 @@
  *1.19			SS							09.07.2018  Added display code #67: FutureLabs FLC-101HML0000SA2 for ex710-hb
  *1.20			SS							25.09.2018  Modified display code #66: DISPJST-005N001 800x480 for Jsmart05, Max duty 70% in order to reduce brite to about 300cd/m2
  *1.21			SS							03.10.2018  Modified display code #63: FutureLabs FLC-101HML0000SA2 for ex710-hb and pixel clock set to min (66.6MHz) to avoid vertical green
- *                                                      line when driving with grey pattern (190,190,190)
+ *										line when driving with grey pattern (190,190,190)
  *1.22			SS							18.01.2019  Modified display code #66: DISPJST-005N001 800x480 for Jsmart05, modified pixel clock from 0 to 1 due to wrong datasheet info
  *1.23			SS							24.01.2019  Modified display code #63: FutureLabs FLC-101HML0000SA2 for ex710-hb changed vertical and horizontal porches as per datasheet timings
- *                                                      to avoid vertical green line when driving with grey pattern (190,190,190)
- * NEXT AVAILABLE DISPLAY CODE: 68
+ *										to avoid vertical green line when driving with grey pattern (190,190,190)
+ *1.24			SS							18.02.2019  Added display code #68: Qitex QX-050WVGA0TLT01D 800x480 for ex705
+ *1.25			GP							04/2019	    Added display code #69 Futurelabs FLC-1234ML3000SA1 Dual LVDS 24 bit 1920x720
+ *1.26			GP							05/2019	    Updated the brightness_min field for ticket BSP-1559
+ *1.27			GP							05/2019	    Updated the brightness_min field for ticket BSP-1559 on display code #65, #55
+ * NEXT AVAILABLE DISPLAY CODE: 70
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -542,7 +546,7 @@ static struct t_DisplayParams displayconfig[] = {
         .blank_inv      = 0,
         
         .pwmfreq        = 10000,
-        .brightness_min = 1,
+        .brightness_min = 0x1900,	/* BSP-1559 : Brightness min. = 0.25% */
         .brightness_max = 100,
     },     
     /* 50: Rocktech RK101EH1401-T 1024x600*/
@@ -568,7 +572,7 @@ static struct t_DisplayParams displayconfig[] = {
         .blank_inv      = 0,
         
         .pwmfreq        = 10000,
-        .brightness_min = 1,
+        .brightness_min = 0x2800,	/* BSP-1559 : Brightness min. = 0.40% */
         .brightness_max = 100,
     },  
 		/* 51: Rocktech RK043EH1401-T 480x272*/
@@ -593,8 +597,8 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 10000,
-        .brightness_min = 1,
+        .pwmfreq        = 5000,
+        .brightness_min = 0x0D00,	/* BSP-1559 : Brightness min=0.13% */
         .brightness_max = 80,
     },  
     /* 52: Evervision VGG804806_PWM for ALTERA kit 800x480*/
@@ -646,7 +650,7 @@ static struct t_DisplayParams displayconfig[] = {
         .blank_inv      = 0,
         
         .pwmfreq        = 200,
-        .brightness_min = 10,
+        .brightness_min = 0x3200, 		/* BSP-1559 : Brightness min=0.50% */
         .brightness_max = 100,
     },              
     /* 56: Innolux G156BGE-L01 LVDS 24 bit 1366x768 IMX.6 ONLY */
@@ -906,7 +910,7 @@ static struct t_DisplayParams displayconfig[] = {
         .blank_inv      = 0,
         
         .pwmfreq        = 10000,  
-        .brightness_min = 10,
+        .brightness_min = 0x1400, 		/* BSP-1559 : Brightness min=0.20% */
         .brightness_max = 100,
     },   
     /* 66:DISPJST-005N001 800x480 for Jsmart05 */
@@ -960,7 +964,59 @@ static struct t_DisplayParams displayconfig[] = {
         .pwmfreq        = 200,
         .brightness_min = 10,
         .brightness_max = 70,
-    },                                                             
+    }, 
+    /* 68: QITEX QX-050WVGA0TLT01D 800x480 */
+    {
+        .dispid    = 68,
+        .rezx      = 800, 
+        .rezy      = 480, 
+        .bpp       = 16,
+        
+        .pclk_freq = 27000, 
+        .pclk_inv  = 0,           
+        
+        .hs_fp     = 16, 
+        .hs_bp     = 46, 
+        .hs_w      = 1, 
+        .hs_inv    = 0,
+        
+        .vs_fp     = 7, 
+        .vs_bp     = 23, 
+        .vs_w      = 1, 
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 10000,
+        .brightness_min = 1,
+        .brightness_max = 100,
+      },                                                             
+    /* 69: Futurelabs  FLC-1234ML3000SA1 DUAL LVDS 24 bit 1920x720 IMX.6 ONLY*/
+    {
+        .dispid    = 69,
+        .rezx      = 1920, 
+        .rezy      = 720, 
+        .bpp       = 24,
+        
+        .pclk_freq = 44100,  // DUAL LVDS dispaly: this is the freq. of one single channel
+        .pclk_inv  = 1,			 //27.03.2017 inverted clock polarity due to IMX.6 bug
+        
+        .hs_fp     = 32, 
+        .hs_bp     = 16, 
+        .hs_w      = 16, 
+        .hs_inv    = 1,
+        
+        .vs_fp     = 16, 
+        .vs_bp     = 3, 
+        .vs_w      = 2, 
+        .vs_inv    = 1,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 10000,
+        .brightness_min = 10,
+        .brightness_max = 100,
+    },              
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

@@ -1189,9 +1189,9 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			if(f_zerodimm)
 			  if(gamma.enable)
 			  {
-			    int m = (gamma.constk[15] + gamma.slopek[15]) / 48  + 10;
+			    int m = (gamma.constk[15] + gamma.slopek[15]) / 42  + 9;
 			    if (m>15) m = 15;
-			    if(m<10) m= 10;
+			    if(m<9) m= 9;
 			    for(i=0; i<16; i++)
 			    {
 			      gamma.slopek[i] = m;

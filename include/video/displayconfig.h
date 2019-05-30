@@ -910,7 +910,7 @@ static struct t_DisplayParams displayconfig[] = {
         .blank_inv      = 0,
         
         .pwmfreq        = 10000,  
-        .brightness_min = 0x1400, 		/* BSP-1559 : Brightness min=0.20% */
+        .brightness_min = 0x0F00, 		/* BSP-1559 : Brightness min=0.15% */
         .brightness_max = 100,
     },   
     /* 66:DISPJST-005N001 800x480 for Jsmart05 */

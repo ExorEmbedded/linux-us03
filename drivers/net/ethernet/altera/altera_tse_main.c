@@ -546,8 +546,11 @@ static int tse_poll(struct napi_struct *napi, int budget)
 	rxcomplete = tse_rx(priv, budget);
 
 	if (rxcomplete < budget) {
-		napi_gro_flush(napi, false);
-		__napi_complete(napi);
+		// AG: napi_complete includes local_irq_save() and local_irq_restore. This avoid race conditions that lead to 
+		// issues in backlog queue handling (queue full and packet dropped)
+		//napi_gro_flush(napi, false);
+		//__napi_complete(napi);
+		napi_complete(napi);
 
 		netdev_dbg(priv->dev,
 			   "NAPI Complete, did %d packets with budget %d\n",

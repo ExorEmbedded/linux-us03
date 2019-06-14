@@ -57,6 +57,37 @@
 		pwms = <&pwm5 0 50000 0>;
 	};
 	
+	dsa@0 {
+		compatible = "generic,dsa";
+		dsa,ethernet = <&fec2>;
+		dsa,mii-bus = "kairos-bus";
+
+		switch@0 {
+			#address-cells = <2>;
+			#size-cells = <1>;
+			reg = <0 0 0>;
+
+			port@0 {
+				reg = <0 0 0>;
+				label = "lan0";
+				local-mac-address = [00 00 00 00 00 FF];
+				fixed-link;
+			};
+
+			port@1 {
+				reg = <1 0 0>;
+				label = "lan1";
+				local-mac-address = [00 00 00 00 00 EE];
+				fixed-link;
+			};
+
+			port@2 {
+				reg = <2 0 0>;
+				label = "cpu";
+				fixed-link = <0 1 100 0 0>;
+			};
+		};
+	};
 };
 
 &clks {
@@ -331,10 +362,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
-	
+
+	/*
 	spidev1_0: spi1@0 {
-		/* KAIROS */
 		compatible = "generic,spidev";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+	*/
+
+	kairosdev0: kairos@0 {
+		compatible = "generic,kairos";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 	};

@@ -22,6 +22,8 @@
 #include <linux/netpoll.h>
 #include "dsa_priv.h"
 
+#include <linux/ptp_clock_kernel.h>
+
 /* slave mii_bus handling ***************************************************/
 static int dsa_slave_phy_read(struct mii_bus *bus, int addr, int reg)
 {
@@ -360,6 +362,7 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
+printk(KERN_INFO "%s %p\n", __func__, p->phy);
 	if (p->phy != NULL)
 		return phy_mii_ioctl(p->phy, ifr, cmd);
 
@@ -1049,6 +1052,8 @@ static void dsa_slave_adjust_link(struct net_device *dev)
 	struct dsa_switch *ds = p->parent;
 	unsigned int status_changed = 0;
 
+printk(KERN_INFO "%s \n", __func__);
+
 	if (p->old_link != p->phy->link) {
 		status_changed = 1;
 		p->old_link = p->phy->link;
@@ -1076,6 +1081,8 @@ static int dsa_slave_fixed_link_update(struct net_device *dev,
 {
 	struct dsa_slave_priv *p;
 	struct dsa_switch *ds;
+
+printk(KERN_INFO "%s \n", __func__);
 
 	if (dev) {
 		p = netdev_priv(dev);
@@ -1272,10 +1279,13 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	netif_carrier_off(slave_dev);
 
-	ret = dsa_slave_phy_setup(p, slave_dev);
-	if (ret) {
-		netdev_err(master, "error %d setting up slave phy\n", ret);
-		goto out_free;
+	if (ds->slave_mii_bus)
+	{
+		ret = dsa_slave_phy_setup(p, slave_dev);
+		if (ret) {
+			netdev_err(master, "error %d setting up slave phy\n", ret);
+			goto out_free;
+		}
 	}
 
 	ret = register_netdev(slave_dev);

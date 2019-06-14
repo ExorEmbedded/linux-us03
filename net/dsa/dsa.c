@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/spi/spi.h>
 #include <net/dsa.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
@@ -28,6 +29,9 @@
 #include "dsa_priv.h"
 
 char dsa_driver_version[] = "0.1";
+
+extern struct spi_device *of_find_spi_device_by_node(struct device_node *node);
+extern struct mii_bus* kairos_phy_bus(void);
 
 static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
@@ -42,6 +46,7 @@ static const struct dsa_device_ops none_ops = {
 };
 
 const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
+	[DSA_TAG_PROTO_NONE] = &none_ops,
 #ifdef CONFIG_NET_DSA_TAG_DSA
 	[DSA_TAG_PROTO_DSA] = &dsa_netdev_ops,
 #endif
@@ -57,7 +62,9 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 #ifdef CONFIG_NET_DSA_TAG_QCA
 	[DSA_TAG_PROTO_QCA] = &qca_netdev_ops,
 #endif
-	[DSA_TAG_PROTO_NONE] = &none_ops,
+#ifdef CONFIG_NET_DSA_TAG_KAIROS
+	[DSA_TAG_PROTO_KAIROS] = &kairos_netdev_ops,
+#endif
 };
 
 /* switch driver registration ***********************************************/
@@ -387,6 +394,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	}
 
 	if (!ds->slave_mii_bus && ops->phy_read) {
+		/*AG FIXME
 		ds->slave_mii_bus = devm_mdiobus_alloc(parent);
 		if (!ds->slave_mii_bus) {
 			ret = -ENOMEM;
@@ -397,6 +405,9 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 		ret = mdiobus_register(ds->slave_mii_bus);
 		if (ret < 0)
 			goto out;
+		*/
+
+		ds->slave_mii_bus = kairos_phy_bus();
 	}
 
 	/*
@@ -738,13 +749,24 @@ static int dsa_of_probe(struct device *dev)
 	u32 eeprom_len;
 	int ret;
 
-	mdio = of_parse_phandle(np, "dsa,mii-bus", 0);
-	if (!mdio)
-		return -EINVAL;
+	mdio_bus = NULL;
 
-	mdio_bus = of_mdio_find_bus(mdio);
+	mdio = of_parse_phandle(np, "dsa,mii-bus", 0);
+	if (mdio)
+	{
+		mdio_bus = of_mdio_find_bus(mdio);
+	}
+	
 	if (!mdio_bus)
-		return -EPROBE_DEFER;
+	{
+		mdio_bus = kairos_phy_bus();
+	}
+
+	if (!mdio_bus)
+	{
+		ret = -EINVAL;
+		goto out_put_mdio;
+	}
 
 	ethernet = of_parse_phandle(np, "dsa,ethernet", 0);
 	if (!ethernet) {
@@ -791,7 +813,9 @@ static int dsa_of_probe(struct device *dev)
 			cd->rtable[i] = DSA_RTABLE_NONE;
 
 		/* When assigning the host device, increment its refcount */
-		cd->host_dev = get_device(&mdio_bus->dev);
+		cd->host_dev = NULL;
+		if (mdio_bus)
+			cd->host_dev = get_device(&mdio_bus->dev);
 
 		sw_addr = of_get_property(child, "reg", NULL);
 		if (!sw_addr)
@@ -852,7 +876,8 @@ static int dsa_of_probe(struct device *dev)
 
 	/* The individual chips hold their own refcount on the mdio bus,
 	 * so drop ours */
-	put_device(&mdio_bus->dev);
+	if (mdio_bus)
+		put_device(&mdio_bus->dev);
 
 	return 0;
 
@@ -864,7 +889,8 @@ out_free:
 out_put_ethernet:
 	put_device(&ethernet_dev->dev);
 out_put_mdio:
-	put_device(&mdio_bus->dev);
+	if (mdio_bus)
+		put_device(&mdio_bus->dev);
 	return ret;
 }
 
@@ -1092,6 +1118,7 @@ static SIMPLE_DEV_PM_OPS(dsa_pm_ops, dsa_suspend, dsa_resume);
 
 static const struct of_device_id dsa_of_match_table[] = {
 	{ .compatible = "marvell,dsa", },
+	{ .compatible = "generic,dsa", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dsa_of_match_table);

@@ -80,7 +80,9 @@
  *1.25			GP							04/2019	    Added display code #69 Futurelabs FLC-1234ML3000SA1 Dual LVDS 24 bit 1920x720
  *1.26			GP							05/2019	    Updated the brightness_min field for ticket BSP-1559
  *1.27			GP							05/2019	    Updated the brightness_min field for ticket BSP-1559 on display code #65, #55
- * NEXT AVAILABLE DISPLAY CODE: 70
+ *1.28			SS							17.06.2019  Added display code #70: Innolux G156HCE-L01 LVDS 24 bit 1920x1080 for serie jSMART
+
+ * NEXT AVAILABLE DISPLAY CODE: 71
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -1016,7 +1018,33 @@ static struct t_DisplayParams displayconfig[] = {
         .pwmfreq        = 10000,
         .brightness_min = 10,
         .brightness_max = 100,
-    },              
+    }, 
+    /* 70: Innolux G156HCE-L01 DUAL LVDS 24 bit 1920x1080 IMX.6 ONLY*/
+    {
+        .dispid    = 70,
+        .rezx      = 1920, 
+        .rezy      = 1080, 
+        .bpp       = 24,
+        
+        .pclk_freq = 70930,      // DUAL LVDS dispaly: this is the freq. of one single channel
+        .pclk_inv  = 1,			 //27.03.2017 inverted clock polarity due to IMX.6 bug
+        
+        .hs_fp     = 15, 
+        .hs_bp     = 90, 
+        .hs_w      = 1, 
+        .hs_inv    = 0,
+        
+        .vs_fp     = 10, 
+        .vs_bp     = 20, 
+        .vs_w      = 1, 
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 10,
+        .brightness_max = 100,
+    },                               
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

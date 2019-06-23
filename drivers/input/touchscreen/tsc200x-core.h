@@ -28,8 +28,9 @@
 #define TSC200X_REG_CONV_FUNC		(0xF << 3)
 
 /* configuration register 0 */
-#define TSC200X_CFR0_PRECHARGE_276US	0x0040
-#define TSC200X_CFR0_STABTIME_1MS	0x0300
+#define TSC200X_CFR0_PRECHARGE_276US	0x0080 /* Updated to 1ms, was 0x0040  */ 
+#define TSC200X_CFR0_STABTIME_1MS	0x5000 /* Updated to 10ms, was 0x0300 */
+#define TSC200X_CFR0_SENSITME_2MS       0x1C   /* Sense time selection to 2.6ms */
 #define TSC200X_CFR0_CLOCK_1MHZ		0x1000
 #define TSC200X_CFR0_RESOLUTION12	0x2000
 #define TSC200X_CFR0_PENMODE		0x8000
@@ -37,14 +38,15 @@
 					 TSC200X_CFR0_CLOCK_1MHZ      | \
 					 TSC200X_CFR0_RESOLUTION12    | \
 					 TSC200X_CFR0_PRECHARGE_276US | \
-					 TSC200X_CFR0_PENMODE)
+					 TSC200X_CFR0_PENMODE | TSC200X_CFR0_SENSITME_2MS)
 
 /* bits common to both read and write of configuration register 0 */
 #define	TSC200X_CFR0_RW_MASK		0x3fff
 
 /* configuration register 1 */
-#define TSC200X_CFR1_BATCHDELAY_4MS	0x0003
-#define TSC200X_CFR1_INITVALUE		TSC200X_CFR1_BATCHDELAY_4MS
+#define TSC200X_CFR1_BATCHDELAY_4MS	0x0004 /* Updated to 10ms, was 0x0003 */
+#define TSC200X_TBM			0x0100 /* New */
+#define TSC200X_CFR1_INITVALUE		(TSC200X_CFR1_BATCHDELAY_4MS | TSC200X_TBM)
 
 /* configuration register 2 */
 #define TSC200X_CFR2_MAVE_Z		0x0004
@@ -52,6 +54,7 @@
 #define TSC200X_CFR2_MAVE_X		0x0010
 #define TSC200X_CFR2_AVG_7		0x0800
 #define TSC200X_CFR2_MEDIUM_15		0x3000
+
 #define TSC200X_CFR2_INITVALUE		(TSC200X_CFR2_MAVE_X	| \
 					 TSC200X_CFR2_MAVE_Y	| \
 					 TSC200X_CFR2_MAVE_Z	| \

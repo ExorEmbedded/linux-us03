@@ -64,8 +64,8 @@ static void activate_col(const struct matrix_keypad_platform_data *pdata,
 {
 	__activate_col(pdata, col, on);
 
-	if (on && pdata->col_scan_delay_us)
-		udelay(pdata->col_scan_delay_us);
+	if (on && pdata->col_scan_delay_ms)
+		udelay(pdata->col_scan_delay_ms);
 }
 
 static void activate_all_cols(const struct matrix_keypad_platform_data *pdata,
@@ -428,15 +428,17 @@ matrix_keypad_parse_dt(struct device *dev)
 	if (of_get_property(np, "linux,no-autorepeat", NULL))
 		pdata->no_autorepeat = true;
 
-	pdata->wakeup = of_property_read_bool(np, "wakeup-source") ||
-			of_property_read_bool(np, "linux,wakeup"); /* legacy */
+
+	if (of_get_property(np, "linux,wakeup", NULL))
+		pdata->wakeup = true;
 
 	if (of_get_property(np, "gpio-activelow", NULL))
 		pdata->active_low = true;
-
+	if (of_get_property(np, "gpio-colactivehigh", NULL))
+		pdata->col_active_high = true;
 	of_property_read_u32(np, "debounce-delay-ms", &pdata->debounce_ms);
-	of_property_read_u32(np, "col-scan-delay-us",
-						&pdata->col_scan_delay_us);
+	of_property_read_u32(np, "col-scan-delay-ms",
+						&pdata->col_scan_delay_ms);
 
 	gpios = devm_kzalloc(dev,
 			     sizeof(unsigned int) *

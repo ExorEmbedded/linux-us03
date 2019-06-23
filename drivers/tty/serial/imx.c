@@ -48,7 +48,6 @@
 #include <linux/platform_data/serial-imx.h>
 #include <linux/platform_data/dma-imx.h>
 
-#include "serial_mctrl_gpio.h"
 #include <linux/leds.h>
 
 /* Register definitions */
@@ -237,8 +236,6 @@ struct imx_port {
 	struct clk		*clk_ipg;
 	struct clk		*clk_per;
 	const struct imx_uart_data *devdata;
-
-	struct mctrl_gpios *gpios;
 
 	/* DMA fields */
 	unsigned int		dma_is_inited:1;
@@ -469,15 +466,11 @@ static void imx_port_rts_active(struct imx_port *sport, unsigned long *ucr2)
 {
 	*ucr2 &= ~UCR2_CTSC;
 	*ucr2 |= UCR2_CTS;
-
-	mctrl_gpio_set(sport->gpios, sport->port.mctrl | TIOCM_RTS);
 }
 
 static void imx_port_rts_inactive(struct imx_port *sport, unsigned long *ucr2)
 {
 	*ucr2 &= ~(UCR2_CTSC | UCR2_CTS);
-
-	mctrl_gpio_set(sport->gpios, sport->port.mctrl & ~TIOCM_RTS);
 }
 
 static void imx_port_rts_auto(struct imx_port *sport, unsigned long *ucr2)
@@ -557,8 +550,6 @@ static void imx_enable_ms(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 
 	mod_timer(&sport->timer, jiffies);
-
-	mctrl_gpio_enable_ms(sport->gpios);
 }
 
 static inline void imx_transmit_buffer(struct imx_port *sport)
@@ -1008,8 +999,6 @@ static unsigned int imx_get_mctrl(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned int ret = imx_get_hwmctrl(sport);
 
-	mctrl_gpio_get(sport->gpios, &ret);
-
 	return ret;
 }
 
@@ -1035,8 +1024,6 @@ static void imx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	if (mctrl & TIOCM_LOOP)
 		temp |= UTS_LOOP;
 	writel(temp, sport->port.membase + uts_reg(sport));
-
-	mctrl_gpio_set(sport->gpios, mctrl);
 }
 
 /*
@@ -1515,8 +1502,6 @@ static void imx_shutdown(struct uart_port *port)
 		spin_unlock_irqrestore(&sport->port.lock, flags);
 		imx_uart_dma_exit(sport);
 	}
-
-	mctrl_gpio_disable_ms(sport->gpios);
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 	temp = readl(sport->port.membase + UCR2);
@@ -2360,10 +2345,6 @@ static int serial_imx_probe(struct platform_device *pdev)
 	sport->timer.function = imx_timeout;
 	sport->timer.data     = (unsigned long)sport;
 
-	sport->gpios = mctrl_gpio_init(&sport->port, 0);
-	if (IS_ERR(sport->gpios))
-		return PTR_ERR(sport->gpios);
-
 	sport->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(sport->clk_ipg)) {
 		ret = PTR_ERR(sport->clk_ipg);
@@ -2472,9 +2453,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 	}
 
 	imx_ports[sport->port.line] = sport;
-
 	platform_set_drvdata(pdev, sport);
-	
 	imx_register_led_trigger(&pdev->dev, sport);
 
 	return uart_add_one_port(&imx_reg, &sport->port);

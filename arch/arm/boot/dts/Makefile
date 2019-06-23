@@ -490,6 +490,7 @@ dtb-$(CONFIG_SOC_IMX6SX) += \
 dtb-$(CONFIG_SOC_IMX6UL) += \
 	ns01-evk.dtb \
 	ns01-ek435.dtb \
+	ns01-ek435-pa20.dtb \
 	ns01-pa18.dtb \
 	ns01-keb01.dtb \
 	ns01-x5.dtb \

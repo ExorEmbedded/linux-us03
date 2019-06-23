@@ -812,6 +812,13 @@ config EXGPIO_INIT
 	depends on OF
 	help
 	    Say Y to add support for initializing gpio lines through dtb.
+	    
+config DISP_PA20
+	tristate "Exor PA20 LCD SPI support"
+	depends on OF
+	help
+	    Say Y to add support for initializing the PA20 display via SPI.
+	    
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

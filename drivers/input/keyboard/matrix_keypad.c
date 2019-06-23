@@ -406,6 +406,7 @@ matrix_keypad_parse_dt(struct device *dev)
 	struct device_node *np = dev->of_node;
 	unsigned int *gpios;
 	int ret, i, nrow, ncol;
+	enum of_gpio_flags flags;
 
 	if (!np) {
 		dev_err(dev, "device lacks DT data\n");
@@ -427,7 +428,6 @@ matrix_keypad_parse_dt(struct device *dev)
 
 	if (of_get_property(np, "linux,no-autorepeat", NULL))
 		pdata->no_autorepeat = true;
-
 
 	if (of_get_property(np, "linux,wakeup", NULL))
 		pdata->wakeup = true;
@@ -465,6 +465,23 @@ matrix_keypad_parse_dt(struct device *dev)
 
 	pdata->row_gpios = gpios;
 	pdata->col_gpios = &gpios[pdata->num_row_gpios];
+
+	pdata->enable_gpio = of_get_named_gpio_flags(np, "engpio", 0,  &flags);
+	if (pdata->enable_gpio == -EPROBE_DEFER)
+	{
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	if( (pdata->enable_gpio >= 0) && (gpio_is_valid(pdata->enable_gpio)) )
+	{
+		dev_info( dev, "Request GPIO (engpio) = %d \n", pdata->enable_gpio );
+		if (gpio_request_one( pdata->enable_gpio, flags, "stbgpio") < 0)
+		{
+			dev_err( dev, "failed to request GPIO %d \n", pdata->enable_gpio);
+			return ERR_PTR(-ENODEV);
+		}
+		gpio_set_value_cansleep(pdata->enable_gpio, 1);
+	}
 
 	return pdata;
 }
@@ -553,8 +570,15 @@ err_free_mem:
 static int matrix_keypad_remove(struct platform_device *pdev)
 {
 	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
+	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 
 	device_init_wakeup(&pdev->dev, 0);
+
+	if( (pdata->enable_gpio >= 0) && (gpio_is_valid(pdata->enable_gpio)) )
+	{
+		gpio_set_value_cansleep(pdata->enable_gpio, 0);
+		gpio_free(pdata->enable_gpio);
+	}
 
 	matrix_keypad_free_gpio(keypad);
 	input_unregister_device(keypad->input_dev);

@@ -345,6 +345,11 @@ static inline void ledtrig_flash_ctrl(bool on) {}
 static inline void ledtrig_torch_ctrl(bool on) {}
 #endif
 
+#ifdef CONFIG_LEDS_TRIGGER_PA18
+extern void ledtrig_usbstick_wr_activity(void);
+#else
+static inline void ledtrig_usbstick_wr_activity(void) {}
+#endif
 /*
  * Generic LED platform data for describing LED names and default triggers.
  */

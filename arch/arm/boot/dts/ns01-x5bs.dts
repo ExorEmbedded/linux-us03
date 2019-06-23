@@ -519,6 +519,7 @@
 				MX6UL_PAD_NAND_CE0_B__ECSPI3_SCLK   0x10b0
 				MX6UL_PAD_NAND_READY_B__GPIO4_IO12  0x10b0
 				MX6UL_PAD_NAND_ALE__GPIO4_IO10      0x10b0
+				MX6UL_PAD_LCD_DATA03__GPIO3_IO08    0x10b0
 			>;
 		};
 
@@ -565,8 +566,8 @@
 };
 
 &ecspi3 {
-	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio4 12 0>, <&gpio4 10 0>;
+	fsl,spi-num-chipselects = <3>;
+	cs-gpios = <&gpio4 12 0>, <&gpio4 10 0>, <&gpio3 8 0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	status = "okay";
@@ -581,6 +582,16 @@
 		compatible = "generic,spidev";
 		reg = <1>;
 		spi-max-frequency = <1000000>;
+	};
+	
+	fram: at25@2 {
+        /* CS3 FRAM */
+	    compatible = "atmel,at25", "st,m95256";
+	    reg = <2>;
+	    spi-max-frequency = <20000000>;
+	    pagesize = <64>;
+	    size = <65536>;
+	    address-width = <16>;
 	};
 };
 

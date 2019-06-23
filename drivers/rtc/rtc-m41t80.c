@@ -31,6 +31,7 @@
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
 #endif
+#include <linux/nvmem-provider.h>
 
 #define M41T80_REG_SSEC		0x00
 #define M41T80_REG_SEC		0x01
@@ -72,7 +73,9 @@
 #define M41T80_FEATURE_SQ_ALT	BIT(4)	/* RSx bits are in reg 4 */
 #define M41T80_FEATURE_NVRAM	(1 << 5)	/* NVRAM resuorce avail */
 
+#ifdef CONFIG_RTC_DRV_M41T80_WDT
 static DEFINE_MUTEX(m41t80_rtc_mutex);
+#endif
 static const struct i2c_device_id m41t80_id[] = {
 	{ "m41t62", M41T80_FEATURE_SQ | M41T80_FEATURE_SQ_ALT },
 	{ "m41t65", M41T80_FEATURE_HT | M41T80_FEATURE_WD },
@@ -92,6 +95,8 @@ MODULE_DEVICE_TABLE(i2c, m41t80_id);
 struct m41t80_data {
 	u8 features;
 	struct rtc_device *rtc;
+	struct nvmem_config nvmem_config;
+	struct nvmem_device *nvmem;
 };
 
 static irqreturn_t m41t80_handle_irq(int irq, void *dev_id)
@@ -774,7 +779,10 @@ static ssize_t m41t80_nvram_read_lowlevel(struct i2c_client  *client, char *buf,
     int result;
     u8 nvram_addr;
     struct i2c_msg msgs[2];
-
+    
+    struct m41t80_data* m41t80 = i2c_get_clientdata(client);
+    struct mutex *lock = &m41t80->rtc->ops_lock;
+    
     if(off >= M41T80_SRAM_SIZE)
 	return 0;
 
@@ -784,6 +792,8 @@ static ssize_t m41t80_nvram_read_lowlevel(struct i2c_client  *client, char *buf,
     if(!count)
 	return 0;
 
+    mutex_lock(lock);
+    
     nvram_addr = M41T80_SRAM_BASE + off;
 
     msgs[0].addr  = client->addr;
@@ -800,8 +810,11 @@ static ssize_t m41t80_nvram_read_lowlevel(struct i2c_client  *client, char *buf,
     if (result < 0)
     {
 	dev_err(&client->dev, "%s error %d\n", "nvram read", result);
+	mutex_unlock(lock);
 	return result;
     }
+    
+    mutex_unlock(lock);
     return count;
 }
 
@@ -814,6 +827,14 @@ static ssize_t m41t80_nvram_read(struct file *filp, struct kobject *kobj, struct
     return m41t80_nvram_read_lowlevel(client, buf, off, count);
 }
 
+static int m41t80_nvmem_read(void *priv, unsigned int off, void *val, size_t count)
+{
+  struct m41t80_data* m41t80 = priv;
+  struct i2c_client *client = to_i2c_client(m41t80->nvmem_config.dev);    
+
+  return m41t80_nvram_read_lowlevel(client, val, off, count);
+}
+
 static ssize_t m41t80_nvram_write_lowlevel(struct i2c_client  *client, char *buf, loff_t off, size_t count)
 {
     int result;
@@ -821,6 +842,8 @@ static ssize_t m41t80_nvram_write_lowlevel(struct i2c_client  *client, char *buf
     struct i2c_msg msgs[1];
     u8 wbuf[M41T80_SRAM_SIZE + 1];
     int i;
+    struct m41t80_data* m41t80 = i2c_get_clientdata(client);
+    struct mutex *lock = &m41t80->rtc->ops_lock;
 
     if(off >= M41T80_SRAM_SIZE)
 	return 0;
@@ -834,6 +857,8 @@ static ssize_t m41t80_nvram_write_lowlevel(struct i2c_client  *client, char *buf
     nvram_addr = M41T80_SRAM_BASE + off;
     wbuf[0] = nvram_addr;
 
+    mutex_lock(lock);
+    
     for(i=0; i < count; i++)
 	wbuf[i+1] = buf[i];
 
@@ -846,9 +871,11 @@ static ssize_t m41t80_nvram_write_lowlevel(struct i2c_client  *client, char *buf
     if (result < 0)
     {
 	dev_err(&client->dev, "%s error %d\n", "nvram write", result);
+	mutex_unlock(lock);
 	return result;
     }
 
+    mutex_unlock(lock);
     return count;
 }
 
@@ -858,6 +885,14 @@ static ssize_t m41t80_nvram_write(struct file *filp, struct kobject *kobj, struc
 
     client = kobj_to_i2c_client(kobj);
     return m41t80_nvram_write_lowlevel(client, buf, off, count);
+}
+
+static int m41t80_nvmem_write(void *priv, unsigned int off, void *val, size_t count)
+{
+  struct m41t80_data* m41t80 = priv;
+  struct i2c_client *client = to_i2c_client(m41t80->nvmem_config.dev);
+  
+  return m41t80_nvram_write_lowlevel(client, val, off, count);
 }
 
 static struct bin_attribute m41t80_nvram_attr = {
@@ -995,12 +1030,34 @@ static int m41t80_probe(struct i2c_client *client,
 #endif
 	if (m41t80_data->features & M41T80_FEATURE_NVRAM)
 	{
-		rc = sysfs_create_bin_file(&client->dev.kobj, &m41t80_nvram_attr);
-		if (rc)
-		{
-		    dev_err(&client->dev, "ERROR sysfs_create_bin_file\n");
-		    return rc;
-		}
+	  m41t80_data->nvmem_config.name = dev_name(&client->dev);
+	  m41t80_data->nvmem_config.dev = &client->dev;
+	  m41t80_data->nvmem_config.read_only = false;
+	  m41t80_data->nvmem_config.root_only = true;
+	  m41t80_data->nvmem_config.owner = THIS_MODULE;
+	  m41t80_data->nvmem_config.compat = true;
+	  m41t80_data->nvmem_config.base_dev = &client->dev;
+	  m41t80_data->nvmem_config.reg_read = m41t80_nvmem_read;
+	  m41t80_data->nvmem_config.reg_write = m41t80_nvmem_write;
+	  m41t80_data->nvmem_config.priv = m41t80_data;
+	  m41t80_data->nvmem_config.stride = 1;
+	  m41t80_data->nvmem_config.word_size = 1;
+	  m41t80_data->nvmem_config.size = M41T80_SRAM_SIZE;
+	  
+	  m41t80_data->nvmem = nvmem_register(&m41t80_data->nvmem_config);
+	  if (IS_ERR(m41t80_data->nvmem)) 
+	  {
+		rc = PTR_ERR(m41t80_data->nvmem);
+		dev_err(&client->dev, "ERROR nvmem_register\n");
+		return rc;
+	  }
+	  
+	  rc = sysfs_create_bin_file(&client->dev.kobj, &m41t80_nvram_attr);
+	  if (rc)
+	  {
+	    dev_err(&client->dev, "ERROR sysfs_create_bin_file\n");
+	    return rc;
+	  }
 	}
 
 	return 0;

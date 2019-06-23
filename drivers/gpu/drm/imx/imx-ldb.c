@@ -35,6 +35,7 @@
 #include <linux/regmap.h>
 #include <linux/videodev2.h>
 #include <soc/imx8/sc/sci.h>
+#include <video/displayconfig.h>
 
 #include "imx-drm.h"
 
@@ -87,6 +88,39 @@ struct imx_ldb_channel {
 	u32 bus_format;
 	u32 bus_flags;
 };
+
+extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+
+/*
+ * Returns if DUAL LVDS mode is used, based on the resulting frame refresh frequency
+ */
+bool dispid_get_splitmode(int dispid)
+{
+	int i=0;
+	int frefresh;
+
+	// Scan the display array to search for the required dispid
+	if(dispid == NODISPLAY)
+		return false;
+
+	while(  (displayconfig[i].dispid != NODISPLAY) &&
+		(displayconfig[i].dispid != dispid)
+	     )
+		i++;
+
+	if(displayconfig[i].dispid == NODISPLAY)
+		return false;
+
+	frefresh = (1000 * displayconfig[i].pclk_freq)/((displayconfig[i].rezx + displayconfig[i].hs_bp + displayconfig[i].hs_fp + displayconfig[i].hs_w) * (displayconfig[i].rezy + displayconfig[i].vs_bp + displayconfig[i].vs_fp +  displayconfig[i].vs_w) +1);
+
+	printk("dispid_get_splitmode frefresh=%d\n",frefresh);
+
+	//A refresh rate < 40Hza indicates dual LVDS interface
+	if(frefresh < 40)
+		return true;
+
+	return false;
+}
 
 static inline struct imx_ldb_channel *con_to_imx_ldb_ch(struct drm_connector *c)
 {
@@ -1258,7 +1292,9 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 	imx_ldb->max_prate_single_mode = devtype->max_prate_single_mode;
 	imx_ldb->max_prate_dual_mode = devtype->max_prate_dual_mode;
 
-	dual = of_property_read_bool(np, "fsl,dual-channel");
+	//dual = of_property_read_bool(np, "fsl,dual-channel");
+	//Split mode (DUAL LVDS) is enabled, based on the displayconfig params.
+	dual =	dispid_get_splitmode(hw_dispid);
 	if (dual)
 		imx_ldb->ldb_ctrl |= LDB_SPLIT_MODE_EN;
 

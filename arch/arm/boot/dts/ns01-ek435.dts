@@ -63,6 +63,14 @@
 		status = "okay";
 	};
 
+	working_hours {
+	  compatible = "working_hours";
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
+	  backlight = <&pwm_bl00>;
+	  status = "okay";
+	};
+	
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "mx6ul-wm8960";

@@ -1411,7 +1411,7 @@ static int imx_startup(struct uart_port *port)
 
 	while (!(readl(sport->port.membase + UCR2) & UCR2_SRST) && (--i > 0))
 		udelay(1);
-#if 0
+#if 1
 	/* Can we enable the DMA support? */
 	if (is_imx6q_uart(sport) && !uart_console(port)
 		&& !sport->dma_is_inited)

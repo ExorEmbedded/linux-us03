@@ -407,8 +407,9 @@ static void mxsfb_enable_controller(struct fb_info *fb_info)
 
 	if (host->clk_disp_axi)
 		clk_prepare_enable(host->clk_disp_axi);
-	clk_prepare_enable(host->clk);
+
 	clk_set_rate(host->clk, PICOS2KHZ(fb_info->var.pixclock) * 1000U);
+	clk_prepare_enable(host->clk);
 
 	mxsfb_enable_axi_clk(host);
 

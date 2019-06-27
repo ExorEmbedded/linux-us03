@@ -90,6 +90,17 @@ config SENSORS_LM3533
 	  changes. The ALS-control output values can be set per zone for the
 	  three current output channels.
 
+config OPT3001
+	tristate "Texas Instruments OPT3001 Light Sensor"
+	depends on I2C
+	help
+	  If you say Y or M here, you get support for Texas Instruments
+	  OPT3001 Ambient Light Sensor.
+
+	  If built as a dynamically linked module, it will be called
+	  opt3001.
+
+
 config TCS3472
 	tristate "TAOS TCS3472 color light-to-digital converter"
 	depends on I2C

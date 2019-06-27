@@ -292,6 +292,13 @@
 	  compatible = "htu21";
 	  reg = <0x40>;
 	};
+	
+	opt3001@44 {
+	  compatible = "ti,opt3001";
+	  reg = <0x44>;
+	  interrupt-parent = <&gpio5>;
+	  interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
+	};	
 };
 
 &iomuxc {
@@ -307,6 +314,7 @@
 				MX6QDL_PAD_SD3_DAT5__GPIO7_IO00 0x0000b0b0  /* backlight enable */
 				MX6QDL_PAD_SD3_DAT4__GPIO7_IO01 0x0000b0b0  /* en_vdd */
 				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x0000b0b0   /* touch intr */
+				MX6QDL_PAD_CSI0_DAT13__GPIO5_IO31 0x0000b0b0 /* Light sensor IRQ */
 				>;
 		};
 

@@ -75,7 +75,12 @@ struct matrix_keypad_platform_data {
 	bool		no_autorepeat;
 	bool		col_active_high;
 
-	u32		enable_gpio;
+	uint32_t	enable_gpio;
+#ifdef CONFIG_KEYBOARD_MATRIX_SHUTDOWN
+	uint32_t	shutdown_keycode1;
+	uint32_t	shutdown_keycode2;
+	uint32_t	shutdown_count;
+#endif
 };
 
 int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,

@@ -49,7 +49,7 @@ struct matrix_keypad {
 static void __activate_col(const struct matrix_keypad_platform_data *pdata,
 			   int col, bool on)
 {
-	bool level_on = !pdata->active_low;
+	bool level_on = pdata->col_active_high;
 
 	if (on) {
 		gpio_direction_output(pdata->col_gpios[col], level_on);
@@ -65,7 +65,7 @@ static void activate_col(const struct matrix_keypad_platform_data *pdata,
 	__activate_col(pdata, col, on);
 
 	if (on && pdata->col_scan_delay_ms)
-		udelay(pdata->col_scan_delay_ms);
+		msleep(pdata->col_scan_delay_ms);
 }
 
 static void activate_all_cols(const struct matrix_keypad_platform_data *pdata,
@@ -158,6 +158,38 @@ static void matrix_keypad_scan(struct work_struct *work)
 					 new_state[col] & (1 << row));
 		}
 	}
+#ifdef CONFIG_KEYBOARD_MATRIX_SHUTDOWN
+	if( pdata->shutdown_keycode1 != 0 &&
+		pdata->shutdown_keycode2 != 0 &&
+		pdata->shutdown_count    != 0
+	)
+	{
+		uint8_t key_trigger = 0;
+		static uint16_t shutdown_counter = 0;
+		key_trigger = 0;
+		for (col = 0; col < pdata->num_col_gpios; col++)
+		{
+			for (row = 0; row < pdata->num_row_gpios; row++)
+			{
+				code = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
+				if( pdata->shutdown_keycode1 == keycodes[code] ||
+					pdata->shutdown_keycode2 == keycodes[code]
+				)
+					if( (new_state[col] & (1 << row)) != 0 )
+						key_trigger ++;
+			}
+		}
+		if( key_trigger >= 2 )
+			shutdown_counter ++;
+		else
+			shutdown_counter = 0;
+
+		if( shutdown_counter >= pdata->shutdown_count )
+			gpio_set_value_cansleep(pdata->enable_gpio, 0);
+		else
+			gpio_set_value_cansleep(pdata->enable_gpio, 1);
+	}
+#endif
 	input_sync(input_dev);
 
 	memcpy(keypad->last_key_state, new_state, sizeof(new_state));
@@ -407,6 +439,7 @@ matrix_keypad_parse_dt(struct device *dev)
 	unsigned int *gpios;
 	int ret, i, nrow, ncol;
 	enum of_gpio_flags flags;
+	unsigned int tmp;
 
 	if (!np) {
 		dev_err(dev, "device lacks DT data\n");
@@ -440,6 +473,27 @@ matrix_keypad_parse_dt(struct device *dev)
 	of_property_read_u32(np, "col-scan-delay-ms",
 						&pdata->col_scan_delay_ms);
 
+#ifdef CONFIG_KEYBOARD_MATRIX_SHUTDOWN
+	pdata->shutdown_keycode1 = 0;
+	pdata->shutdown_keycode2 = 0;
+	if( !of_property_read_u32(np, "shutdown-code", &tmp) )
+	{
+		pdata->shutdown_keycode1 = ((tmp & 0x0000FFFF) >> 0 );
+		pdata->shutdown_keycode2 = ((tmp & 0xFFFF0000) >> 16);
+	}
+	if( of_property_read_u32(np, "shutdown-count", &pdata->shutdown_count ) )
+		pdata->shutdown_count    = 0;
+
+	if( pdata->shutdown_keycode1 != 0 &&
+		pdata->shutdown_keycode2 != 0 &&
+		pdata->shutdown_count    != 0
+	)
+		dev_info( dev, "%s Setup Matrix Keyboard Shutdown: \
+				keycode1 %x, keycode2 %x count %d \n", __func__,
+									pdata->shutdown_keycode1,
+									pdata->shutdown_keycode2,
+									pdata->shutdown_count );
+#endif
 	gpios = devm_kzalloc(dev,
 			     sizeof(unsigned int) *
 				(pdata->num_row_gpios + pdata->num_col_gpios),

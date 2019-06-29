@@ -129,62 +129,64 @@
       status = "okay";
     };
     
-    matrix_keypad {
-        compatible = "gpio-matrix-keypad";
-        pinctrl-names = "default";
-        pinctrl-0 = <&pinctrl_keypad>;
-        debounce-delay-ms = <10>;
-        col-scan-delay-ms = <10>;
-        gpio-activelow;
-        gpio-colactivehigh;
-        engpio = <&gpio1 18 0>;
-        status = "okay";
+	matrix_keypad {
+		compatible = "gpio-matrix-keypad";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_keypad>;
+		debounce-delay-ms = <10>;
+		col-scan-delay-ms = <10>;
+		gpio-activelow;
+		gpio-colactivehigh;
+		engpio = <&gpio1 18 0>;
+		shutdown-code=<0x0003006C>;	/* KEY_S + KEY_F3 */
+		shutdown-count=<25>;		/* 25 * 200mS = 5 secs */
+		status = "okay";
 
-        /* Output */
-        col-gpios = <
-            &gpio2 8  0
-            &gpio2 9  0
-            &gpio2 10 0
-            &gpio2 11 0
-            &gpio2 12 0
-        >;
+		/* Output */
+		col-gpios = <
+			&gpio2 8  0
+			&gpio2 9  0
+			&gpio2 10 0
+			&gpio2 11 0
+			&gpio2 12 0
+		>;
 
-        /* Input */
-        row-gpios = <
-            &gpio3 21 0
-            &gpio3 22 0
-            &gpio3 23 0
-            &gpio3 24 0
-        >;
+		/* Input */
+		row-gpios = <
+			&gpio3 21 0
+			&gpio3 22 0
+			&gpio3 23 0
+			&gpio3 24 0
+		>;
 
-        /* row << 24 | column << 16 | key-code */
-        linux,keymap = <
-            0x0000001F  /* KEY_S       (0)  */
-            0x0100003D  /* KEY_F3      (5)  */
-            0x02000041  /* KEY_F7      (10) */
-            0x03000023  /* KEY_H       (15) */
+		/* row << 24 | column << 16 | key-code */
+		linux,keymap = <
+			0x0000001F  /* KEY_S       (0)  */
+			0x0100003D  /* KEY_F3      (5)  */
+			0x02000041  /* KEY_F7      (10) */
+			0x03000023  /* KEY_H       (15) */
 
-            0x0001004E  /* KEY_KPPLUS  (1)  */
-            0x0101003E  /* KEY_F4      (6)  */
-            0x02010042  /* KEY_F8      (11) */
-            0x0301003C  /* KEY_F2      (16) */
+			0x0001004E  /* KEY_KPPLUS  (1)  */
+			0x0101003E  /* KEY_F4      (6)  */
+			0x02010042  /* KEY_F8      (11) */
+			0x0301003C  /* KEY_F2      (16) */
 
-            0x0002004A  /* KEY_KPMINUS (2)  */
-            0x0102003F  /* KEY_F5      (7)  */
-            0x02020043  /* KEY_F9      (12) */
-            0x0302003B  /* KEY_F1      (17) */
+			0x0002004A  /* KEY_KPMINUS (2)  */
+			0x0102003F  /* KEY_F5      (7)  */
+			0x02020043  /* KEY_F9      (12) */
+			0x0302003B  /* KEY_F1      (17) */
 
-            0x0003001C  /* KEY_ENTER   (3)  */
-            0x01030040  /* KEY_F6      (8)  */
-            0x0203006A  /* KEY_RIGHT   (13) */
-            0x03030002  /* KEY_1       (18) */
+			0x0003001C  /* KEY_ENTER   (3)  */
+			0x01030040  /* KEY_F6      (8)  */
+			0x0203006A  /* KEY_RIGHT   (13) */
+			0x03030002  /* KEY_1       (18) */
 
-            0x00040003  /* KEY_2       (4)  */
-            0x01040067  /* KEY_UP      (9)  */
-            0x0204006C  /* KEY_DOWN    (14) */
-            0x03040000  /* KEY_RESERVED     */
-        >;
-    };
+			0x00040003  /* KEY_2       (4)  */
+			0x01040067  /* KEY_UP      (9)  */
+			0x0204006C  /* KEY_DOWN    (14) */
+			0x03040000  /* KEY_RESERVED     */
+		>;
+	};
 
     working_hours {
         compatible = "working_hours";

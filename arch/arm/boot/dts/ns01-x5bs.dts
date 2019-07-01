@@ -20,10 +20,10 @@
 		i2c1 = &i2c3;
 		i2c2 = &i2c2;
 		i2c0 = &i2c4;
-		serial0 = &uart3;
+		serial0 = &uart1;
 		serial1 = &uart6;
 		serial2 = &uart5;
-		serial3 = &uart1;
+		serial3 = &uart4;
 		serial4 = &uart3;
 		serial5 = &uart2;
 		serial6 = &uart7;
@@ -33,7 +33,7 @@
 	};
 
 	chosen {
-		stdout-path = &uart3;
+		stdout-path = &uart1;
 	};
 
 	memory {
@@ -212,8 +212,8 @@
 	wlcore: wlcore@0 {
 		compatible = "ti,wl1837";
 		reg = <2>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
@@ -394,7 +394,9 @@
 				MX6UL_PAD_SD1_DATA2__USDHC1_DATA2 0x170F9
 				MX6UL_PAD_SD1_DATA3__USDHC1_DATA3 0x170F9
 				MX6UL_PAD_UART1_RTS_B__GPIO1_IO19 0x170F9 /* SD1 CD */
-				MX6UL_PAD_UART3_RTS_B__GPIO1_IO27 0x170F9 /* WIFI IRQ */
+				MX6UL_PAD_LCD_DATA02__GPIO3_IO07  0x170F9 /* WIFI IRQ */
+				//MX6UL_PAD_UART3_RTS_B__GPIO1_IO27 0x170F9 /* WIFI IRQ rev 1 */
+				MX6UL_PAD_GPIO1_IO05__GPIO1_IO05  0x170F9 /* Base Station Pairing Lamp */
 			>;
 		};
 
@@ -491,8 +493,8 @@
 
 		pinctrl_uart4: uart4grp {
 			fsl,pins = <
-				MX6UL_PAD_UART4_RX_DATA__UART4_DCE_RX	0x1b0b1
-				MX6UL_PAD_UART4_TX_DATA__UART4_DCE_TX	0x1b0b1
+				MX6UL_PAD_UART4_RX_DATA__UART4_DCE_RX	0x0001B0B1
+				MX6UL_PAD_UART4_TX_DATA__UART4_DCE_TX	0x0001B0B1
 			>;
 		};
 		

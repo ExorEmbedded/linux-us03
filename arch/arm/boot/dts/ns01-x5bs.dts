@@ -21,15 +21,11 @@
 		i2c2 = &i2c2;
 		i2c0 = &i2c4;
 		serial0 = &uart1;
-		serial1 = &uart6;
+		serial1 = &uart3;
 		serial2 = &uart5;
 		serial3 = &uart4;
-		serial4 = &uart3;
-		serial5 = &uart2;
-		serial6 = &uart7;
-		serial7 = &uart8;
+		serial4 = &uart6;
 		can0 = &can2;
-		can1 = &can1;
 	};
 
 	chosen {
@@ -144,10 +140,12 @@
 };
 
 &uart1 {
+	/* Internal/debug /dev/ttymxc0 */
 	status = "okay";
 };
 
 &uart3 {
+	/* X8 Connector /dev/ttymxc1 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
 	fsl,uart-has-rtscts;
@@ -158,6 +156,7 @@
 };
 
 &uart4 {
+	/* Safety board /dev/ttymxc2 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
 	fsl,uart-has-rtscts;
@@ -167,6 +166,7 @@
 };
 
 &uart5 {
+	/* Safety board /dev/ttymxc3 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
 	fsl,uart-has-rtscts;
@@ -176,6 +176,7 @@
 };
 
 &uart6 {
+	/* PlugIn /dev/ttymxc4 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart6>;
 	fsl,uart-has-rtscts;
@@ -411,10 +412,8 @@
 			>;
 		};
 
-		pinctrl_hog_1: hoggrp-1 {
+		pinctrl_hog_1: hoggrp {
 			fsl,pins = <
-				MX6UL_PAD_UART3_TX_DATA__GPIO1_IO24	0x17059 /* EN_VDD */
-				MX6UL_PAD_UART3_RX_DATA__GPIO1_IO25	0x17059 /* EN_BL */
 				MX6UL_PAD_NAND_DATA07__GPIO4_IO09	0x17059 /* CARD SLOT N (SDIO MUX) */
 				MX6UL_PAD_GPIO1_IO09__GPIO1_IO09	0x17059 /* WLAN EN */
 				MX6UL_PAD_LCD_DATA11__GPIO3_IO16	0x17059 /* PL_T_EN */	
@@ -514,7 +513,7 @@
 			>;
 		};
 		
-		pinctrl_ecspi3: ecspi1grp-3 {
+		pinctrl_ecspi3: ecspi3grp {
 			fsl,pins = <
 				MX6UL_PAD_NAND_CE1_B__ECSPI3_MOSI   0x10b0
 				MX6UL_PAD_NAND_CLE__ECSPI3_MISO     0x10b0

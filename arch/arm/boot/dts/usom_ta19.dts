@@ -71,6 +71,18 @@
 			gpio = <&gpio5 00 0>;
 			enable-active-high;
 		};
+		
+		reg_eth: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "reg_eth_rstout";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio7 12 0>;
+			enable-active-high;
+			regulator-boot-on;
+			regulator-always-on;
+		};
 	};
 
 	mxcfb1: fb@0 {
@@ -145,6 +157,7 @@
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rmii";
 	status = "okay";
+	phy-supply = <&reg_eth>;
 
 	phy-handle = <&ethphy>;
 	mdio {
@@ -359,6 +372,7 @@
  				MX6QDL_PAD_ENET_CRS_DV__ENET_RX_EN	0x1b0b1
  				MX6QDL_PAD_ENET_RXD0__ENET_RX_DATA0	0x1b0b1
  				MX6QDL_PAD_ENET_RXD1__ENET_RX_DATA1	0x1b0b1
+ 				MX6QDL_PAD_GPIO_17__GPIO7_IO12          0x0000b0b0
    				>;
 		};
 		

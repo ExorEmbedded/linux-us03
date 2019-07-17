@@ -81,8 +81,12 @@
  *1.26			GP							05/2019	    Updated the brightness_min field for ticket BSP-1559
  *1.27			GP							05/2019	    Updated the brightness_min field for ticket BSP-1559 on display code #65, #55
  *1.28			SS							17.06.2019  Added display code #70: Innolux G156HCE-L01 LVDS 24 bit 1920x1080 for serie jSMART
-
- * NEXT AVAILABLE DISPLAY CODE: 71
+ *1.29			SS							28.06.2019	Modified display code #51:Updated the brightness_min (0.07%) and PWM (6kHz) fields for ticket BSP-1559
+ *1.30			SS							11.07.2019	Modified display code #36: for AB19 display 10" G104AGE-L02
+ *												Modified display code #39: for AB19 display 15" G150XNE-L01
+ *1.31			GP							17.07.2019	Added display code #71 for the TA19 target (same as display code #63 but with 100% max. dimm)
+ *
+ * NEXT AVAILABLE DISPLAY CODE: 72
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -187,14 +191,14 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 20,
         .brightness_max = 100,
     },
-    /* 36: AUO G104SN02_V2 800x600*/
+    /* 36: Innolux G104AGE-L02 800x600 for AB19*/
     {
         .dispid    = 36,
         .rezx      = 800, 
         .rezy      = 600, 
         .bpp       = 16,
         
-        .pclk_freq = 41000, 
+        .pclk_freq = 36000, 
         .pclk_inv  = 1,
         
         .hs_fp     = 16, 
@@ -209,8 +213,8 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 10000,
-        .brightness_min = 5,
+        .pwmfreq        = 200,
+        .brightness_min = 2,
         .brightness_max = 100,
     },
     /* 37: Powertip 320x240 */
@@ -265,7 +269,7 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 5,
         .brightness_max = 100,
     },
-    /* 39: AUO G150XG01 1024x768*/
+    /* 39: Innolux G150XNE-L01 1024x768 for AB19*/
     {
         .dispid    = 39,
         .rezx      = 1024, 
@@ -287,8 +291,8 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 10000,
-        .brightness_min = 5,
+        .pwmfreq        = 200,
+        .brightness_min = 1,
         .brightness_max = 100,
     },
     /* 40: Innolux AT050TN33 480x272*/
@@ -599,8 +603,8 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 5000,
-        .brightness_min = 0x0D00,	/* BSP-1559 : Brightness min=0.13% */
+        .pwmfreq        = 6000,
+        .brightness_min = 0x0700,	/* BSP-1559 : Brightness min=0.07% */
         .brightness_max = 80,
     },  
     /* 52: Evervision VGG804806_PWM for ALTERA kit 800x480*/
@@ -1045,6 +1049,32 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 10,
         .brightness_max = 100,
     },                               
+    /* 71: FutureLabs FLC-101HML0000SA2 24 bit 1280x800 IMX.6 ONLY for TA19 */
+    {
+        .dispid    = 71,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 66600,         //03.10.2018 min freq to avoid green line
+        .pclk_inv  = 1,				//inverted clock polarity due to IMX.6 bug
+        
+        .hs_fp     = 12,            //24.01.2019 SS
+        .hs_bp     = 88,            //24.01.2019 SS
+        .hs_w      = 1,             //24.01.2019 SS
+        .hs_inv    = 0,
+        
+        .vs_fp     = 1,             //24.01.2019 SS
+        .vs_bp     = 23,            //24.01.2019 SS
+        .vs_w      = 1,             //24.01.2019 SS
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 10,
+        .brightness_max = 100,
+    },  
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

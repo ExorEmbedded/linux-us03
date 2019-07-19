@@ -328,6 +328,7 @@
 				MX6QDL_PAD_SD3_DAT4__GPIO7_IO01 0x0000b0b0  /* en_vdd */
 				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x0000b0b0   /* touch intr */
 				MX6QDL_PAD_CSI0_DAT13__GPIO5_IO31 0x0000b0b0 /* Light sensor IRQ */
+				MX6QDL_PAD_CSI0_DAT19__GPIO6_IO05 0x0000b0b0 /* Wifi Reset */
 				>;
 		};
 

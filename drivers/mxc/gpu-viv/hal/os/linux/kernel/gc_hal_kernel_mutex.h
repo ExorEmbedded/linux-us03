@@ -53,56 +53,37 @@
 *****************************************************************************/
 
 
-#ifndef __gc_hal_kernel_hardware_vg_h_
-#define __gc_hal_kernel_hardware_vg_h_
+#ifndef _gc_hal_kernel_mutex_h_
+#define _gc_hal_kernel_mutex_h_
 
-/* gckHARDWARE object. */
-struct _gckVGHARDWARE
-{
-    /* Object. */
-    gcsOBJECT                   object;
+#include "gc_hal.h"
+#include <linux/mutex.h>
 
-    /* Pointer to gckKERNEL object. */
-    gckVGKERNEL                 kernel;
+/* Create a new mutex. */
+#define gckOS_CreateMutex(Os, Mutex)                                \
+({                                                                  \
+    gceSTATUS _status;                                              \
+    gcmkHEADER_ARG("Os=0x%X", Os);                                  \
+                                                                    \
+    /* Validate the arguments. */                                   \
+    gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);                               \
+    gcmkVERIFY_ARGUMENT(Mutex != gcvNULL);                          \
+                                                                    \
+    /* Allocate the mutex structure. */                             \
+    _status = gckOS_Allocate(Os, gcmSIZEOF(struct mutex), Mutex);   \
+                                                                    \
+    if (gcmIS_SUCCESS(_status))                                     \
+    {                                                               \
+        /* Initialize the mutex. */                                 \
+        mutex_init(*(struct mutex **)Mutex);                        \
+    }                                                               \
+                                                                    \
+    /* Return status. */                                            \
+    gcmkFOOTER_ARG("*Mutex=0x%X", *(struct mutex **)Mutex);         \
+    _status;                                                        \
+})
 
-    /* Pointer to gckOS object. */
-    gckOS                       os;
-
-    /* Chip characteristics. */
-    gceCHIPMODEL                chipModel;
-    gctUINT32                   chipRevision;
-    gctUINT32                   chipFeatures;
-    gctUINT32                   chipMinorFeatures;
-    gctUINT32                   chipMinorFeatures2;
-    gctBOOL                     allowFastClear;
-
-    /* Features. */
-    gctBOOL                     fe20;
-    gctBOOL                     vg20;
-    gctBOOL                     vg21;
-
-    /* Event mask. */
-    gctUINT32                   eventMask;
-
-    gctBOOL                     clockState;
-    gctBOOL                     powerState;
-    gctPOINTER                  powerMutex;
-    gctUINT32                   powerProcess;
-    gctUINT32                   powerThread;
-    gceCHIPPOWERSTATE           chipPowerState;
-    gceCHIPPOWERSTATE           chipPowerStateGlobal;
-    gctISRMANAGERFUNC           startIsr;
-    gctISRMANAGERFUNC           stopIsr;
-    gctPOINTER                  isrContext;
-    gctPOINTER                  pageTableDirty;
-#if gcdPOWEROFF_TIMEOUT
-    gctUINT32                   powerOffTime;
-    gctUINT32                   powerOffTimeout;
-    gctPOINTER                  powerOffTimer;
 #endif
 
-    gctBOOL                     powerManagement;
-};
 
-#endif /* __gc_hal_kernel_hardware_h_ */
 

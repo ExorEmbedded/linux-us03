@@ -99,10 +99,11 @@ if (skb->len == 46)
 	if (!ds->ports[port].netdev)
 		goto out_drop;
 
+//printk(KERN_INFO "%s (4) %02X %d %p\n", __func__, hdr, port, ds->ports[port].netdev);
 	/* Update skb & forward the frame accordingly */
+	skb->dev = ds->ports[port].netdev;
 	skb_push(skb, ETH_HLEN);
 	skb->pkt_type = PACKET_HOST;
-	skb->dev = ds->ports[port].netdev;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
 	skb->dev->stats.rx_packets++;

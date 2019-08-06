@@ -215,16 +215,12 @@ kairos_sync(struct kairos_data *kairos, struct spi_message *message)
 		status = spi_async(kairos->spi, message);
 	spin_unlock_irq(&kairos->spi_lock);
 
-//printk(KERN_INFO "after spi-async %d\n",status);
-
 	if (status == 0) {
 		wait_for_completion(&done);
 		status = message->status;
-//printk(KERN_INFO "after wait_for_compeltion %d\n",status);
 		if (status == 0)
 			status = message->actual_length;
 	}
-//printk(KERN_INFO "returning %d\n",status);
 	return status;
 }
 
@@ -338,10 +334,8 @@ kairos_write(struct file *filp, struct kobject *kobj,
 	kairos = dev_get_drvdata(dev);
 
 	mutex_lock(&kairos->buf_lock);
-dev_info(&kairos->spi->dev, "kairos_write (1)\n");
 	missing = 0; //copy_from_user(kairos->tx_buffer, buf, count);
 	memcpy(kairos->tx_buffer, buf, count);
-dev_info(&kairos->spi->dev, "kairos_write (2 - %lu)\n", missing);
 	if (missing == 0) {
 		status = kairos_sync_write(kairos, count);
 	} else
@@ -463,7 +457,6 @@ static int kairos_reg_read(struct kairos_data* kairos, u8 module, u8 reg, u16* d
 	if (status <= 0)
 		return -EFAULT;
 
-printk(KERN_INFO "%s %02X %02X\n", __func__, kairos->rx_buffer[0], kairos->rx_buffer[1]);
 	tmp = kairos->rx_buffer[0];
 	tmp = (tmp << 8) | kairos->rx_buffer[1];
 
@@ -471,7 +464,7 @@ printk(KERN_INFO "%s %02X %02X\n", __func__, kairos->rx_buffer[0], kairos->rx_bu
 	return 0;
 }
 
-static int kairpos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data)
+static int kairos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data)
 {
 	kairos->tx_buffer[0] = module;
 	kairos->tx_buffer[1] = reg;
@@ -479,6 +472,7 @@ static int kairpos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 
 	kairos->tx_buffer[3] = (u8)(data & 0x00FF);
 
 	kairos_sync_write(kairos, 4);
+
 	return 0;
 }
 
@@ -507,39 +501,19 @@ static int kairos_pch_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	mutex_lock(&kairos->buf_lock);
 
 	// write negative bit
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_DRIFT;
-	kairos->tx_buffer[2] = neg_adj? 0x80 : 0x00;
-	kairos->tx_buffer[3] = 0x00;
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, neg_adj? 0x8000 : 0x0000);
 
 	// write (dummy)
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_DRIFT;
-	kairos->tx_buffer[2] = 0x00;
-	kairos->tx_buffer[3] = 0x00;
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, 0x0000);
 
 	// write (dummy)
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_DRIFT;
-	kairos->tx_buffer[2] = 0x00;
-	kairos->tx_buffer[3] = 0x00;
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, 0x0000);
 
 	// write addendH
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_DRIFT;
-	kairos->tx_buffer[2] = (u8)((addendH >> 8) & 0xFF);
-	kairos->tx_buffer[3] = (u8)(addendH & 0xFF);
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, addendH);
 
 	// write addendL
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_DRIFT;
-	kairos->tx_buffer[2] = (u8)((addendL >> 8) & 0xFF);
-	kairos->tx_buffer[3] = (u8)(addendL & 0xFF);
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, addendL);
 
 	mutex_unlock(&kairos->buf_lock);
 
@@ -572,39 +546,19 @@ static int kairos_pch_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	mutex_lock(&kairos->buf_lock);
 
 	// write negative bit
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_OFFSET;
-	kairos->tx_buffer[2] = neg_adj? 0x80 : 0x00;
-	kairos->tx_buffer[3] = 0x00;
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, neg_adj? 0x8000 : 0x0000);
 
 	// write nsVal
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_OFFSET;
-	kairos->tx_buffer[2] = 0x00;
-	kairos->tx_buffer[3] = nsVal;
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, nsVal);
 
 	// write interval
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_OFFSET;
-	kairos->tx_buffer[2] = 0x00;
-	kairos->tx_buffer[3] = 0x00;
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, 0x0000);
 
 	// write countH
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_OFFSET;
-	kairos->tx_buffer[2] = (u8)((countH >> 8) & 0xFF);
-	kairos->tx_buffer[3] = (u8)(countH & 0xFF);
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, countH);
 
 	// write countL
-	kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-	kairos->tx_buffer[1] = KAIROS_REG_PTP_OFFSET;
-	kairos->tx_buffer[2] = (u8)((countL >> 8) & 0xFF);
-	kairos->tx_buffer[3] = (u8)(countL & 0xFF);
-	kairos_sync_write(kairos, 4);
+	kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, countL);
 
 	mutex_unlock(&kairos->buf_lock);
 
@@ -628,16 +582,9 @@ static int kairos_pch_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	for (i=0; i<5; i++)
 	{
 		// read 
-		kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-		kairos->tx_buffer[1] = KAIROS_REG_PTP_CLK_RD;
-		kairos_sync_write(kairos, 2);
-
-		status = kairos_sync_read(kairos, 2);
+		status = kairos_reg_read(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_CLK_RD, &tmp);
 		if (status <= 0)
 			return -EFAULT;
-
-		tmp = kairos->rx_buffer[0];
-		tmp = (tmp << 8) | kairos->rx_buffer[1];
 
 		switch (i)
 		{
@@ -714,11 +661,7 @@ static int kairos_pch_settime(struct ptp_clock_info *ptp,
 		}
 
 		// write clock
-		kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-		kairos->tx_buffer[1] = KAIROS_REG_PTP_CLK_WR;
-		kairos->tx_buffer[2] = (u8)((tmp16 >> 8) & 0xFF);
-		kairos->tx_buffer[3] = (u8)(tmp16 & 0xFF);
-		kairos_sync_write(kairos, 4);
+		kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_CLK_WR, tmp16);
 	}
 
 	mutex_unlock(&kairos->buf_lock);
@@ -738,11 +681,7 @@ static int kairos_pch_enable(struct ptp_clock_info *ptp,
 			kairos->exts0_enabled = on ? 1 : 0;
 
 			// enable clock
-			kairos->tx_buffer[0] = KAIROS_MODULE_PTP;
-			kairos->tx_buffer[1] = KAIROS_REG_PTP_STATUS;
-			kairos->tx_buffer[2] = 0x50;
-			kairos->tx_buffer[3] = 0x00;
-			kairos_sync_write(kairos, 4);
+			kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_STATUS, 0x5000);
 			break;
 		case 1:
 			kairos->exts1_enabled = on ? 1 : 0;

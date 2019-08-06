@@ -12,6 +12,17 @@ extern ssize_t kairos_sync(struct kairos_data *kairos, struct spi_message *messa
 /*-------------------------------------------------------------------------*/
 int kairos_reg_read(struct kairos_data* kairos, u8 module, u8 reg, u16* data)
 {
+	int result;
+
+	mutex_lock(&kairos->buf_lock);
+	result = _kairos_reg_read(kairos, module, reg, data);
+	mutex_unlock(&kairos->buf_lock);
+
+	return result;
+}
+
+int _kairos_reg_read(struct kairos_data* kairos, u8 module, u8 reg, u16* data)
+{
 	u16 tmp;
 	int status;
 	struct spi_message	m;
@@ -64,6 +75,17 @@ int kairos_reg_read(struct kairos_data* kairos, u8 module, u8 reg, u16* data)
 
 int kairos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data)
 {
+	int result;
+
+	mutex_lock(&kairos->buf_lock);
+	result = _kairos_reg_write(kairos, module, reg, data);
+	mutex_unlock(&kairos->buf_lock);
+
+	return result;
+}
+
+int _kairos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data)
+{
 	int status;
 	struct spi_message	m;
 	struct spi_transfer* k_tmp;
@@ -74,6 +96,8 @@ int kairos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data)
 	kairos->tx_buffer[2] = (u8)((data >> 8) & 0x00FF);
 	kairos->tx_buffer[3] = (u8)(data & 0x00FF);
 
+	dev_dbg(&kairos->spi->dev, "%s reg %d.%02X value %04X --> %02X %02X %02X %02X\n", __func__, module, reg, data, kairos->tx_buffer[0], kairos->tx_buffer[1], kairos->tx_buffer[2], kairos->tx_buffer[3]);
+
 	spi_message_init(&m);
 
 	k_tmp = k_xfers;
@@ -81,6 +105,7 @@ int kairos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data)
 	k_tmp->len		= 4;
 	k_tmp->speed_hz	= kairos->speed_hz;
 
+#if 1
 	spi_message_add_tail(k_tmp, &m);
 
 	status = kairos_sync(kairos, &m);
@@ -89,6 +114,7 @@ int kairos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data)
 
 	if (status <= 0)
 		return -EINVAL;
+#endif
 
 	return 0;
 }
@@ -220,26 +246,39 @@ int kairos_reg_counter(struct kairos_data* kairos, int port, int counter, u32* v
     // compute counter select address
     csel = COUNTER_BASE_ADDRS[counter] + (port * 0x40);
 
-    result = kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_CSEL, csel);
+	mutex_lock(&kairos->buf_lock);
+
+    result = _kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_CSEL, csel);
     if (result != 0)
+    {
+		mutex_unlock(&kairos->buf_lock);
         return result;
+    }
 
     counterL = 0x0000;
-    result = kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_CRDL, &counterL);
+    result = _kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_CRDL, &counterL);
     if (result != 0)
+    {		
+    	mutex_unlock(&kairos->buf_lock);
         return result;
+    }
 
     counterH = 0x0000;
-    result = kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_CRDL, &counterH);
+    result = _kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_CRDH, &counterH);
     if (result != 0)
+    {
+		mutex_unlock(&kairos->buf_lock);
         return result;
+    }
+
+	mutex_unlock(&kairos->buf_lock);
 
     counterLong = counterH;
     counterLong = (counterLong << 16) | counterL;
 
     *value = counterLong;
 
-    return 0;
+    return KAIROS_ERR_OK;
 } 
 
 int kairos_check_enabled(struct kairos_data* kairos)
@@ -280,3 +319,64 @@ int kairos_check_enabled(struct kairos_data* kairos)
     return 1;
 } 
 
+static const u8 TIMESTAMP_BASE_ADDRS[] = 
+{
+	0x20,
+	0x1E,
+	0x28,
+	0x26
+};
+
+int kairos_read_timestamp(struct kairos_data* kairos, u8 port, u8 rx, ktime_t* ts)
+{
+	u16 secH, secM, secL;
+	u16 nsecH, nsecL;
+
+	u64 secs = 0;
+	u64 nsecs = 0;
+
+	u16* data[5] = { &secH, &secM, &secL, &nsecH, &nsecL };
+	u16 tmp;
+
+	u8 reg = TIMESTAMP_BASE_ADDRS[(port*2) + rx];
+
+	int i;
+	int result;
+
+	mutex_lock(&kairos->buf_lock);
+
+	// read status register
+	_kairos_reg_read(kairos, KAIROS_MODULE_PTP, reg-1, &tmp);
+	//dev_info(&kairos->spi->dev, "%s [reg %d]: 0x%04x\r\n", __func__, reg-1, tmp);
+
+	if (tmp & 0x0004)
+	{
+		for (i=0; i<5; i++)
+		{
+			result = _kairos_reg_read(kairos, KAIROS_MODULE_PTP, reg, data[i]);
+			if (result != KAIROS_ERR_OK)
+			{
+				mutex_unlock(&kairos->buf_lock);
+				return result;
+			}
+
+			//dev_info(&kairos->spi->dev, "%s [reg %d]: 0x%04x\r\n", __func__, reg, *data[i]);
+		}
+
+		secs = secH;
+		secs = (secs << 16) | secM;
+		secs = (secs << 16) | secL;
+
+		nsecs = nsecH;
+		nsecs = (nsecs << 16) | nsecL;
+	}
+	else
+	{
+		dev_err(&kairos->spi->dev, "%s [reg %d]: timestamp not available (0x%04X)\r\n", __func__, reg-1, tmp);
+	}
+
+	mutex_unlock(&kairos->buf_lock);
+	*ts = ktime_set(secs, nsecs);
+
+	return KAIROS_ERR_OK;
+}

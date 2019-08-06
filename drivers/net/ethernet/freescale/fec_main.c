@@ -766,6 +766,11 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (ret)
 		return ret;
 
+	if (fep->ext_cbs)
+	{
+		fep->ext_cbs->tx_start(skb, fep->ext_cbs->user_data);
+	}
+
 	entries_free = fec_enet_get_free_txdesc_num(txq);
 	if (entries_free <= txq->tx_stop_threshold)
 		netif_tx_stop_queue(nq);
@@ -1247,6 +1252,12 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id)
 			skb_tstamp_tx(skb, &shhwtstamps);
 		}
 
+		//AG
+		if (fep->ext_cbs)
+		{
+			fep->ext_cbs->tx_complete(skb, fep->ext_cbs->user_data);
+		}
+
 		/* Deferred means some collisions occurred during transmit,
 		 * but we eventually sent the packet OK.
 		 */
@@ -1473,6 +1484,11 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 		if (fep->hwts_rx_en && fep->bufdesc_ex)
 			fec_enet_hwtstamp(fep, fec32_to_cpu(ebdp->ts),
 					  skb_hwtstamps(skb));
+
+		if (fep->ext_cbs)
+		{
+			fep->ext_cbs->rx_complete(skb, fep->ext_cbs->user_data);
+		}
 
 		if (fep->bufdesc_ex &&
 		    (fep->csum_flags & FLAG_RX_CSUM_ENABLED)) {
@@ -3333,6 +3349,12 @@ fec_probe(struct platform_device *pdev)
 		pdev->id_entry = of_id->data;
 	fep->quirks = pdev->id_entry->driver_data;
 
+	if (of_get_property(np, "disable-vlan", NULL))
+	{
+		dev_err(&pdev->dev, "VLAN support will be disabled\n");
+		fep->quirks &= (~FEC_QUIRK_HAS_VLAN);
+	}
+
 	fep->netdev = ndev;
 	fep->num_rx_queues = num_rx_qs;
 	fep->num_tx_queues = num_tx_qs;
@@ -3643,6 +3665,12 @@ static int __maybe_unused fec_runtime_resume(struct device *dev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
 	return clk_prepare_enable(fep->clk_ipg);
+}
+
+void fec_ext_callbacks(struct net_device *ndev, struct fec_ext_callbacks* cbs)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	fep->ext_cbs = cbs;
 }
 
 static const struct dev_pm_ops fec_pm_ops = {

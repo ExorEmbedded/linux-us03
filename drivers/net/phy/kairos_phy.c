@@ -20,6 +20,7 @@
 
 #include "swphy.h"
 
+
 struct kairos_mdio_bus {
 	struct mii_bus *mii_bus;
 	struct list_head phys;
@@ -41,6 +42,7 @@ static struct kairos_mdio_bus platform_fmb = {
 };
 
 extern int kairos_link_status(struct dsa_switch* ds, u8 port);
+int kairos_enable_hwtstamp(struct dsa_switch* ds, struct ifreq *ifr);
 
 static void kairos_phy_update(struct kairos_phy *fp)
 {
@@ -58,7 +60,8 @@ static int kairos_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 	struct kairos_mdio_bus *fmb = bus->priv;
 	struct kairos_phy *fp;
 
-printk(KERN_INFO "%s addr %d reg %d\n", __func__, phy_addr, reg_num);
+//AG
+//printk(KERN_INFO "%s addr %d reg %d\n", __func__, phy_addr, reg_num);
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
 			struct fixed_phy_status state;
@@ -213,7 +216,8 @@ struct phy_device *kairos_phy_register(unsigned int irq,
 	int phy_addr;
 	int ret;
 
-printk(KERN_INFO "%s\n", __func__);
+//AG
+//printk(KERN_INFO "%s\n", __func__);
 	if (!fmb->mii_bus || fmb->mii_bus->state != MDIOBUS_REGISTERED)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -290,21 +294,24 @@ EXPORT_SYMBOL_GPL(kairos_phy_bus);
 
 static int kairos_phy_probe(struct phy_device *phydev)
 {
-printk(KERN_INFO "%s\n", __func__);
+//AG	
+//printk(KERN_INFO "%s\n", __func__);
 	return 0;
 }
 
 static int kairos_phy_aneg_done(struct phy_device *phydev)
 {
 	int result = genphy_config_aneg(phydev);
-printk(KERN_INFO "%s %d\n", __func__, result);
+//AG
+//printk(KERN_INFO "%s %d\n", __func__, result);
 	return 1;
 }
 
 static int kairos_phy_config_init(struct phy_device *phydev)
 {
 	int result = genphy_config_init(phydev);
-printk(KERN_INFO "%s %d\n", __func__, result);
+//AG
+//printk(KERN_INFO "%s %d\n", __func__, result);
 	return result;
 }
 
@@ -328,7 +335,6 @@ static int kairos_phy_read_status(struct phy_device *phydev)
 
 int kairos_phy_ts_info(struct phy_device *phydev, struct ethtool_ts_info *ti)
 {
-	printk(KERN_INFO "%s\n", __func__);
 	ti->so_timestamping =
 				SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_TX_SOFTWARE |
@@ -343,19 +349,37 @@ int kairos_phy_ts_info(struct phy_device *phydev, struct ethtool_ts_info *ti)
 
 int kairos_phy_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 {
-	printk(KERN_INFO "%s\n", __func__);
-	return 0;
+	int result = 0;
+	struct kairos_mdio_bus *fmb = &platform_fmb;
+	struct kairos_phy *fp;
+
+//AG
+//printk(KERN_INFO "%s\n", __func__);
+
+	if (!phydev || !phydev->mdio.bus)
+		return -EINVAL;
+
+	list_for_each_entry(fp, &fmb->phys, node) {
+		if (fp->addr == phydev->mdio.addr) {
+			result = kairos_enable_hwtstamp(fp->ds, ifr);
+			break;
+		}
+	}
+
+	return result;
 }
 
 bool kairos_phy_rxtstamp(struct phy_device *dev, struct sk_buff *skb, int type)
 {
-	printk(KERN_INFO "%s\n", __func__);
+//AG never called??
+//printk(KERN_INFO "%s\n", __func__);
 	return true;
 }
 
 void kairos_phy_txtstamp(struct phy_device *dev, struct sk_buff *skb, int type)
 {
-	printk(KERN_INFO "%s\n", __func__);
+//AG never called??
+//printk(KERN_INFO "%s\n", __func__);
 }
 
 

@@ -18,6 +18,9 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
 
+#include <linux/fec_ext.h>
+
+
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM)
 /*
@@ -576,6 +579,8 @@ struct fec_enet_private {
 	unsigned int next_counter;
 
 	u64 ethtool_stats[0];
+
+	struct fec_ext_callbacks* ext_cbs;
 };
 
 void fec_ptp_init(struct platform_device *pdev);

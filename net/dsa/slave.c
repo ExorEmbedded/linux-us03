@@ -362,7 +362,6 @@ static int dsa_slave_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-printk(KERN_INFO "%s %p\n", __func__, p->phy);
 	if (p->phy != NULL)
 		return phy_mii_ioctl(p->phy, ifr, cmd);
 
@@ -1052,7 +1051,8 @@ static void dsa_slave_adjust_link(struct net_device *dev)
 	struct dsa_switch *ds = p->parent;
 	unsigned int status_changed = 0;
 
-printk(KERN_INFO "%s \n", __func__);
+//AG
+//printk(KERN_INFO "%s \n", __func__);
 
 	if (p->old_link != p->phy->link) {
 		status_changed = 1;
@@ -1081,8 +1081,6 @@ static int dsa_slave_fixed_link_update(struct net_device *dev,
 {
 	struct dsa_slave_priv *p;
 	struct dsa_switch *ds;
-
-printk(KERN_INFO "%s \n", __func__);
 
 	if (dev) {
 		p = netdev_priv(dev);

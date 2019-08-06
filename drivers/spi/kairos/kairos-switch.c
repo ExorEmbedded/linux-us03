@@ -1,4 +1,6 @@
 
+#include <linux/net_tstamp.h>
+
 #include "kairos.h"
 #include "kairos-regs.h"
 
@@ -45,6 +47,19 @@ static int kairos_switch_setup_global(struct dsa_switch* ds, bool enable)
 		return -EINVAL;
 
 	dev_info(&kairos->spi->dev, "setting up switch...");
+
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_CTRL, 0x0001);
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_DAT, 0x0101);
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_CMD, 0x8104);
+
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_DAT, 0x3300);
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_CMD, 0x8100);
+
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_DAT, 0x0101);
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_CMD, 0x8204);
+
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_DAT, 0x3300);
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_CMD, 0x8200);
 
     /* value for Control Status register */
     if (enable)
@@ -156,6 +171,22 @@ static int kairos_switch_setup_global(struct dsa_switch* ds, bool enable)
         return -1;
     }
 
+    data = 0x0022;
+    if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PSEL, data))
+    {
+		dev_err(&kairos->spi->dev, "error writing register (14)");
+        return -1;
+    }
+
+    /*
+    data = 0x0000;
+    if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PTPRCFG, data))
+    {
+		dev_err(&kairos->spi->dev, "error writing register (15)");
+        return -1;
+    }
+    */
+
     for (port = 0; port <= TSN_PER_XSEL_PORT_MAX_VALUE; port++) {
         for (prio = 0; prio <= TSN_PER_XSEL_PRIO_MAX_VALUE; prio++) {
             kairos->shadow_max_sdu[port][prio] = TSN_MAXSDU_DEFVAL;
@@ -197,8 +228,6 @@ static int kairos_switch_reset(struct dsa_switch *ds)
 	kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_GPIOA_TRIS, 0x0001);
 	kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_GPIOB_TRIS, 0x0001);
 
-	dev_info(&kairos->spi->dev, "%llu - reset is LOW", ktime_get_ns());
-
 	// minimum reset pulse width
 	usleep_range(20000, 30000);
 
@@ -206,15 +235,11 @@ static int kairos_switch_reset(struct dsa_switch *ds)
 	kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_GPIOA_OUT, 0x0001);
 	kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_GPIOB_OUT, 0x0001);
 
-	dev_info(&kairos->spi->dev, "%llu - reset is HIGH", ktime_get_ns());
-
 	// wait for stable clock
 	usleep_range(200000, 300000);
 
 	// enable ports
 	kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_PORTEN, 0x0003);
-
-	dev_info(&kairos->spi->dev, "%llu - ports are ENABLED", ktime_get_ns());
 
 	dev_info(&kairos->spi->dev, "switch reset completed");
 	return 0;
@@ -230,6 +255,56 @@ int kairos_link_status(struct dsa_switch* ds, u8 port)
 	kairos_reg_read(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_LINK, &data);
 
 	return (data & mask)? 1 : 0;
+}
+
+int kairos_enable_hwtstamp(struct dsa_switch* ds, struct ifreq *ifr)
+{
+	u16 data;
+	struct hwtstamp_config config;
+	struct kairos_data* kairos = (struct kairos_data*)ds->priv;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	/* reserved for future extensions */
+	if (config.flags)
+		return -EINVAL;
+
+	switch (config.tx_type) {
+	case HWTSTAMP_TX_OFF:
+		kairos->hw_tx_tstamp_on = 0;
+		break;
+	case HWTSTAMP_TX_ON:
+		kairos->hw_tx_tstamp_on = 1;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (config.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		kairos->hw_rx_tstamp_on = 0;
+		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		break;
+
+	default:
+		kairos->hw_rx_tstamp_on = 1;
+		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		break;
+	}
+
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+	    return -EFAULT;
+
+	data = 0x0000;
+	if (kairos->hw_tx_tstamp_on)
+		data |= 0x4000;
+	if (kairos->hw_rx_tstamp_on)
+		data |= 0x8000;
+
+	dev_dbg(&kairos->spi->dev, "enabling timestamping (value: 0x%04X)", data);
+	kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_TR_ITSCTL, data);
+	return 0;
 }
 
 static enum dsa_tag_protocol kairos_get_tag_protocol(struct dsa_switch *ds)
@@ -348,31 +423,120 @@ static int kairos_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val
 	return 0xffff;
 }
 
+extern int _kairos_pch_gettime(struct kairos_data* kairos, struct timespec64 *ts);
+void kairos_netdev_tx_start(struct sk_buff* skb, void* user_data)
+{
+#if 0
+	struct kairos_data* kairos = (struct kairos_data*)user_data;
+
+	if (!kairos)
+		return;
+
+printk(KERN_INFO "%s (1) len %d flags %X\n", __func__, skb->len, skb_shinfo(skb)->tx_flags);
+	if ((unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) && kairos->hw_tx_tstamp_on)
+	{
+		struct timespec64 ts;
+		struct skb_shared_hwtstamps hwtstamps;
+
+		memset(&hwtstamps, 0, sizeof(hwtstamps));
+		_kairos_pch_gettime(kairos, &ts);
+
+		hwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
+printk(KERN_INFO "%s (2) ts %llu\n", __func__, hwtstamps.hwtstamp.tv64);
+
+		skb_tx_timestamp(skb);
+		skb_tstamp_tx(skb, &hwtstamps);
+		skb_shinfo(skb)->tx_flags &= (~SKBTX_IN_PROGRESS);
+
+		kairos->tx_skb = skb;
+	}
+#endif	
+}
+
+void kairos_netdev_tx_complete(struct sk_buff* skb, void* user_data)
+{
+#if 0
+	struct kairos_data* kairos = (struct kairos_data*)user_data;
+
+	if (!kairos)
+		return;
+
+printk(KERN_INFO "%s (1) len %d flags %X\n", __func__, skb->len, skb_shinfo(skb)->tx_flags);
+	//if ((unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) && kairos->hw_tx_tstamp_on)
+	if (kairos->hw_tx_tstamp_on)
+	{
+		struct skb_shared_hwtstamps hwtstamps;
+
+		memset(&hwtstamps, 0, sizeof(hwtstamps));
+		kairos_read_timestamp(kairos, 0, 0, &hwtstamps.hwtstamp);
+		if (hwtstamps.hwtstamp.tv64 == 0)
+		{
+			struct timespec64 ts;
+			_kairos_pch_gettime(kairos, &ts);
+
+			hwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
+printk(KERN_INFO "%s (2) ts %llu\n", __func__, hwtstamps.hwtstamp.tv64);
+		}
+else printk(KERN_INFO "%s (3) ts %llu\n", __func__, hwtstamps.hwtstamp.tv64);
+
+		skb_tstamp_tx(skb, &hwtstamps);
+		skb_shinfo(skb)->tx_flags &= (~SKBTX_IN_PROGRESS);
+		
+		//dev_kfree_skb_any(skb);
+		kairos->tx_skb = NULL;
+	}
+#endif
+}
+
+void kairos_netdev_rx_complete(struct sk_buff* skb, void* user_data)
+{
+#if 0
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct kairos_data* kairos = (struct kairos_data*)user_data;
+
+	if (!kairos)
+		return;
+
+	if (kairos->hw_rx_tstamp_on)
+	{
+		/*
+//printk(KERN_INFO "%s ts: %d\n", __func__, kairos->hw_rx_tstamp_on);
+		shhwtstamps = skb_hwtstamps(skb);
+
+		memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+		kairos_read_timestamp(kairos, 0, 1, &shhwtstamps->hwtstamp);
+
+		if (shhwtstamps->hwtstamp.tv64 == 0)
+		*/
+		{
+			struct timespec64 ts;
+			_kairos_pch_gettime(kairos, &ts);
+
+			shhwtstamps->hwtstamp.tv64 = timespec64_to_ns(&ts);
+		}
+
+//printk(KERN_INFO "%s len: %d ts: %d (2) %llu\n", __func__, skb->len, kairos->hw_rx_tstamp_on, shhwtstamps->hwtstamp.tv64);
+	}
+#endif	
+}
+
 static void kairos_adjust_link(struct dsa_switch *ds, int port,
 				struct phy_device *phydev)
 {
 	struct kairos_data* kairos = (struct kairos_data*)ds->priv;
 	struct net_device* netdev = kairos_get_netdev(ds);
 
-printk(KERN_INFO "kairos switch adjust link port %d %p %p", port, kairos, netdev);
-//	dev_info(&netdev->dev, "kairos switch adjust link port %d", port);
-
-	/*
-	if (!kairos->ptp_clocks[port])
+printk(KERN_INFO "kairos switch adjust link port %d %p %p\n", port, kairos, netdev);
+	if (netdev)
 	{
-		// add PHC devices
-		kairos->caps = kairos_pch_caps;
-		kairos->ptp_clocks[port] = ptp_clock_register(&kairos->caps, ds->dev);
-		if (IS_ERR(kairos->ptp_clocks[port])) 
-		{
-			dev_err(ds->dev, "error creating pch device: %ld\n", PTR_ERR(kairos->ptp_clocks[port]));
-		}
-		else
-		{
-			dev_info(ds->dev, "pch device ptp%d created\n", ptp_clock_index(kairos->ptp_clocks[port]));
-		}
+		dev_info(&netdev->dev, "kairos switch: registering PTP support");
+		kairos->fec_cbs.tx_start = kairos_netdev_tx_start;
+		kairos->fec_cbs.tx_complete = kairos_netdev_tx_complete;
+		kairos->fec_cbs.rx_complete = kairos_netdev_rx_complete;
+		kairos->fec_cbs.user_data = kairos;
+
+		fec_ext_callbacks(netdev, &kairos->fec_cbs);
 	}
-	*/
 }
 
 static void	kairos_fixed_link_update(struct dsa_switch *ds, int port,
@@ -458,8 +622,6 @@ static void	kairos_get_strings(struct dsa_switch *ds, int stringset, uint8_t *da
 {
 	int i;
 
-printk(KERN_INFO "%s %d\n", __func__, stringset);
-
 	for (i = 0; i < KAIROS_NUM_COUNTERS; i++) {
 		memcpy(data, COUNTER_INFOS[i].name, ETH_GSTRING_LEN);
 		data += ETH_GSTRING_LEN;
@@ -486,7 +648,6 @@ static void kairos_get_ethtool_stats(struct dsa_switch *ds,
 
 static int kairos_get_sset_count(struct dsa_switch *ds)
 {
-printk(KERN_INFO "%s %d\n", __func__, KAIROS_NUM_COUNTERS);
 	return KAIROS_NUM_COUNTERS;
 }
 

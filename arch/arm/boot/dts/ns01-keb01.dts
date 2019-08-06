@@ -349,6 +349,7 @@
 	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rmii";
 	status = "okay";
+	disable-vlan;
 
 	fixed-link {
 		speed = <100>;

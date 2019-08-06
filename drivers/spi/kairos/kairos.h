@@ -7,6 +7,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
+#include <linux/fec_ext.h>
 
 // PTP support
 #include <linux/ptp_clock_kernel.h>
@@ -101,9 +102,17 @@ struct kairos_data {
 	struct dsa_switch* ds;
 	int sw_addr;
 
+	u8 hw_tx_tstamp_on;
+	u8 hw_rx_tstamp_on;
+
 	u16 shadow_regs[TSN_SHADOW_LAST];
 	u16 shadow_max_sdu[TSN_FPGA_PER_XSEL_PORT_MAX_VALUE+1][TSN_FPGA_PER_XSEL_PRIO_MAX_VALUE+1];
 
+	struct fec_ext_callbacks fec_cbs;
+	struct sk_buff* tx_skb;
+
+	struct timespec64 abs_time;
+	struct timespec64 last_ts;
 };
 
 /*
@@ -122,7 +131,9 @@ struct kairos_ptp_operation {
 
 
 int kairos_reg_read(struct kairos_data* kairos, u8 module, u8 reg, u16* data);
+int _kairos_reg_read(struct kairos_data* kairos, u8 module, u8 reg, u16* data);
 int kairos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data);
+int _kairos_reg_write(struct kairos_data* kairos, u8 module, u8 reg, u16 data);
 
 int kairos_check_enabled(struct kairos_data* kairos);
 
@@ -133,6 +144,7 @@ u16 kairos_status(struct kairos_data* kairos);
 int kairos_ptp_init(struct kairos_data* kairos);
 int kairos_switch_init(struct kairos_data* kairos);
 
+int kairos_read_timestamp(struct kairos_data* kairos, u8 port, u8 rx, ktime_t* ts);
 
 /*
  * Counter

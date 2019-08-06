@@ -24,6 +24,9 @@
 #define KAIROS_REG_GR_GPIOB_OUT 0x1F
 #define KAIROS_REG_GR_GPIOB_IN  0x20
 #define KAIROS_REG_GR_GPIOB_TRIS 0x21
+#define KAIROS_REG_GR_SMI_CTRL 0x23
+#define KAIROS_REG_GR_SMI_CMD  0x24
+#define KAIROS_REG_GR_SMI_DAT  0x25
 
 #define GET_YEAR(x)     ((x & 0xFC000000) >> 26)
 #define GET_MONTH(x)    ((x & 0x03C00000) >> 24)
@@ -99,6 +102,7 @@
 #define KAIROS_REG_TR_PLRD2        0xD0
 #define KAIROS_REG_TR_PLCTRL       0xD1
 #define KAIROS_REG_TR_PLMASKS      0xD2
+#define KAIROS_REG_TR_ITSCTL       0xD5
 
 /* Register: Module ID */
 #define TSN_TSN_FUNCTYPE						0x0013
@@ -195,11 +199,15 @@
 #define TSN_GATE_EN                             0x0001
 
 
+#define KAIROS_REG_PTP_SETTINGS 0x09
+#define KAIROS_REG_PTP_STATUS1 	0x0B
 #define KAIROS_REG_PTP_STATUS	0x0C
 #define KAIROS_REG_PTP_CLK_RD	0x0D
 #define KAIROS_REG_PTP_CLK_WR	0x0E
 #define KAIROS_REG_PTP_OFFSET	0x0F
 #define KAIROS_REG_PTP_DRIFT	0x10
+#define KAIROS_REG_PTP_FREE_DATA 0x12
+#define KAIROS_REG_PTP_SYNC_DATA 0x16
 
 #define REG_PR_SS_FREE_DATA     0x12
 #define REG_PR_SS_SYNT_DATA     0x14

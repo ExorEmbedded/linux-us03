@@ -17,6 +17,14 @@
 / {
 	model = "eTOPxx i.MX8MM US04 board";
 	compatible = "fsl,imx8mm-evk", "fsl,imx8mm";
+	
+	working_hours {
+	  compatible = "working_hours";
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
+	  backlight = <&backlight0>;
+	  status = "okay";
+	};	
 };
 
 &backlight0 {

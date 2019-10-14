@@ -61,6 +61,18 @@
 	};
 };
 
+&uart1 { /* Main UART */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	rts-gpio = <&gpio1 1 0>;
+	mode-gpio = <&gpio1 0 0>;
+	rxen-gpio = <&gpio1 3 0>;
+	status = "okay";
+};
+
 &iomuxc {
 	imx8mm-evk {
 		pinctrl_pwm3: pwm3grp {
@@ -86,6 +98,18 @@
 				MX8MM_IOMUXC_ENET_RXC_ENET1_RGMII_RXC	0x91
 				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x91
 				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x1f
+			>;
+		};
+		
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI2_RXFS_UART1_TX	    0x140
+				MX8MM_IOMUXC_SAI2_RXC_UART1_RX	    0x140
+				MX8MM_IOMUXC_SAI2_RXD0_UART1_RTS_B	0x140
+				MX8MM_IOMUXC_SAI2_TXFS_UART1_CTS_B	0x140
+				MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3   0x11
+				MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1   0x11
+				MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0   0x11
 			>;
 		};
 	};

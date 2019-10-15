@@ -25,6 +25,42 @@
 	  backlight = <&backlight0>;
 	  status = "okay";
 	};	
+
+	plxx0: plugin0 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio1 7 0>;
+	  index = <0>;
+	  status = "okay";
+	};	
+	
+	plxx1: plugin1 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio1 4 0>;
+	  index = <1>;
+	  status = "okay";
+	};	
+	
+	plxx2: plugin2 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio4 7 0>;
+	  index = <2>;
+	  status = "okay";
+	};	
+	
+	plxx3: plugin3 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio1 8 0>;
+	  index = <3>;
+	  status = "okay";
+	};	
 };
 
 &backlight0 {
@@ -47,6 +83,16 @@
         compatible = "atmel,24c02";
         reg = <0x56>;
     };
+    
+	plxxseeprom:seeprom1@57 {
+		compatible = "atmel,24c02";
+		reg = <0x57>;
+	};
+
+	plxxioexp:ioexp1@41 {
+		compatible = "atmel,24c02";
+		reg = <0x41>;
+	};    
 };
 
 &fec1 {
@@ -82,7 +128,19 @@
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog &pinctrl_hog2>;
+
 	imx8mm-evk {
+		pinctrl_hog2: hoggrp-2 {
+			fsl,pins = <
+                MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7      0x1c4
+                MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4      0x1c4
+                MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8      0x1c4
+                MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7       0x1c4
+			>;
+		};
+
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
                 MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4

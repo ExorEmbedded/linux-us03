@@ -31,7 +31,7 @@
     
 	chosen {
 		bootargs = "console=ttymxc0,115200 earlycon=ec_imx6q,0x30860000,115200";
-		stdout-path = &uart2;
+		stdout-path = &uart1;
 	};
 
 	clkcan20m: clk20m {

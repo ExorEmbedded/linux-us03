@@ -1136,8 +1136,12 @@ int sec_mipi_dsim_check_pll_out(void *driver_private,
 
 	dsim->pix_clk = DIV_ROUND_UP_ULL(pix_clk, 1000);
 	dsim->bit_clk = DIV_ROUND_UP_ULL(bit_clk, 1000);
-
+	
+	//TODO!!! Need to implement more precise pms dynamic computation, based on the required MIPI DSI clock freq.
 	dsim->pms = 0x4210;
+	if(bit_clk < 300000000)
+		dsim->pms = 0x4211;
+		
 	dsim->hpar = NULL;
 	if (dsim->panel)
 		return 0;

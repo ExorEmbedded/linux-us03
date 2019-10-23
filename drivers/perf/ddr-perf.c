@@ -470,7 +470,9 @@ static int ddr_perf_probe(struct platform_device *pdev)
 
 	pmu->devtype = (struct fsl_ddr_devtype_data *)of_id->data;
 
+	preempt_disable();
 	cpumask_set_cpu(smp_processor_id(), &pmu->cpu);
+	preempt_enable();
 	ret = perf_pmu_register(&(pmu->pmu), name, -1);
 	if (ret)
 		goto ddr_perf_err;

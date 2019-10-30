@@ -18,6 +18,11 @@
 	model = "eTOPxx i.MX8MM US04 board";
 	compatible = "fsl,imx8mm-evk", "fsl,imx8mm";
 	
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm1 0 50000 0>;
+	};
+	
 	working_hours {
 	  compatible = "working_hours";
 	  nvmem-names = "eeprom", "rtcnvram";
@@ -70,6 +75,12 @@
     default-brightness-level = <25>;
     enable-gpios = <&gpio5 5 0>;
     status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
 };
 
 &pwm3 {
@@ -134,17 +145,23 @@
 	imx8mm-evk {
 		pinctrl_hog2: hoggrp-2 {
 			fsl,pins = <
-                MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7      0x1c4
-                MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4      0x1c4
-                MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8      0x1c4
-                MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7       0x1c4
+				MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7      0x1c4
+				MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4      0x1c4
+				MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8      0x1c4
+				MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7       0x1c4
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
 			>;
 		};
 
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
-                MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
-                MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
+				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
 			>;
 		};
 

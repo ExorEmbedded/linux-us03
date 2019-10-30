@@ -4276,7 +4276,7 @@ static const struct file_operations fec_agring_fops = {
   .read    = NULL,
   .poll    = NULL,
   .write   = NULL,
-  .unlocked_ioctl = fec_agring_ioctl,
+  .compat_ioctl = fec_agring_ioctl,
   .open    = fec_agring_open,
   .release = fec_agring_close,
   .fasync  = NULL,
@@ -4309,8 +4309,6 @@ static long fec_agring_ioctl(struct file* f, unsigned int ioctl_num, unsigned lo
 	unsigned int tx_len;
 	unsigned int rx_idx;
 	int rc = SUCCESS;
-
-	debug_printk(6, "ioctl_num: %04X, ioctl_param %lu\n", ioctl_num, ioctl_param);
 
 	/* Switch according to the ioctl called */
 	switch (ioctl_num) 

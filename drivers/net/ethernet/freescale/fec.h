@@ -21,8 +21,6 @@
 #include <linux/timecounter.h>
 
 #define HAVE_AG_RING
-//#define HAVE_AG_RING_DMA
-//#define HAVE_AG_RING_MULTI
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
@@ -408,8 +406,8 @@ struct bufdesc_ex {
 #define FEC_ITR_EN		(0x1 << 31)
 #define FEC_ITR_ICFT(X)		(((X) & 0xff) << 20)
 #define FEC_ITR_ICTT(X)		((X) & 0xffff)
-#define FEC_ITR_ICFT_DEFAULT	200  /* Set 200 frame count threshold */
-#define FEC_ITR_ICTT_DEFAULT	1000 /* Set 1000us timer threshold */
+#define FEC_ITR_ICFT_DEFAULT	20  /* Set 20 frame count threshold */
+#define FEC_ITR_ICTT_DEFAULT	100 /* Set 100us timer threshold */
 
 #define FEC_VLAN_TAG_LEN	0x04
 #define FEC_ETHTYPE_LEN		0x02
@@ -681,14 +679,8 @@ struct fec_enet_private {
 		struct task_struct* defer_thread;
 		struct mutex tx_mutex;
 
-#ifdef HAVE_AG_RING_DMA
-		dma_addr_t* rx_dmas;
-		dma_addr_t* tx_dmas;
-#else
 		u_char* tx_ptr;
 		u_char* rx_ptr;
-#endif
-
 	} agring;
 #endif	
 };

@@ -1151,6 +1151,11 @@ fec_restart(struct net_device *ndev)
 	if (fep->quirks & FEC_QUIRK_HAS_RACC) {
 		val = readl(fep->hwp + FEC_RACC);
 		/* align IP header */
+#ifdef HAVE_AG_RING
+		if (enable_agrings && fec_agring_is_active(fep))
+			val &= ~FEC_RACC_SHIFT16;
+		else
+#endif			
 		val |= FEC_RACC_SHIFT16;
 		if (fep->csum_flags & FLAG_RX_CSUM_ENABLED)
 			/* set RX checksum */

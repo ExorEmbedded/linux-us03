@@ -46,6 +46,10 @@ int dispid_get_videomode(struct videomode* vm, int dispid)
 	vm->vfront_porch = displayconfig[i].vs_fp;
 	vm->vsync_len    = displayconfig[i].vs_w;
 	vm->pixelclock = 1000 * displayconfig[i].pclk_freq;
+	
+	// Clamp min val of hsync_len 
+	if(vm->hsync_len < 8)
+		vm->hsync_len = 8;
 
 	vm->flags = 0;
 	if(displayconfig[i].hs_inv == 0)

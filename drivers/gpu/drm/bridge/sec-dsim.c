@@ -396,6 +396,41 @@ static const struct dsim_pll_pms pll_pms[] = {
 	{ DSIM_PLL_PMS(162162, 3, 72, 2), },
 };
 
+static const struct dsim_pll_pms pll_pms_table[] = {
+	{ DSIM_PLL_PMS(430000, 9, 600, 2), },
+	{ DSIM_PLL_PMS(456000, 9, 608, 2), },
+	{ DSIM_PLL_PMS(199200, 2, 118, 3), },
+	{ DSIM_PLL_PMS(180000, 3, 160, 3), },
+	{ DSIM_PLL_PMS(306000, 3, 136, 2), },
+	{ DSIM_PLL_PMS(402000, 9, 536, 2), },
+	{ DSIM_PLL_PMS(162000, 2,  96, 3), },
+};
+
+static const struct dsim_pll_pms* calculate_best_pms(uint64_t bit_clk)
+{
+	int i;
+	int best_i = 0;
+	const struct dsim_pll_pms *pms;
+	uint64_t min_err = 999999;
+	uint64_t err;
+
+	for (i = 0; i < ARRAY_SIZE(pll_pms_table); i++)
+	{
+		pms = &pll_pms_table[i];
+		
+		err = abs(bit_clk - pms->bit_clk);
+		if(err < min_err)
+		{
+			min_err = err;
+			best_i = i;
+		}
+	}
+	
+	pms = &pll_pms_table[best_i];
+	printk("*** %s required bit_clk=%lld  adjusted bit_clk=%lld \n", __func__, bit_clk, pms->bit_clk);  
+	return pms;
+}
+
 static const struct dsim_hblank_par *sec_mipi_dsim_get_hblank_par(const char *name,
 								  int vrefresh,
 								  int lanes)
@@ -886,22 +921,21 @@ static void sec_mipi_dsim_set_main_mode(struct sec_mipi_dsim *dsim)
 	bpp = mipi_dsi_pixel_format_to_bpp(dsim->format);
 
 	/* calculate hfp & hbp word counts */
-	if (dsim->panel || !dsim->hpar) {
-		hfp_wc = vmode->hfront_porch * (bpp >> 3);
-		hbp_wc = vmode->hback_porch * (bpp >> 3);
+	if (!dsim->hpar) {
+		hfp_wc = 1;
+		hbp_wc = 1;
 	} else {
 		hfp_wc = dsim->hpar->hfp_wc;
 		hbp_wc = dsim->hpar->hbp_wc;
 	}
 
-	mhporch |= MHPORCH_SET_MAINHFP(hfp_wc) |
-		   MHPORCH_SET_MAINHBP(hbp_wc);
+	mhporch |= MHPORCH_SET_MAINHFP(hfp_wc) |  MHPORCH_SET_MAINHBP(hbp_wc);
 
 	dsim_write(dsim, mhporch, DSIM_MHPORCH);
 
 	/* calculate hsa word counts */
-	if (dsim->panel || !dsim->hpar)
-		hsa_wc = vmode->hsync_len * (bpp >> 3);
+	if (!dsim->hpar)
+		hsa_wc = 1;
 	else
 		hsa_wc = dsim->hpar->hsa_wc;
 
@@ -1072,8 +1106,8 @@ static void sec_mipi_dsim_config_clkctrl(struct sec_mipi_dsim *dsim)
 
 	clkctrl |= CLKCTRL_TXREQUESTHSCLK;
 
-	/* using 1.5Gbps PHY */
-	clkctrl |= CLKCTRL_DPHY_SEL_1P5G;
+	/* using 1.0 Gbps PHY */
+	clkctrl |= CLKCTRL_DPHY_SEL_1G;
 
 	clkctrl |= CLKCTRL_ESCCLKEN;
 
@@ -1137,10 +1171,9 @@ int sec_mipi_dsim_check_pll_out(void *driver_private,
 	dsim->pix_clk = DIV_ROUND_UP_ULL(pix_clk, 1000);
 	dsim->bit_clk = DIV_ROUND_UP_ULL(bit_clk, 1000);
 	
-	//TODO!!! Need to implement more precise pms dynamic computation, based on the required MIPI DSI clock freq.
-	dsim->pms = 0x4210;
-	if(bit_clk < 300000000)
-		dsim->pms = 0x4211;
+	//Calculate best pms setting 
+	pms = calculate_best_pms(dsim->bit_clk);	
+	dsim->pms = PLLCTRL_SET_P(pms->p) | PLLCTRL_SET_M(pms->m) | PLLCTRL_SET_S(pms->s);
 		
 	dsim->hpar = NULL;
 	if (dsim->panel)

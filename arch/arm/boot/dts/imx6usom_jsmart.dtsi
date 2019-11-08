@@ -385,6 +385,15 @@
 		    linux,default-trigger = "none";
 	    };
 	};
+
+	pn547: pn547@28 {
+		compatible = "nxp,pn547";
+		reg = <0x28>;
+		clock-frequency = <400000>;
+		interrupt-parent = <&gpio3>;
+		interrupt-gpios = <&gpio3 15 0>;
+		enable-gpios = <&gpio3 27 0>;
+	};
 };
 
 &iomuxc {
@@ -411,6 +420,9 @@
 				MX6QDL_PAD_EIM_D21__USB_OTG_OC 0x0001b0b0 /*USB OTG port */
 				MX6QDL_PAD_GPIO_5__GPIO1_IO05 0x0000b0b0 /* sel_a3a4 */
 				MX6QDL_PAD_EIM_DA3__GPIO3_IO03 0x0000b0b0 /* sel_low_high */
+
+				MX6QDL_PAD_EIM_DA15__GPIO3_IO15 0x0000b0b0 /* NFC IRQ */
+				MX6QDL_PAD_EIM_D27__GPIO3_IO27  0x0000b0b0 /* NFC Enable */
 				>;
 		};
 

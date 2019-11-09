@@ -397,6 +397,7 @@ static const struct dsim_pll_pms pll_pms[] = {
 };
 
 static const struct dsim_pll_pms pll_pms_table[] = {
+	{ DSIM_PLL_PMS(870000, 9, 580, 1), }, 
 	{ DSIM_PLL_PMS(430000, 9, 600, 2), },
 	{ DSIM_PLL_PMS(456000, 9, 608, 2), },
 	{ DSIM_PLL_PMS(199200, 2, 118, 3), },
@@ -427,7 +428,6 @@ static const struct dsim_pll_pms* calculate_best_pms(uint64_t bit_clk)
 	}
 	
 	pms = &pll_pms_table[best_i];
-	printk("*** %s required bit_clk=%lld  adjusted bit_clk=%lld \n", __func__, bit_clk, pms->bit_clk);  
 	return pms;
 }
 

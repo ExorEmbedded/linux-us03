@@ -284,7 +284,12 @@ static int sn65dsi83_parse_dt(struct device_node *np,
     
     if(frefresh < 40)
     {
+		/* This is the DUAL LVDS case; set num LVDS channels and adjust the pixelclock accordingly */
         sn65dsi83->brg->num_lvds_channels = 2;
+		
+		if(sn65dsi83->brg->vm.pixelclock > 65000000)
+			sn65dsi83->brg->vm.pixelclock = 65000000;
+			
         sn65dsi83->brg->vm.pixelclock *= 2;
     }
     else

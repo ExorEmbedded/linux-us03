@@ -577,4 +577,5 @@ source "drivers/misc/vmw_vmci/Kconfig"
 source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/dviplugin/Kconfig"
+source "drivers/misc/nxp-pn5xx/Kconfig"
 endmenu

@@ -821,7 +821,11 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (enable_agrings)
 	{
 		if (fec_agring_is_active(fep))
-			return NETDEV_TX_BUSY;
+		{
+			/* AGRING mode is active. Do not accept packets from other sources
+			   Returns OK to avoid fast retries that brign CPU usage up to 100% */
+			return NETDEV_TX_OK;
+		}
 	}
 #endif
 
@@ -3940,18 +3944,6 @@ int fec_agring_enable(struct fec_enet_private* fep, unsigned int num_buffers)
 
 	debug_printk(0, "enabling AGRING (num. buffers: %d)\n", num_buffers);
 
-	/* temporary disable QDISC */
-	for (i=0; i<ndev->num_tx_queues; i++)
-	{
-		struct netdev_queue* dev_queue = &ndev->_tx[i];
-		struct Qdisc *qdisc = dev_queue->qdisc;
-		if (qdisc) {
-			spin_lock_bh(qdisc_lock(qdisc));
-			set_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state);
-			spin_unlock_bh(qdisc_lock(qdisc));
-		}
-	}
-
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		if (fep->irq[i] != 0)
 			devm_free_irq(&pdev->dev, fep->irq[i], ndev);
@@ -3984,18 +3976,6 @@ int fec_agring_disable(struct fec_enet_private* fep)
 	int i;
 
 	debug_printk(0, "disabling AGRING\n");
-
-	/* re-enable QDISC */
-	for (i=0; i<ndev->num_tx_queues; i++)
-	{
-		struct netdev_queue* dev_queue = &ndev->_tx[i];
-		struct Qdisc *qdisc = dev_queue->qdisc;
-		if (qdisc) {
-			spin_lock_bh(qdisc_lock(qdisc));
-			clear_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state);
-			spin_unlock_bh(qdisc_lock(qdisc));
-		}
-	}
 
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		if (fep->irq[i] != 0)

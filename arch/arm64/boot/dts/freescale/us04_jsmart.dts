@@ -17,6 +17,11 @@
 / {
 	model = "JSMART i.MX8MM US04 board";
 	compatible = "fsl,imx8mm-evk", "fsl,imx8mm";
+
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm1 0 50000 0>;
+	};
 };
 
 &backlight0 {
@@ -26,6 +31,12 @@
     default-brightness-level = <25>;
     enable-gpios = <&gpio5 5 0>;
     status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
 };
 
 &pwm3 {
@@ -116,14 +127,20 @@
 	imx8mm-evk {
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
-                MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
-                MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
+				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
 			>;
 		};
 
 		pinctrl_leds: ledsgrp {
 			fsl,pins = <
-                MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14         0x1c4
+				MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14         0x1c4
 			>;
 		};
 		

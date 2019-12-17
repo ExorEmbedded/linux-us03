@@ -520,6 +520,8 @@
     pinctrl-names = "default";
     pinctrl-0 = <&pinctrl_ecspi1>;
     status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
   
     spidev0: spi0@0 {
         compatible = "generic,spidev";

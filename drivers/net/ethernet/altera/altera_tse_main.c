@@ -72,12 +72,12 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 					NETIF_MSG_LINK | NETIF_MSG_IFUP |
 					NETIF_MSG_IFDOWN);
 
-#define RX_DESCRIPTORS 64
+#define RX_DESCRIPTORS 512
 static int dma_rx_num = RX_DESCRIPTORS;
 module_param(dma_rx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_rx_num, "Number of descriptors in the RX list");
 
-#define TX_DESCRIPTORS 64
+#define TX_DESCRIPTORS 512
 static int dma_tx_num = TX_DESCRIPTORS;
 module_param(dma_tx_num, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
@@ -518,7 +518,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 
 	if (unlikely(netif_queue_stopped(priv->dev) &&
 		     tse_tx_avail(priv) > TSE_TX_THRESH(priv))) {
-		netif_tx_lock(priv->dev);
 		if (netif_queue_stopped(priv->dev) &&
 		    tse_tx_avail(priv) > TSE_TX_THRESH(priv)) {
 			if (netif_msg_tx_done(priv))
@@ -526,7 +525,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 					   __func__);
 			netif_wake_queue(priv->dev);
 		}
-		netif_tx_unlock(priv->dev);
 	}
 
 	spin_unlock_irqrestore(priv->plock, flags);

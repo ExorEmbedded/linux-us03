@@ -145,7 +145,8 @@ u32 msgdma_tx_completions(struct altera_tse_private *priv)
 			& 0xffff;
 
 	if (inuse) { /* Tx FIFO is not empty */
-		ready = priv->tx_prod - priv->tx_cons - inuse - 1;
+		ready = max_t(int,
+			      priv->tx_prod - priv->tx_cons - inuse - 1, 0);
 	} else {
 		/* Check for buffered last packet */
 		status = csrrd32(priv->tx_dma_csr, msgdma_csroffs(status));
@@ -191,6 +192,9 @@ u32 msgdma_rx_status(struct altera_tse_private *priv)
 	u32 rxstatus = 0;
 	u32 pktlength;
 	u32 pktstatus;
+	unsigned long int flags;
+	
+	spin_lock_irqsave(priv->plock, flags);
 
 	if (csrrd32(priv->rx_dma_csr, msgdma_csroffs(resp_fill_level))
 	    & 0xffff) {
@@ -202,5 +206,7 @@ u32 msgdma_rx_status(struct altera_tse_private *priv)
 		rxstatus = rxstatus << 16;
 		rxstatus |= (pktlength & 0xffff);
 	}
+	
+	spin_unlock_irqrestore(priv->plock, flags);
 	return rxstatus;
 }

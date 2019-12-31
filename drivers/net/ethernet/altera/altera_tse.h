@@ -120,17 +120,6 @@
 #define MAC_CMDCFG_DISABLE_READ_TIMEOUT_GET(v)	GET_BIT_VALUE(v, 27)
 #define MAC_CMDCFG_CNT_RESET_GET(v)		GET_BIT_VALUE(v, 31)
 
-/* SGMII PCS register addresses
- */
-#define SGMII_PCS_SCRATCH	0x10
-#define SGMII_PCS_REV		0x11
-#define SGMII_PCS_LINK_TIMER_0	0x12
-#define SGMII_PCS_LINK_TIMER_1	0x13
-#define SGMII_PCS_IF_MODE	0x14
-#define SGMII_PCS_DIS_READ_TO	0x15
-#define SGMII_PCS_READ_TO	0x16
-#define SGMII_PCS_SW_RESET_TIMEOUT 100 /* usecs */
-
 /* MDIO registers within MAC register Space
  */
 struct altera_tse_mdio {
@@ -384,7 +373,6 @@ struct tse_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma_addr;
 	u32 len;
-	int mapped_as_page;
 };
 
 struct altera_tse_private;
@@ -448,12 +436,12 @@ struct altera_tse_private {
 	u32 tx_ring_size;
 
 	/* Interrupts */
-	u32 tx_irq;
-	u32 rx_irq;
+	u32 msi_irq;
 
 	/* RX/TX MAC FIFO configs */
 	u32 tx_fifo_depth;
 	u32 rx_fifo_depth;
+	u32 max_mtu;
 
 	/* Hash filter settings */
 	u32 hash_filter;
@@ -468,21 +456,20 @@ struct altera_tse_private {
 	u32 rxctrlreg;
 	dma_addr_t rxdescphys;
 	dma_addr_t txdescphys;
+	size_t sgdmadesclen;
 
 	struct list_head txlisthd;
 	struct list_head rxlisthd;
 
-	/* MAC command_config register protection */
-	spinlock_t mac_cfg_lock;
-	/* Tx path protection */
-	spinlock_t tx_lock;
-	/* Rx DMA & interrupt control protection */
-	spinlock_t rxdma_irq_lock;
+	/* spinlock structures */
+	spinlock_t global_lock;
+	spinlock_t* plock; 
 
 	/* PHY */
 	int phy_addr;		/* PHY's MDIO address, -1 for autodetection */
 	phy_interface_t phy_iface;
 	struct mii_bus *mdio;
+	struct phy_device *phydev;
 	int oldspeed;
 	int oldduplex;
 	int oldlink;

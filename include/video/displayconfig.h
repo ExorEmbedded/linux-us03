@@ -86,6 +86,7 @@
  *												Modified display code #39: for AB19 display 15" G150XNE-L01
  *1.31			GP							17.07.2019	Added display code #71 for the TA19 target (same as display code #63 but with 100% max. dimm)
  *1.32			GP							17.07.2019	Added display code #72: FutureLabs FLC-070DMTK000SA1 800x480 for ex707-HB. Changed max brightness for code #69
+ *1.33			GP							09.01.2020	Changed pwm freq. and min brightness for code #69
  *
  * NEXT AVAILABLE DISPLAY CODE: 73
  */
@@ -1020,8 +1021,8 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 10000,
-        .brightness_min = 10,
+        .pwmfreq        = 200,
+        .brightness_min = 0x0F00, 		/* Brightness min=0.15% */
         .brightness_max = 85,
     }, 
     /* 70: Innolux G156HCE-L01 DUAL LVDS 24 bit 1920x1080 IMX.6 ONLY*/

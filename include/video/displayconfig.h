@@ -87,6 +87,7 @@
  *1.31			GP							17.07.2019	Added display code #71 for the TA19 target (same as display code #63 but with 100% max. dimm)
  *1.32			GP							17.07.2019	Added display code #72: FutureLabs FLC-070DMTK000SA1 800x480 for ex707-HB. Changed max brightness for code #69
  *1.33			GP							09.01.2020	Changed pwm freq. and min brightness for code #69
+ *1.34			SS							17.01.2020	Changed pwm freq. for code #57
  *
  * NEXT AVAILABLE DISPLAY CODE: 73
  */
@@ -709,7 +710,7 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 250,
+        .pwmfreq        = 20000,	//17.01.2020 changed from 250Hz to 20kHz
         .brightness_min = 10,
         .brightness_max = 100,
     },              

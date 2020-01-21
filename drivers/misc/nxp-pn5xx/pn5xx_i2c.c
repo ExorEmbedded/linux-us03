@@ -112,7 +112,7 @@ static int pn544_enable(struct pn54x_dev *dev, int mode)
 	{
 		r = regulator_enable(dev->pvdd_reg);
 		if (r < 0){
-			pr_err("%s: not able to enable pvdd\n", __func__);
+			dev_err(&dev->client->dev, "%s: not able to enable pvdd\n", __func__);
 			return r;
 		}
 	}
@@ -120,7 +120,7 @@ static int pn544_enable(struct pn54x_dev *dev, int mode)
 	{
 		r = regulator_enable(dev->vbat_reg);
 		if (r < 0){
-			pr_err("%s: not able to enable vbat\n", __func__);
+			dev_err(&dev->client->dev, "%s: not able to enable vbat\n", __func__);
 			goto enable_exit0;
 		}
 	}
@@ -128,7 +128,7 @@ static int pn544_enable(struct pn54x_dev *dev, int mode)
 	{
 		r = regulator_enable(dev->pmuvcc_reg);
 		if (r < 0){
-			pr_err("%s: not able to enable pmuvcc\n", __func__);
+			dev_err(&dev->client->dev, "%s: not able to enable pmuvcc\n", __func__);
 			goto enable_exit1;
 		}
 	}
@@ -136,13 +136,13 @@ static int pn544_enable(struct pn54x_dev *dev, int mode)
 	{
 		r = regulator_enable(dev->sevdd_reg);
 		if (r < 0){
-			pr_err("%s: not able to enable sevdd\n", __func__);
+			dev_err(&dev->client->dev, "%s: not able to enable sevdd\n", __func__);
 			goto enable_exit2;
 		}
 	}
 
 	if (MODE_RUN == mode) {
-		pr_info("%s power on\n", __func__);
+		dev_dbg(&dev->client->dev, "%s power on\n", __func__);
 		if (gpio_is_valid(dev->firm_gpio))
 			gpio_set_value_cansleep(dev->firm_gpio, 0);
 		gpio_set_value_cansleep(dev->ven_gpio, 1);
@@ -151,14 +151,14 @@ static int pn544_enable(struct pn54x_dev *dev, int mode)
 	else if (MODE_FW == mode) {
 		/* power on with firmware download (requires hw reset)
 		 */
-		pr_info("%s power on with firmware\n", __func__);
+		dev_dbg(&dev->client->dev, "%s power on with firmware\n", __func__);
 		gpio_set_value(dev->ven_gpio, 1);
 		msleep(20);
 		if (gpio_is_valid(dev->firm_gpio)) {
 			gpio_set_value(dev->firm_gpio, 1);
 		}
 		else {
-			pr_err("%s Unused Firm GPIO %d\n", __func__, mode);
+			dev_err(&dev->client->dev, "%s Unused Firm GPIO %d\n", __func__, mode);
 			return GPIO_UNUSED;
 		}
 		msleep(20);
@@ -168,7 +168,7 @@ static int pn544_enable(struct pn54x_dev *dev, int mode)
 		msleep(20);
 	}
 	else {
-		pr_err("%s bad arg %d\n", __func__, mode);
+		dev_err(&dev->client->dev, "%s bad arg %d\n", __func__, mode);
 		return -EINVAL;
 	}
 
@@ -187,7 +187,7 @@ enable_exit0:
 static void pn544_disable(struct pn54x_dev *dev)
 {
 	/* power off */
-	pr_info("%s power off\n", __func__);
+	dev_dbg(&dev->client->dev, "%s power off\n", __func__);
 	if (gpio_is_valid(dev->firm_gpio))
 		gpio_set_value_cansleep(dev->firm_gpio, 0);
 	gpio_set_value_cansleep(dev->ven_gpio, 0);
@@ -506,6 +506,32 @@ static int pn54x_get_pdata(struct device *dev,
 }
 #endif
 
+static int pn54x_i2c_check_chip(struct pn54x_dev *pn54x_dev, u8 *buf, int len)
+{
+	int err;
+    size_t msgs_size;
+	struct i2c_msg msgs[] =
+	{
+		{
+			.addr = pn54x_dev->client->addr,
+			.flags = pn54x_dev->client->flags,
+			.len = 1,
+			.buf = buf,
+		},
+		{
+			.addr = pn54x_dev->client->addr,
+			.flags = (pn54x_dev->client->flags) | I2C_M_RD,
+			.len = len,
+			.buf = buf,
+		},
+	};
+	msgs_size = sizeof (msgs) / sizeof (struct i2c_msg);
+	err = i2c_transfer(pn54x_dev->client->adapter, msgs, msgs_size);
+	dev_dbg(&pn54x_dev->client->dev, "%d size: %d\n", err, msgs_size);
+	if (err != msgs_size)
+		err = -ENODEV;
+	return err;
+}
 
 /*
  * pn54x_probe
@@ -519,6 +545,7 @@ static int pn54x_probe(struct i2c_client *client,
 #endif
 {
 	int ret;
+	u8 testbuf[5] = { 0x20, 0x00, 0x01, 0x01, 0x00 };
 	struct pn544_i2c_platform_data *pdata; // gpio values, from board file or DT
 	struct pn544_i2c_platform_data tmp_pdata;
 	struct pn54x_dev *pn54x_dev; // internal device specific data
@@ -675,10 +702,42 @@ static int pn54x_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, pn54x_dev);
 
+	/* Reset chip */
+	pn544_enable(pn54x_dev, 1);
+	msleep(50);
+	pn544_disable(pn54x_dev);
+	msleep(50);
+	pn544_enable(pn54x_dev, 1);
+	msleep(50);
+	/* Wake up chip */
+	i2c_master_send(pn54x_dev->client, (const char *)testbuf, 4);
+	msleep(50);
+	i2c_master_send(pn54x_dev->client, (const char *)testbuf, 4);
+	msleep(50);
+
+	/* Read data */
+	ret = pn54x_i2c_check_chip(pn54x_dev, testbuf, 1);
+	msleep(50);
+	pn544_disable(pn54x_dev);
+
+	if(ret<0)
+        goto err_nochip_resp;
+
+	dev_info(&pn54x_dev->client->dev, "Probing ok\n");
+
 	return 0;
+
+err_nochip_resp:
+	free_irq(client->irq, pn54x_dev);
+	regulator_put(pn54x_dev->pvdd_reg);
+	regulator_put(pn54x_dev->vbat_reg);
+	regulator_put(pn54x_dev->pmuvcc_reg);
+	regulator_put(pn54x_dev->sevdd_reg);
+	mutex_destroy(&pn54x_dev->read_mutex);
 
 err_request_irq_failed:
 	misc_deregister(&pn54x_dev->pn54x_device);
+	kfree(pn54x_dev);
 err_misc_register:
 err_exit:
 	if (gpio_is_valid(pdata->clkreq_gpio))
@@ -690,6 +749,7 @@ err_firm:
 	gpio_free(pdata->ven_gpio);
 err_ven:
 	gpio_free(pdata->irq_gpio);
+	pr_info("%s Probing error %d\n", __func__, ret);
 	return ret;
 }
 

@@ -114,6 +114,8 @@ all.config
 *.files
 *.includes
 *.autosave
+*.cflags
+*.cxxflags
 
 #Log files
 build.log

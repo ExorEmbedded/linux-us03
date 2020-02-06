@@ -3405,6 +3405,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	/* If device/qdisc don't need skb->dst, release it right now while
 	 * its hot in this cpu cache.
 	 */
+
 	if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
 		skb_dst_drop(skb);
 	else
@@ -3434,13 +3435,20 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	if (dev->flags & IFF_UP) {
 		int cpu = smp_processor_id(); /* ok because BHs are off */
 
-		if (txq->xmit_lock_owner != cpu) {
+		//if (txq->xmit_lock_owner != cpu) {
+		if (1) {
 			if (unlikely(xmit_rec_read() > XMIT_RECURSION_LIMIT))
+			{
+printk(KERN_INFO "%s Recursion alert", __func__);				
 				goto recursion_alert;
+			}
 
 			skb = validate_xmit_skb(skb, dev);
 			if (!skb)
+			{
+printk(KERN_INFO "%s invalid skb", __func__);				
 				goto out;
+			}
 
 			HARD_TX_LOCK(dev, txq, cpu);
 
@@ -3452,6 +3460,10 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 					HARD_TX_UNLOCK(dev, txq);
 					goto out;
 				}
+			}
+			else
+			{
+printk(KERN_INFO "%s xmit stopped", __func__);				
 			}
 			HARD_TX_UNLOCK(dev, txq);
 			net_crit_ratelimited("Virtual device %s asks to queue packet!\n",

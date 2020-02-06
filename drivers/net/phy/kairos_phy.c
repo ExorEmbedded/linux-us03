@@ -60,8 +60,6 @@ static int kairos_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 	struct kairos_mdio_bus *fmb = bus->priv;
 	struct kairos_phy *fp;
 
-//AG
-//printk(KERN_INFO "%s addr %d reg %d\n", __func__, phy_addr, reg_num);
 	list_for_each_entry(fp, &fmb->phys, node) {
 		if (fp->addr == phy_addr) {
 			struct fixed_phy_status state;
@@ -216,8 +214,6 @@ struct phy_device *kairos_phy_register(unsigned int irq,
 	int phy_addr;
 	int ret;
 
-//AG
-//printk(KERN_INFO "%s\n", __func__);
 	if (!fmb->mii_bus || fmb->mii_bus->state != MDIOBUS_REGISTERED)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -294,24 +290,18 @@ EXPORT_SYMBOL_GPL(kairos_phy_bus);
 
 static int kairos_phy_probe(struct phy_device *phydev)
 {
-//AG	
-//printk(KERN_INFO "%s\n", __func__);
 	return 0;
 }
 
 static int kairos_phy_aneg_done(struct phy_device *phydev)
 {
 	int result = genphy_config_aneg(phydev);
-//AG
-//printk(KERN_INFO "%s %d\n", __func__, result);
 	return 1;
 }
 
 static int kairos_phy_config_init(struct phy_device *phydev)
 {
 	int result = genphy_config_init(phydev);
-//AG
-//printk(KERN_INFO "%s %d\n", __func__, result);
 	return result;
 }
 
@@ -342,7 +332,7 @@ int kairos_phy_ts_info(struct phy_device *phydev, struct ethtool_ts_info *ti)
 				SOF_TIMESTAMPING_RX_SOFTWARE |
 				SOF_TIMESTAMPING_SOFTWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
-	ti->phc_index = 2 + phydev->mdio.addr;
+	ti->phc_index = 2; //AG FIXME: how can I get the PHC clock id?
 	
 	return 0;
 }
@@ -352,9 +342,6 @@ int kairos_phy_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 	int result = 0;
 	struct kairos_mdio_bus *fmb = &platform_fmb;
 	struct kairos_phy *fp;
-
-//AG
-//printk(KERN_INFO "%s\n", __func__);
 
 	if (!phydev || !phydev->mdio.bus)
 		return -EINVAL;
@@ -371,15 +358,11 @@ int kairos_phy_hwtstamp(struct phy_device *phydev, struct ifreq *ifr)
 
 bool kairos_phy_rxtstamp(struct phy_device *dev, struct sk_buff *skb, int type)
 {
-//AG never called??
-//printk(KERN_INFO "%s\n", __func__);
 	return true;
 }
 
 void kairos_phy_txtstamp(struct phy_device *dev, struct sk_buff *skb, int type)
 {
-//AG never called??
-//printk(KERN_INFO "%s\n", __func__);
 }
 
 
@@ -416,7 +399,6 @@ static int __init kairos_mdio_bus_init(void)
 
 	// register phy driver
 	phy_drivers_register(kairos_drivers, 1, THIS_MODULE);
-
 
 	pdev = platform_device_register_simple("Kairos MDIO bus", 0, NULL, 0);
 	if (IS_ERR(pdev)) {

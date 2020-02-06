@@ -1,5 +1,4 @@
 
-
 #include "kairos.h"
 
 extern ssize_t kairos_sync(struct kairos_data *kairos, struct spi_message *message);

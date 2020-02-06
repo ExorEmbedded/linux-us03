@@ -24,6 +24,7 @@
 
 #include <linux/ptp_clock_kernel.h>
 
+
 /* slave mii_bus handling ***************************************************/
 static int dsa_slave_phy_read(struct mii_bus *bus, int addr, int reg)
 {
@@ -105,7 +106,10 @@ static int dsa_slave_open(struct net_device *dev)
 	int err;
 
 	if (!(master->flags & IFF_UP))
+	{
+printk(KERN_INFO "%s\n", __func__);		
 		return -ENETDOWN;
+	}
 
 	if (!ether_addr_equal(dev->dev_addr, master->dev_addr)) {
 		err = dev_uc_add(master, dev->dev_addr);
@@ -1050,9 +1054,6 @@ static void dsa_slave_adjust_link(struct net_device *dev)
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 	unsigned int status_changed = 0;
-
-//AG
-//printk(KERN_INFO "%s \n", __func__);
 
 	if (p->old_link != p->phy->link) {
 		status_changed = 1;

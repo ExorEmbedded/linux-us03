@@ -30,55 +30,39 @@ void  timespec64_sub_ns(struct timespec64* ts, u64 delta)
 /*-------------------------------------------------------------------------*/
 static int kairos_pch_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 {
-	u16 tmp;
-	u16 addendH, addendL;
-	int neg_adj = 0;
+    uint16_t sign;
+	u16 driftH, driftL;
+	int neg = 0;
 	struct kairos_data *kairos = container_of(ptp, struct kairos_data, caps);
 	struct spi_device *spi = kairos->spi;
 
 	if (ppb < 0) {
-		neg_adj = 1;
+		neg = 1;
 		ppb = -ppb;
 	}
 
-	dev_info(&spi->dev, "kairos_pch_adjfreq: (%s)%d (0x%08X)\n", neg_adj? "-" : "+", ppb, ppb);
+	dev_info(&spi->dev, "kairos_pch_adjfreq: (%s)%d (0x%08X)\n", neg? "-" : "+", ppb, ppb);
 
-	addendH = (u16)((ppb >> 16) & 0x03FFF);
-	addendL = (u16)(ppb & 0x0FFFF);
+    sign = (neg == 1)? 0x8000 : 0x0000;
+    driftL = (uint16_t)(ppb & 0xFFFF); ppb >>= 16;
+    driftH = (uint16_t)(ppb & 0xFFFF); 
 
 	mutex_lock(&kairos->buf_lock);
 
-	tmp = 0x0000;
-	_kairos_reg_read(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_STATUS, &tmp);
+	// write negative bit
+	_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, sign);
 
-	if (! (tmp & 0x2000))
-	{
-		// write negative bit
-		tmp = neg_adj? 0x8000 : 0x0000;
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, tmp);
+	// write (dummy)
+	_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, 0x0000);
 
-		// write (dummy)
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, 0x0000);
+	// write (dummy)
+	_kairos_reg_write(kairos, KAIROS_MODULE_PTP,  KAIROS_REG_PTP_DRIFT, 0x0000);
 
-		// write (dummy)
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP,  KAIROS_REG_PTP_DRIFT, 0x0000);
+	// write addendH
+	_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, driftH);
 
-		// write addendH
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, addendH);
-
-		// write addendL
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, addendL);
-
-		tmp = 0x1000;
-		_kairos_reg_read(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_STATUS, &tmp);
-	}
-
-	/*
-	if (neg_adj)
-		timespec64_sub_ns(&kairos->abs_time, (NSEC_PER_SEC / 500000) * ppb);
-	else
-		timespec64_add_ns(&kairos->abs_time, (NSEC_PER_SEC / 500000) * ppb);
-	*/
+	// write addendL
+	_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_DRIFT, driftL);
 
 	mutex_unlock(&kairos->buf_lock);
 
@@ -240,8 +224,7 @@ static int kairos_pch_settime(struct ptp_clock_info *ptp,
 static int kairos_pch_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 #if 1
-	int neg_adj = 0;
-	u16 tmp;
+	int neg = 0;
 	u16 nsVal;
 	u16 countH, countL;
 	s64 sdelta;
@@ -252,54 +235,44 @@ static int kairos_pch_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 	sdelta = delta;
 	if (delta < 0) {
-		neg_adj = 1;
+		neg = 1;
 		sdelta = -sdelta;
 	}
 
-	nsVal = 1;
-	while (sdelta > 0x3FFFFFFF)
-	{
-		nsVal ++;
-		sdelta >>= 2;
-	}
+    if (sdelta > 1000000ULL)
+    {
+        nsVal = 7;
+        sdelta >>= 3;
+    }
+    else if (sdelta > 10000ULL)
+    {
+        nsVal = 4;
+        sdelta >>= 2;
+    }
+    else
+    {
+        nsVal = 1;
+    }
 
-	countH = (u16)((sdelta >> 16) & 0x03FFF);
-	countL = (u16)(sdelta & 0x0FFFF);
+    countL = (uint16_t)(sdelta & 0xFFFF); sdelta >>= 16;
+    countH = (uint16_t)(sdelta & 0x3FFF); 
 
 	mutex_lock(&kairos->buf_lock);
 
-	//dev_info(&kairos->spi->dev, "kairos_pch_adjtime (1) %lld.%ld\n", kairos->abs_time.tv_sec, kairos->abs_time.tv_nsec);
-	if (delta > 0)
-		timespec64_add_ns(&kairos->abs_time, delta);
-	else
-		timespec64_sub_ns(&kairos->abs_time, -delta);
+	// write negative bit
+    _kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, (neg)? 0x8000 : 0x0000);
 
-	//dev_info(&kairos->spi->dev, "kairos_pch_adjtime (2) %lld.%ld\n", kairos->abs_time.tv_sec, kairos->abs_time.tv_nsec);
+	// write nsVal
+    _kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, nsVal);
 
-	tmp = 0x0000;
-	_kairos_reg_read(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_STATUS, &tmp);
+	// write interval
+    _kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, 0);
 
-	if (! (tmp & 0x2000))
-	{
-		// write negative bit
-		tmp = neg_adj? 0x8000 : 0x0000;
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, tmp);
+	// write countH
+	_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, countH);
 
-		// write nsVal
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, nsVal);
-
-		// write interval
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, 0x0000);
-
-		// write countH
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, countH);
-
-		// write countL
-		_kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, countL);
-
-		tmp = 0x4000;
-		_kairos_reg_read(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_STATUS, &tmp);
-	}
+	// write countL
+    _kairos_reg_write(kairos, KAIROS_MODULE_PTP, KAIROS_REG_PTP_OFFSET, countL);
 
 	mutex_unlock(&kairos->buf_lock);
 

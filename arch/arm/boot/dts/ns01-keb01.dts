@@ -591,3 +591,35 @@
 
 	};
 };
+
+&lcdif {
+    pinctrl-names = "default";
+    display = <&lcdout0>;
+    status = "okay";
+
+    lcdout0: lcdout {
+        bits-per-pixel = <16>;
+        bus-width = <16>;
+
+        display-timings {
+            native-mode = <&timing0>;
+            timing0: timing0 {
+                clock-frequency = <9200000>;
+                hactive = <480>;
+                vactive = <272>;
+                hfront-porch = <8>;
+                hback-porch = <4>;
+                hsync-len = <41>;
+                vback-porch = <2>;
+                vfront-porch = <4>;
+                vsync-len = <10>;
+
+                hsync-active = <0>;
+                vsync-active = <0>;
+                de-active = <1>;
+                pixelclk-active = <0>;
+            };
+        };
+    };
+}; 
+ 

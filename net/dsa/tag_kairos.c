@@ -16,32 +16,57 @@
 
 #define KAIROS_TRAILER_LEN	1
 
+#define KAIROS_ALWAYS_OBT
+
 static struct sk_buff *kairos_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
-	u8 *phdr, hdr;
-
-//printk(KERN_INFO "%s %d %d port %d\n", __func__, skb->len, skb->data_len, p->port);
+	int trail_length;
+	u8 *phdr;
+	u8* data;
+	u8 hdr;
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	if (skb_cow_head(skb, 0) < 0)
+	if (skb_cow_head(skb, 0) < 0) {
+		printk(KERN_ERR "%s: ERROR len: %d, data_len: %d,  port: %d\n", __func__, skb->len, skb->data_len, p->port);
 		goto out_free;
+	}
 
-#if 0
-	skb_put(skb, KAIROS_TRAILER_LEN);
+#ifdef KAIROS_ALWAYS_OBT
+	// TX (i.e. from CPU to ports) OBT format
+	// bit 7: force untagged transmit
+	// bit 0: n/a
+	// bit 1: tunnel
+	// bit 2: front port 1
+	// bit 3: front port 2
+
+	trail_length = KAIROS_TRAILER_LEN;
+	if (skb->len < 64)
+		trail_length += (64 - skb->len);
+
+	if (skb_tailroom(skb) < trail_length)
+	{
+		struct sk_buff* new_skb;
+		new_skb = skb_copy_expand(skb, 0, trail_length, GFP_ATOMIC);
+
+		kfree_skb(skb);
+		skb = new_skb;
+	}
+
+	data = (u8*)skb->data + skb->len;
+	skb_put(skb, trail_length);
+
+	memset(data, 0, trail_length);
 
 	phdr = (u8*)skb->data + (skb->len-KAIROS_TRAILER_LEN);
 
-	/* set destination port information */
-	hdr = 0x00;
+	/* set destination port information (port ranges from 0 to 1) */
 	hdr = (0x01 << p->port) << 2;
-
 	*phdr = hdr;
 #endif
 
-//printk(KERN_INFO "%s (2) %d %d\n", __func__, skb->len, skb->data_len);
 	return skb;
 
 out_free:
@@ -54,19 +79,9 @@ static int kairos_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_switch *ds;
-	int port;
-	u8 *phdr, hdr;
-
-/*
-printk(KERN_INFO "%s len %d\n", __func__, skb->len);
-if (skb->len == 46)
-{
-	int i;
-	for (i=0; i<=skb->len; i++)
-		printk(KERN_INFO "%02X ", skb->data[i]);
-	printk(KERN_INFO "\n");
-}
-*/
+	int port = 0;
+	u8 *phdr;
+	u8 hdr = 0;
 
 	if (unlikely(!dst))
 		goto out_drop;
@@ -75,31 +90,45 @@ if (skb->len == 46)
 	if (!skb)
 		goto out;
 
-#if 0	
+#ifdef KAIROS_ALWAYS_OBT	
+	// RX (i.e. from ports to CPU) OBT format
+	// bit 7: ingress tag status
+	// bit 0..1: port ID
+	//		00: n/a
+	//      01: tunnel
+	//      10: front port 1
+	//      11: front port 2
+
 	phdr = (u8*)skb->data + (skb->len-KAIROS_TRAILER_LEN);
 	hdr = *phdr;
 
-	skb_trim(skb, KAIROS_TRAILER_LEN);
+	skb_trim(skb, skb->len-KAIROS_TRAILER_LEN);
 
 	/* Get source port information */
-	port = hdr & 0x03;
+	if (! (hdr & 0x02))
+	{
+		printk(KERN_ERR "%s: invalid HDR: %02X \n", __func__, hdr);
+		goto out_drop;
+	}
+
+	port = hdr & 0x01;
+	if ((port != 0) && (port != 1))
+	{
+		printk(KERN_ERR "%s: invalid HDR: %02X \n", __func__, hdr);
+		goto out_drop;
+	}
 #endif
 
 	/* This protocol doesn't support cascading multiple switches so it's
 	 * safe to assume the switch is first in the tree
 	 */
 	ds = dst->ds[0];
-//printk(KERN_INFO "%s (2) %p\n", __func__, ds);
 	if (!ds)
 		goto out_drop;
 
-	//@todo
-	port = 0;
-//printk(KERN_INFO "%s (3) %02X %d %p\n", __func__, hdr, port, ds->ports[port].netdev);
 	if (!ds->ports[port].netdev)
 		goto out_drop;
 
-//printk(KERN_INFO "%s (4) %02X %d %p\n", __func__, hdr, port, ds->ports[port].netdev);
 	/* Update skb & forward the frame accordingly */
 	skb->dev = ds->ports[port].netdev;
 	skb_push(skb, ETH_HLEN);

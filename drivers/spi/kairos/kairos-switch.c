@@ -1,5 +1,6 @@
 
 #include <linux/net_tstamp.h>
+#include <net/switchdev.h>
 
 #include "kairos.h"
 #include "kairos-regs.h"
@@ -61,6 +62,23 @@ static int kairos_switch_setup_global(struct dsa_switch* ds, bool enable)
     kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_DAT, 0x3300);
     kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_GR_SMI_CMD, 0x8200);
 
+    /* set port limits */
+    for (prio=0; prio<=TSN_PER_XSEL_PRIO_MAX_VALUE; prio++)
+    {
+        kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_HR_PSEL, 0x0030);
+        kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_HR_PRCFG, 0x8000 | prio);
+    }
+
+    /* limit background collective queue */
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_HR_PSEL, 0x0300);
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_HR_LIMITS0, 0x0000);
+
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_HR_PSEL, 0x0320);
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_HR_LIMITS0, 0x0000);
+
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_HR_PSEL, 0x0330);
+    kairos_reg_write(kairos, KAIROS_MODULE_GENERAL, KAIROS_REG_HR_LIMITS0, 0x0000);
+
     /* value for Control Status register */
     if (enable)
         data = 0x00000001;  /* Enable  */
@@ -105,18 +123,31 @@ static int kairos_switch_setup_global(struct dsa_switch* ds, bool enable)
         return -1;
     }
 
+    /* Enable OBT */
+#define KAIROS_ALWAYS_OBT    
+#ifdef KAIROS_ALWAYS_OBT     
+    data = TSN_SWITCH_CFG_ALWAYS_OBT | TSN_SWITCH_CFG_FDB_AGE_EN | TSN_SWITCH_CFG_FDB_LRN_EN;
+#else    
+    data = TSN_SWITCH_CFG_FDB_AGE_EN | TSN_SWITCH_CFG_FDB_LRN_EN;
+#endif    
+    if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_SWCFG, data))
+    {
+		dev_err(&kairos->spi->dev, "error writing register (4)");
+        return -1;
+    }
+
     /* VLAN membership : all untagged members in vlan 1 */
     data = 0x0001;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_VIDCFG, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (4)");
+		dev_err(&kairos->spi->dev, "error writing register (5)");
         return -1;
     }
 
     data = 0x0055;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_VIDMBRCFG, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (5)");
+		dev_err(&kairos->spi->dev, "error writing register (6)");
         return -1;
     }
 
@@ -124,57 +155,57 @@ static int kairos_switch_setup_global(struct dsa_switch* ds, bool enable)
     data = 0x0000;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PSEL, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (6)");
+		dev_err(&kairos->spi->dev, "error writing register (7)");
         return -1;
     }
 
     data = 0x0003;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PTCFG, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (7)");
+		dev_err(&kairos->spi->dev, "error writing register (8)");
         return -1;
     }
     data = 0x0010;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PSEL, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (8)");
+		dev_err(&kairos->spi->dev, "error writing register (9)");
         return -1;
     }
     data = 0x0003;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PTCFG, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (9)");
+		dev_err(&kairos->spi->dev, "error writing register (10)");
         return -1;
     }
     data = 0x0020;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PSEL, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (10)");
+		dev_err(&kairos->spi->dev, "error writing register (11)");
         return -1;
     }
     data = 0x0003;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PTCFG, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (11)");
+        dev_err(&kairos->spi->dev, "error writing register (12)");
         return -1;
     }
     data = 0x0030;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PSEL, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (12)");
+        dev_err(&kairos->spi->dev, "error writing register (13)");
         return -1;
     }
     data = 0x0003;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PTCFG, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (13)");
+        dev_err(&kairos->spi->dev, "error writing register (14)");
         return -1;
     }
 
     data = 0x0022;
     if (KAIROS_ERR_OK != kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_PSEL, data))
     {
-		dev_err(&kairos->spi->dev, "error writing register (14)");
+        dev_err(&kairos->spi->dev, "error writing register (15)");
         return -1;
     }
 
@@ -317,19 +348,21 @@ static const char *kairos_drv_probe(struct device *dsa_dev,
 				       void **_priv)
 {
 	int i; 
-	struct dsa_switch* ds = (struct dsa_switch*)container_of(dsa_dev, struct dsa_switch, dev);
+	struct dsa_switch* ds = (struct dsa_switch*)dsa_dev; //container_of(&dsa_dev, struct dsa_switch, dev);
 	struct kairos_data *kairos = kairos_global;
 	if (!kairos)
 		return NULL;
+
+	// add PHC devices
+	kairos->caps = kairos_pch_caps;
+	kairos->ptp_clocks[0] = ptp_clock_register(&kairos->caps, dsa_dev);
 
 	for (i=0; i<KAIROS_MAX_PORTS; i++)
 	{
 		// add simulated phys
 		kairos->phys[i] = kairos_phy_register(-1, &kairos_phy_status, ds, NULL);
 
-		// add PHC devices
-		kairos->caps = kairos_pch_caps;
-		kairos->ptp_clocks[i] = ptp_clock_register(&kairos->caps, dsa_dev);
+		kairos->ptp_clocks[i] = kairos->ptp_clocks[0];
 		if (IS_ERR(kairos->ptp_clocks[i])) 
 		{
 			dev_err(&kairos->spi->dev, "error creating pch device: %ld\n", PTR_ERR(kairos->ptp_clocks[i]));
@@ -383,6 +416,8 @@ static int kairos_set_addr(struct dsa_switch *ds, u8 *addr)
 	if (!kairos)
 		return -EINVAL;
 
+	(void)netdev;
+
 	dev_info(&kairos->spi->dev, "kairos switch set addr");
 	return 0;
 }
@@ -394,7 +429,8 @@ static int kairos_phy_read(struct dsa_switch *ds, int port, int regnum)
 	struct kairos_data* kairos = (struct kairos_data*)ds->priv;
 
 	struct net_device* netdev = kairos_get_netdev(ds);
-;
+	(void)netdev;
+
 	dev_info(&kairos->spi->dev, "kairos switch phy read port %d, reg %d", port, regnum);
 
 	// only read of register 0x01 (status register) is supported
@@ -418,6 +454,8 @@ static int kairos_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val
 	struct kairos_data* kairos = (struct kairos_data*)ds->priv;
 	if (!kairos)
 		return -EINVAL;
+
+	(void)netdev;
 
 	dev_info(&kairos->spi->dev, "kairos switch phy write");
 	return 0xffff;
@@ -651,6 +689,168 @@ static int kairos_get_sset_count(struct dsa_switch *ds)
 	return KAIROS_NUM_COUNTERS;
 }
 
+int	kairos_port_fdb_prepare(struct dsa_switch *ds, int port,
+				    const struct switchdev_obj_port_fdb *fdb,
+				    struct switchdev_trans *trans)
+{
+	return 0;
+}
+
+void kairos_port_fdb_add(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_fdb *fdb,
+				struct switchdev_trans *trans)
+{
+	struct kairos_data* kairos = (struct kairos_data*)ds->priv;
+	uint16_t tmp;
+	uint16_t macL;
+	uint16_t macM;
+	uint16_t macH;
+	uint16_t metadata;
+	uint16_t cmd;
+
+	if (!kairos)
+		return;
+
+	dev_info(&kairos->spi->dev, "adding FDB entry %02X:%02X:%02X:%02X:%02X:%02X, vid: %d, nmd: %d",
+		fdb->addr[0], fdb->addr[1], fdb->addr[2], fdb->addr[3], fdb->addr[4], fdb->addr[5],
+		fdb->vid,
+		fdb->ndm_state);
+
+	tmp = fdb->addr[4]; macL = (tmp <<= 8) | fdb->addr[5];
+	tmp = fdb->addr[2]; macM = (tmp <<= 8) | fdb->addr[3];
+	tmp = fdb->addr[0]; macH = (tmp <<= 8) | fdb->addr[1];
+
+	metadata = TSN_FDB_META_NO_FLAGS;
+    if (fdb->vid != 0)
+    	metadata = TSN_FDB_META_REPRIO | ((fdb->vid << 12) & TSN_FDB_META_REPRIO_MASK);
+
+    metadata |= (TSN_FDB_META_PASSBLOCKED | TSN_FDB_META_OBT | TSN_FDB_META_PORT_CASCADING);
+
+    cmd = 0x0000;
+
+    kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBWRL, macL);
+    kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBWRM, macM);
+    kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBWRH, macH);
+
+    kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBWRM0, metadata);
+    kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBWRCMD, cmd);
+}
+
+int	kairos_port_fdb_del(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_fdb *fdb)
+{
+	struct kairos_data* kairos = (struct kairos_data*)ds->priv;
+	int idx = 0;
+	uint16_t tmp;
+	uint16_t macL, emacL;
+	uint16_t macM, emacM;
+	uint16_t macH, emacH;
+	uint16_t metadata;
+	uint16_t cmd;
+	uint16_t fdbmax;
+	uint16_t feabits;
+	int num_entries;
+
+	if (!kairos)
+		return -EINVAL;
+
+	dev_info(&kairos->spi->dev, "deleting FDB entry %02X:%02X:%02X:%02X:%02X:%02X",
+		fdb->addr[0], fdb->addr[1], fdb->addr[2], fdb->addr[3], fdb->addr[4], fdb->addr[5]);
+
+	tmp = fdb->addr[4]; emacL = (tmp <<= 8) | fdb->addr[5];
+	tmp = fdb->addr[2]; emacM = (tmp <<= 8) | fdb->addr[3];
+	tmp = fdb->addr[0]; emacH = (tmp <<= 8) | fdb->addr[1];
+
+	// reset read pointer
+    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBMAX, &fdbmax);
+
+    // get number of entries
+    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FEABITS0, &feabits);
+	num_entries = (feabits & TSN_FEATUREBITS_FDBBINS_MASK) >> 4;
+
+	dev_dbg(&kairos->spi->dev, "looking for %d FDB entries", num_entries);
+
+	while (num_entries > 0)
+	{
+		// read until MAC address is null
+	    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBRDL, &macL);
+	    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBRDM, &macM);
+	    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBMDRD, &metadata);
+	    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBRDH, &macH);
+
+	    if ((macL == emacL) && (macM == emacM) && (macH == emacH))
+	    {
+	    	// entry found: delete
+	    	cmd = TSN_FDB_CMD_DEL | (idx & TSN_FDB_CMD_IDX_MASK);
+		    kairos_reg_write(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBWRCMD, cmd);
+
+		    return 0;
+	    }
+
+	    idx ++;
+	    num_entries --;
+
+	} while ((macL != 0) || (macM != 0) || (macH != 0));
+
+	return -EINVAL;
+}
+
+int	kairos_port_fdb_dump(struct dsa_switch *ds, int port,
+				 struct switchdev_obj_port_fdb *fdb,
+				 int (*cb)(struct switchdev_obj *obj))
+{
+	struct kairos_data* kairos = (struct kairos_data*)ds->priv;
+	uint16_t macL;
+	uint16_t macM;
+	uint16_t macH;
+	uint16_t metadata;
+	uint16_t fdbmax;
+	uint16_t feabits;
+	int num_entries;
+
+	if (!kairos)
+		return -EINVAL;
+
+	// reset read pointer
+    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBMAX, &fdbmax);
+
+    // get number of entries
+    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FEABITS0, &feabits);
+	num_entries = (feabits & TSN_FEATUREBITS_FDBBINS_MASK) >> 4;
+
+	dev_info(&kairos->spi->dev, "dumping %d FDB entries", num_entries);
+
+	while (num_entries > 0)
+	{
+		// read until MAC address is null
+	    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBRDL, &macL);
+	    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBRDM, &macM);
+	    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBMDRD, &metadata);
+	    kairos_reg_read(kairos, KAIROS_MODULE_TSN, KAIROS_REG_HR_FDBRDH, &macH);
+
+	    if ((macL != 0) || (macM != 0) || (macH != 0))
+	    {
+		    fdb->addr[1] = (unsigned char)(macH & 0x00FF); macH >>= 8;
+		    fdb->addr[0] = (unsigned char)macH;
+
+		    fdb->addr[3] = (unsigned char)(macM & 0x00FF); macM >>= 8;
+		    fdb->addr[2] = (unsigned char)macM;
+
+		    fdb->addr[5] = (unsigned char)(macL & 0x00FF); macL >>= 8;
+		    fdb->addr[4] = (unsigned char)macL;
+
+		    fdb->vid = (metadata >> 8) & 0x0F;
+
+		    // invoke callback
+		    cb(&fdb->obj);
+		}
+
+		num_entries --;
+	} 
+
+	return 0;
+}
+
 struct dsa_switch_ops kairos_switch_ops = {
 	.get_tag_protocol = kairos_get_tag_protocol,
 	.probe		= kairos_drv_probe,
@@ -663,6 +863,12 @@ struct dsa_switch_ops kairos_switch_ops = {
 	.get_strings = kairos_get_strings,
 	.get_ethtool_stats = kairos_get_ethtool_stats,
 	.get_sset_count = kairos_get_sset_count,
+
+	.port_fdb_prepare = kairos_port_fdb_prepare,
+	.port_fdb_add = kairos_port_fdb_add,
+	.port_fdb_del = kairos_port_fdb_del,
+	.port_fdb_dump = kairos_port_fdb_dump,
+
 };
 
 int kairos_switch_init(struct kairos_data* kairos)

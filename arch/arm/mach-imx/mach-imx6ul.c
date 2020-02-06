@@ -49,7 +49,7 @@ static int ksz8081_phy_fixup(struct phy_device *dev)
 		phy_write(dev, 0x1f, 0x8110);
 		phy_write(dev, 0x16, 0x201);
 	} else if (dev && dev->interface == PHY_INTERFACE_MODE_RMII) {
-		phy_write(dev, 0x1f, 0x8190);
+		phy_write(dev, 0x1f, 0x8110);
 		phy_write(dev, 0x16, 0x202);
 	}
 

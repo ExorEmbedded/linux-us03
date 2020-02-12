@@ -240,7 +240,8 @@ struct flexcan_priv {
 
 #if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
 	struct spi_device* transceiver_client;
-	struct memory_accessor*  transceiver_macc;
+	struct tja1145_functions_accessor*  transceiver_fc;
+	struct work_struct work;
 #endif
 };
 
@@ -263,6 +264,18 @@ static const struct can_bittiming_const flexcan_bittiming_const = {
 	.brp_max = 256,
 	.brp_inc = 1,
 };
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+static void flexcan_plat_work_func(struct work_struct *work)
+{
+	struct flexcan_priv *priv = container_of(work, struct flexcan_priv, work);
+
+	printk("%s %d\n", __func__, priv->can.bittiming.bitrate );
+
+	if(priv->transceiver_fc && priv->transceiver_fc->transceiver_change_bitrate)
+		priv->transceiver_fc->transceiver_change_bitrate(priv->transceiver_fc, priv->can.bittiming.bitrate );
+}
+#endif
 
 /*
  * Abstract off the read/write for arm versus ppc. This
@@ -348,10 +361,8 @@ static int flexcan_chip_enable(struct flexcan_priv *priv)
 	u32 reg;
 
 #if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
-	u8 tja_reg_val = NORMAL_MODE;
-	struct memory_accessor* macc = priv->transceiver_macc;
-	if(macc)
-	    macc->write(macc, (u8*)&tja_reg_val, REG_MODE_CONTROL, sizeof(u8));
+	if( priv->transceiver_fc && priv->transceiver_fc->transceiver_stop )
+		priv->transceiver_fc->transceiver_start(priv->transceiver_fc);
 #endif
 
 	reg = flexcan_read(&regs->mcr);
@@ -374,10 +385,8 @@ static int flexcan_chip_disable(struct flexcan_priv *priv)
 	u32 reg;
 
 #if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
-	u8 tja_reg_val = SLEEP_MODE;
-	struct memory_accessor* macc = priv->transceiver_macc;
-	if(macc)
-	    macc->write(macc, (u8*)&tja_reg_val, REG_MODE_CONTROL, sizeof(u8));
+	if( priv->transceiver_fc && priv->transceiver_fc->transceiver_stop )
+		priv->transceiver_fc->transceiver_stop(priv->transceiver_fc);
 #endif
 
 	reg = flexcan_read(&regs->mcr);
@@ -853,6 +862,10 @@ static void flexcan_set_bittiming(struct net_device *dev)
 	netdev_info(dev, "writing ctrl=0x%08x\n", reg);
 	flexcan_write(reg, &regs->ctrl);
 
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	schedule_work(&priv->work);
+#endif
+
 	/* print chip status */
 	netdev_dbg(dev, "%s: mcr=0x%08x ctrl=0x%08x\n", __func__,
 		   flexcan_read(&regs->mcr), flexcan_read(&regs->ctrl));
@@ -1064,6 +1077,21 @@ static int flexcan_close(struct net_device *dev)
 	return 0;
 }
 
+static int flexcan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct flexcan_priv *priv = netdev_priv(dev);
+	netdev_info(dev, "%s request for new ioctl\n", __func__);
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	if(cmd >= SIOCTJA1145SETWAKEUP )
+	{
+		netdev_info(dev, "%s request for new ioctl for can transceiver\n", __func__);
+		if(priv->transceiver_fc && priv->transceiver_fc->transceiver_ioctl)
+			priv->transceiver_fc->transceiver_ioctl(priv->transceiver_fc, ifr, cmd);
+	}
+#endif
+	return 0;
+}
+
 static int flexcan_set_mode(struct net_device *dev, enum can_mode mode)
 {
 	int err;
@@ -1088,6 +1116,7 @@ static const struct net_device_ops flexcan_netdev_ops = {
 	.ndo_open	= flexcan_open,
 	.ndo_stop	= flexcan_close,
 	.ndo_start_xmit	= flexcan_start_xmit,
+	.ndo_do_ioctl = flexcan_ioctl,
 };
 
 static int register_flexcandev(struct net_device *dev)
@@ -1298,44 +1327,49 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 
 #if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
-    /*
-     * TJA1145 transceiver
-     */
-    ret = of_property_read_u32(pdev->dev.of_node, "transceiver", &transceiver_handle);
-    if (ret != 0)
-    {
-	dev_info(&pdev->dev, "No managed transceiver found\n");
-    }
-    else
-    {
-	dev_info(&pdev->dev, "Managed transceiver found\n");
-	transceiver_node = of_find_node_by_phandle(transceiver_handle);
-	if (transceiver_node == NULL)
+	priv->transceiver_fc = NULL;
+	/*
+	 * TJA1145 transceiver
+	 */
+	ret = of_property_read_u32(pdev->dev.of_node, "transceiver", &transceiver_handle);
+	if (ret != 0)
 	{
-	    dev_err(&pdev->dev, "Failed to find transceiver node\n");
-	    return -ENODEV;
+		dev_info(&pdev->dev, "No managed transceiver found\n");
 	}
-
-	priv->transceiver_client = of_find_spi_device_by_node(transceiver_node);
-	if (priv->transceiver_client == NULL)
+	else
 	{
-	    dev_err(&pdev->dev, "Failed to find spi client\n");
-	    of_node_put(transceiver_node);
-	    return -EPROBE_DEFER;
-	}
+		dev_info(&pdev->dev, "Managed transceiver found\n");
+		transceiver_node = of_find_node_by_phandle(transceiver_handle);
+		if (transceiver_node == NULL)
+		{
+			dev_err(&pdev->dev, "Failed to find transceiver node\n");
+			return -ENODEV;
+		}
 
-	/* release ref to the node and inc reference to the SPI client used */
-	of_node_put(transceiver_node);
-	transceiver_node = NULL;
+		priv->transceiver_client = of_find_spi_device_by_node(transceiver_node);
+		if (priv->transceiver_client == NULL)
+		{
+			dev_err(&pdev->dev, "Failed to find spi client\n");
+			of_node_put(transceiver_node);
+			return -EPROBE_DEFER;
+		}
 
-	/* And now get the SPI Transceiver memory accessor */
-	priv->transceiver_macc = spi_tja1145_get_memory_accessor(priv->transceiver_client);
-	if (IS_ERR_OR_NULL(priv->transceiver_macc))
-	{
-	    dev_err(&pdev->dev, "Failed to get memory accessor, defer.\n");
-	    return -EPROBE_DEFER;
-	}
-	tja1145_driver_version();
+		tja1145_driver_version(priv->transceiver_client);
+		/* release ref to the node and inc reference to the SPI client used */
+		of_node_put(transceiver_node);
+		transceiver_node = NULL;
+
+		/* And now get the TJA1145 function accessor */
+		priv->transceiver_fc = spi_tja1145_get_func_accessor(priv->transceiver_client);
+		if (IS_ERR_OR_NULL(priv->transceiver_fc))
+		{
+			dev_err(&pdev->dev, "Failed to get function accessor, defer.\n");
+			return -EPROBE_DEFER;
+		}
+		if( priv->transceiver_fc && priv->transceiver_fc->transceiver_start )
+			priv->transceiver_fc->transceiver_start(priv->transceiver_fc);
+
+		INIT_WORK(&priv->work, flexcan_plat_work_func);
     }
 #endif
 
@@ -1415,10 +1449,8 @@ static int flexcan_remove(struct platform_device *pdev)
 	struct flexcan_priv *priv = netdev_priv(dev);
 
 #if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
-	u8 tja_reg_val = SLEEP_MODE;
-	struct memory_accessor* macc = priv->transceiver_macc;
-	if(macc)
-	    macc->write(macc, (u8*)&tja_reg_val, REG_MODE_CONTROL, sizeof(u8));
+	if( priv->transceiver_fc && priv->transceiver_fc->transceiver_stop )
+		priv->transceiver_fc->transceiver_stop(priv->transceiver_fc);
 #endif
 
 	if( (priv->stb_gpio >= 0) && (gpio_is_valid(priv->stb_gpio)) )

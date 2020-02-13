@@ -1080,11 +1080,11 @@ static int flexcan_close(struct net_device *dev)
 static int flexcan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct flexcan_priv *priv = netdev_priv(dev);
-	netdev_dbg(dev, "%s request for new ioctl\n", __func__);
+	netdev_info(dev, "%s request for new ioctl\n", __func__);
 #if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
 	if(cmd >= SIOCTJA1145SETWAKEUP )
 	{
-		netdev_dbg(dev, "%s request for new ioctl for can transceiver\n", __func__);
+		netdev_info(dev, "%s request for new ioctl for can transceiver\n", __func__);
 		if(priv->transceiver_fc && priv->transceiver_fc->transceiver_ioctl)
 			priv->transceiver_fc->transceiver_ioctl(priv->transceiver_fc, ifr, cmd);
 	}

@@ -1108,7 +1108,7 @@ static struct sock *tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	struct tcp_md5sig_key *key;
 #endif
 	struct flowi6 fl6;
-
+#error CVE-2018-5703
 	if (skb->protocol == htons(ETH_P_IP)) {
 		/*
 		 *	v6 mapped

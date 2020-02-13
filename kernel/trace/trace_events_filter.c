@@ -33,6 +33,8 @@
 	"# Only events with the given fields will be affected.\n"	\
 	"# If no events are modified, an error message will be displayed here"
 
+#error CVE-2018-12714
+
 enum filter_op_ids
 {
 	OP_OR,

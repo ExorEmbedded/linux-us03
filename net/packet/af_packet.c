@@ -2680,6 +2680,10 @@ static int packet_do_bind(struct sock *sk, struct net_device *dev, __be16 proto)
 	need_rehook = proto_curr != proto || dev_curr != dev;
 
 	if (need_rehook) {
+		/* prevents packet_notifier() from calling
+		 * register_prot_hook()
+		 */
+		po->num = 0;
 		unregister_prot_hook(sk, true);
 
 		po->num = proto;

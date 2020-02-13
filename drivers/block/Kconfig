@@ -283,33 +283,6 @@ config BLK_DEV_CRYPTOLOOP
 
 source "drivers/block/drbd/Kconfig"
 
-config BLK_DEV_NBD
-	tristate "Network block device support"
-	depends on NET
-	---help---
-	  Saying Y here will allow your computer to be a client for network
-	  block devices, i.e. it will be able to use block devices exported by
-	  servers (mount file systems on them etc.). Communication between
-	  client and server works over TCP/IP networking, but to the client
-	  program this is hidden: it looks like a regular local file access to
-	  a block device special file such as /dev/nd0.
-
-	  Network block devices also allows you to run a block-device in
-	  userland (making server and client physically the same computer,
-	  communicating using the loopback network device).
-
-	  Read <file:Documentation/blockdev/nbd.txt> for more information,
-	  especially about where to find the server code, which runs in user
-	  space and does not need special kernel support.
-
-	  Note that this has nothing to do with the network file systems NFS
-	  or Coda; you can say N here even if you intend to use NFS or Coda.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called nbd.
-
-	  If unsure, say N.
-
 config BLK_DEV_NVME
 	tristate "NVM Express block device"
 	depends on PCI

@@ -310,10 +310,3 @@ config DVB_USB_AZ6027
 	help
 	  Say Y here to support the AZ6027 device
 
-config DVB_USB_TECHNISAT_USB2
-	tristate "Technisat DVB-S/S2 USB2.0 support"
-	depends on DVB_USB
-	select DVB_STV090x if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_STV6110x if MEDIA_SUBDRV_AUTOSELECT
-	help
-	  Say Y here to support the Technisat USB2 DVB-S/S2 device

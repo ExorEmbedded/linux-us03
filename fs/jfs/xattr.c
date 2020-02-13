@@ -33,7 +33,7 @@
 #include "jfs_metapage.h"
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
-
+#error CVE-2018-12233
 /*
  *	jfs_xattr.c: extended attribute service
  *

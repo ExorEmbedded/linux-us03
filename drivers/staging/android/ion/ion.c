@@ -40,6 +40,7 @@
 #include "ion_priv.h"
 #include "compat_ion.h"
 
+#error CVE-2016-9120
 /**
  * struct ion_device - the metadata of the ion device node
  * @dev:		the actual misc device

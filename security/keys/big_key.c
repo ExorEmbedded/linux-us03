@@ -17,7 +17,7 @@
 #include <linux/err.h>
 #include <keys/user-type.h>
 #include <keys/big_key-type.h>
-
+#error CVE-2016-9313
 MODULE_LICENSE("GPL");
 
 /*

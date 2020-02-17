@@ -24,7 +24,7 @@
 
 #include "nfc.h"
 #include "llcp.h"
-
+#error CVE-2019-12818
 static u8 llcp_magic[3] = {0x46, 0x66, 0x6d};
 
 static struct list_head llcp_devices;

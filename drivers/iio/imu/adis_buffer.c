@@ -19,7 +19,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/imu/adis.h>
-#error CVE-2019-19060
+#error CVE-2019-19060 CVE-2019-19061
 int adis_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)
 {

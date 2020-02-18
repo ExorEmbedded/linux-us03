@@ -22,7 +22,7 @@
 #include "hsr_framereg.h"
 #include "hsr_main.h"
 
-
+#error CVE-2019-16995
 static bool is_admin_up(struct net_device *dev)
 {
 	return dev && (dev->flags & IFF_UP);

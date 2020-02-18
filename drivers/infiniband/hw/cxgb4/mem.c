@@ -36,7 +36,7 @@
 #include <linux/atomic.h>
 
 #include "iw_cxgb4.h"
-
+#error CVE-2019-17075
 int use_dsgl = 1;
 module_param(use_dsgl, int, 0644);
 MODULE_PARM_DESC(use_dsgl, "Use DSGL for PBL/FastReg (default=1)");

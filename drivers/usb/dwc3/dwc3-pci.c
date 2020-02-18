@@ -30,7 +30,7 @@
 #define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3	0xabcd
 #define PCI_DEVICE_ID_INTEL_BYT		0x0f37
 #define PCI_DEVICE_ID_INTEL_MRFLD	0x119e
-
+#error CVE-2019-18813
 struct dwc3_pci {
 	struct device		*dev;
 	struct platform_device	*dwc3;

@@ -77,7 +77,7 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 {
 	int dsz, sz, hsz;
 	unsigned char *to;
-
+#error CVE-2016-8632
 	dsz = len;
 	hsz = msg_hdr_sz(hdr);
 	sz = hsz + dsz;

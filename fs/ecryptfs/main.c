@@ -38,7 +38,7 @@
 #include <linux/slab.h>
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
-#error CVE-2014-9922
+#error CVE-2014-9922 CVE-2016-1583
 /**
  * Module parameter that defines the ecryptfs_verbosity level.
  */

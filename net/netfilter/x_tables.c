@@ -558,7 +558,77 @@ int xt_compat_match_to_user(const struct xt_entry_match *m,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_to_user);
+
+int xt_compat_check_entry_offsets(const void *base, const char *elems,
+				  unsigned int target_offset,
+				  unsigned int next_offset)
+{
+	long size_of_base_struct = elems - (const char *)base;
+	const struct compat_xt_entry_target *t;
+	const char *e = base;
+
+	if (target_offset < size_of_base_struct)
+		return -EINVAL;
+	
+	if (target_offset + sizeof(*t) > next_offset)
+		return -EINVAL;
+
+	t = (void *)(e + target_offset);
+	if (t->u.target_size < sizeof(*t))
+		return -EINVAL;
+
+	if (target_offset + t->u.target_size > next_offset)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(xt_compat_check_entry_offsets);
 #endif /* CONFIG_COMPAT */
+
+/**
+ * xt_check_entry_offsets - validate arp/ip/ip6t_entry
+ *
+ * @base: pointer to arp/ip/ip6t_entry
+ * @elems: pointer to first xt_entry_match, i.e. ip(6)t_entry->elems
+ * @target_offset: the arp/ip/ip6_t->target_offset
+ * @next_offset: the arp/ip/ip6_t->next_offset
+ *
+ * validates that target_offset and next_offset are sane.
+ * Also see xt_compat_check_entry_offsets for CONFIG_COMPAT version.
+ *
+ * This function does not validate the targets or matches themselves, it
+ * only tests that all the offsets and sizes are correct.
+ *
+ * The arp/ip/ip6t_entry structure @base must have passed following tests:
+ * - it must point to a valid memory location
+ * - base to base + next_offset must be accessible, i.e. not exceed allocated
+ *   length.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int xt_check_entry_offsets(const void *base,
+			   const char *elems,
+			   unsigned int target_offset,
+			   unsigned int next_offset)
+{
+	long size_of_base_struct = elems - (const char *)base;
+	const struct xt_entry_target *t;
+	const char *e = base;
+
+	/* target start is within the ip/ip6/arpt_entry struct */
+	if (target_offset < size_of_base_struct)
+		return -EINVAL;
+
+	if (target_offset + sizeof(*t) > next_offset)
+		return -EINVAL;
+
+	t = (void *)(e + target_offset);
+	if (target_offset + t->u.target_size > next_offset)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(xt_check_entry_offsets);
 
 int xt_check_target(struct xt_tgchk_param *par,
 		    unsigned int size, u_int8_t proto, bool inv_proto)

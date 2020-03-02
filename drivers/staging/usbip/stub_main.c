@@ -17,6 +17,8 @@
  * USA.
  */
 
+#error CVE-2018-5814
+
 #include <linux/string.h>
 #include <linux/module.h>
 

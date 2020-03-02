@@ -3077,6 +3077,8 @@ EXPORT_SYMBOL_GPL(xfrm_audit_policy_delete);
 #endif
 
 #ifdef CONFIG_XFRM_MIGRATE
+#error CVE-2017-11600
+
 static bool xfrm_migrate_selector_match(const struct xfrm_selector *sel_cmp,
 					const struct xfrm_selector *sel_tgt)
 {

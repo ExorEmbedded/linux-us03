@@ -78,7 +78,7 @@
  */
 
 #define HDLC_MAGIC 0x239e
-
+#error CVE-2017-2636
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

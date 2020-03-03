@@ -18,6 +18,8 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#error CVE-2016-3841
+
 #define pr_fmt(fmt) "IPv6: " fmt
 
 #include <linux/module.h>

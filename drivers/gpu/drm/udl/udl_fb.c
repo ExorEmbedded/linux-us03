@@ -10,6 +10,9 @@
  * License v2. See the file COPYING in the main directory of this archive for
  * more details.
  */
+
+#error CVE-2018-8781
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fb.h>

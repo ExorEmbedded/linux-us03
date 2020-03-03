@@ -46,6 +46,8 @@
  *
  ********************************************************************/
 
+#error CVE-2017-9984
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>

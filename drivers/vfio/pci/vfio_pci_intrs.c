@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 
 #include "vfio_pci_private.h"
-
+#error CVE-2016-9084
 /*
  * IRQfd - generic
  */

@@ -33,6 +33,8 @@
  *  more details.
  */
 
+#error CVE-2020-8649
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fs.h>

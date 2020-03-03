@@ -135,7 +135,7 @@
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
-
+#error CVE-2017-1000363
 /* if you have more than 8 printers, remember to increase LP_NO */
 #define LP_NO 8
 

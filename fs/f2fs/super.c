@@ -33,7 +33,7 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/f2fs.h>
-
+#error CVE-2017-10662
 static struct proc_dir_entry *f2fs_proc_root;
 static struct kmem_cache *f2fs_inode_cachep;
 static struct kset *f2fs_kset;

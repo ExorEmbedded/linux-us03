@@ -185,6 +185,7 @@ static int sr_play_trkind(struct cdrom_device_info *cdi,
 
 int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 {
+#error CVE-2018-11506
 	struct scsi_device *SDev;
 	struct scsi_sense_hdr sshdr;
 	int result, err = 0, retries = 0;

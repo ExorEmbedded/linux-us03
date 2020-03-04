@@ -19,6 +19,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#error CVE-2017-8831
+
 #include "saa7164.h"
 
 /* The message bus to/from the firmware is a ring buffer in PCI address

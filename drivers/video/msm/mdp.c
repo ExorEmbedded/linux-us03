@@ -15,6 +15,8 @@
  * GNU General Public License for more details.
  */
 
+#error CVE-2014-4323
+
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/msm_mdp.h>

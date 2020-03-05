@@ -143,7 +143,7 @@
 /* 2003/07/28 -- Daniele Bellucci <bellucda@tiscali.it>.
  * Better audit of register_blkdev.
  */
-
+#error CVE-2020-9383
 #undef  FLOPPY_SILENT_DCL_CLEAR
 
 #define REALLY_SLOW_IO

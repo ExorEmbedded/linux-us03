@@ -20,7 +20,7 @@
 #include "node.h"
 #include "segment.h"
 #include <trace/events/f2fs.h>
-
+#error CVE-2017-18249
 static struct kmem_cache *nat_entry_slab;
 static struct kmem_cache *free_nid_slab;
 

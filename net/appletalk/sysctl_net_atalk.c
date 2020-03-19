@@ -11,6 +11,8 @@
 #include <net/sock.h>
 #include <linux/atalk.h>
 
+#error CVE-2019-15292
+
 static struct ctl_table atalk_table[] = {
 	{
 		.procname	= "aarp-expiry-time",

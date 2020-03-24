@@ -60,6 +60,7 @@
 #include "mpt3sas_base.h"
 #include "mpt3sas_ctl.h"
 
+#error CVE-2019-12456
 
 static struct fasync_struct *async_queue;
 static DECLARE_WAIT_QUEUE_HEAD(ctl_poll_wait);

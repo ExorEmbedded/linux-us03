@@ -1,3 +1,5 @@
+#error CVE-2019-19060 CVE-2019-19061
+
 /*
  * Common library for ADIS16XXX devices
  *

@@ -198,6 +198,8 @@
 				MX8MM_IOMUXC_UART4_TXD_GPIO5_IO29       0x11
 				MX8MM_IOMUXC_SAI2_TXC_GPIO4_IO25        0x11
 				MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27       0x11
+				MX8MM_IOMUXC_SAI1_RXD1_GPIO4_IO3        0x11
+				MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5        0x11
 			>;
 		};
         
@@ -460,11 +462,12 @@
 };
 
 &ecspi1 {
-    fsl,spi-num-chipselects = <4>;
+    fsl,spi-num-chipselects = <5>;
     cs-gpios = <&gpio5 9 0>,  /* CS0 */
                <&gpio5 29 0>, /* CS1 */
                <&gpio4 25 0>, /* CS2 */
-               <&gpio4 27 0>; /* CS3 */
+               <&gpio4 27 0>, /* CS3 */
+               <&gpio4 5 0>;  /* CS4 */
     pinctrl-names = "default";
     pinctrl-0 = <&pinctrl_ecspi1>;
     status = "okay";
@@ -497,6 +500,36 @@
         size = <65536>;
         address-width = <16>;
     };
+	
+
+	flash0: n25q256a@4 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "m25p80";
+		reg = <4>;      /* chip select */
+		spi-max-frequency = <20000000>;
+		m25p,fast-read;
+		enable-gpios = <&gpio4 3 0>;
+		page-size = <256>; 
+		block-size = <16>; /* 2^16, 64KB */
+		read-delay = <4>;  /* delay value in read data capture register */
+		cdns,tshsl-ns = <50>;
+		cdns,tsd2d-ns = <50>;
+		cdns,tchsh-ns = <4>;
+		cdns,tslch-ns = <4>;
+
+		partition@qspi-fpga1 {
+		/* 10MB for raw FPGA1 image. */
+		label = "fpga1";
+		reg = <0x0 0xa00000>;
+		};
+
+		partition@qspi-fpga2 {
+		/* 10MB for raw FPGA2 image. */
+		label = "fpga2";
+		reg = <0xa00000 0xa00000>;
+		};
+	};	
 };
 
 &ecspi3 {

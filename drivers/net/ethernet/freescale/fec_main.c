@@ -4193,6 +4193,7 @@ static const struct file_operations fec_agring_fops = {
   .poll    = NULL,
   .write   = NULL,
   .compat_ioctl = fec_agring_ioctl,
+  .unlocked_ioctl = fec_agring_ioctl,
   .open    = fec_agring_open,
   .release = fec_agring_close,
   .fasync  = NULL,

@@ -12,6 +12,7 @@
 
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -23,7 +24,9 @@
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <video/displayconfig.h>
+#include <linux/init.h> 
 
 struct pwm_bl_data {
 	struct pwm_device	*pwm;
@@ -32,26 +35,25 @@ struct pwm_bl_data {
 	unsigned int		lth_brightness;
 	unsigned int		*levels;
 	bool			enabled;
-	struct regulator	*power_supply;
-	struct gpio_desc	*enable_gpio;
+	int			enable_gpio;
+	unsigned long		enable_gpio_flags;
 	unsigned int		scale;
-	bool			legacy;
 	int			(*notify)(struct device *,
 					  int brightness);
 	void			(*notify_after)(struct device *,
 					int brightness);
 	int			(*check_fb)(struct device *, struct fb_info *);
 	void			(*exit)(struct device *);
-	char			fb_id[16];
 };
+
 /*----------------------------------------------------------------------------------------------------------------*
 Exported function which allows to get the actual backlight enable status from kernel.
 It is needed for example by the working hours driver to correctly compute the effective backlight on time.
 *----------------------------------------------------------------------------------------------------------------*/
 bool pwm_backlight_is_enabled(struct backlight_device* bl)
 {
-    struct pwm_bl_data *pb = bl_get_data(bl);
-    return pb->enabled;
+  struct pwm_bl_data *pb = bl_get_data(bl);
+  return pb->enabled;
 }
 EXPORT_SYMBOL(pwm_backlight_is_enabled);
 
@@ -68,61 +70,94 @@ extern int hw_dispid; //Exported variable which holds the display id value, when
 */
 int dispid_get_backlight(struct pwm_bl_data* pb, int dispid, int maxlevels)
 {
-    int i=0;
-    int j;
-    int step = 0;
+  int i=0;
+  int j;
+  int step = 0;
+  
+  // Scan the display array to search for the required dispid
+  if(dispid == NODISPLAY)
+    return -1;
+	
+  while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
+    i++;
+  
+  if(displayconfig[i].dispid == NODISPLAY)
+    return -1;
+      
+  // If we are here, we have a valid array index pointing to the desired display
+  // Configure the backlight controller, based on a 0-100% dutycycle range.
+  pb->lth_brightness = 0;
+  pb->scale = 100;
+  
+  if(displayconfig[i].pwmfreq == 0)
+    displayconfig[i].pwmfreq = 1000;
+    
+  pb->period = 1000000000l / displayconfig[i].pwmfreq;
+  
+  //Now override the levels based on linear interpolation between brightness_min and brightness_max
+  if(displayconfig[i].brightness_max > 100)
+    displayconfig[i].brightness_max = 100;
+  
+  if((displayconfig[i].brightness_min & 0xff) > displayconfig[i].brightness_max)
+    displayconfig[i].brightness_min = displayconfig[i].brightness_max;
+    
+  if(maxlevels > 1) 
+    step = 100 * (displayconfig[i].brightness_max - (displayconfig[i].brightness_min & 0xff)) / (maxlevels-1);
+  for(j=1; j<maxlevels; j++)
+    pb->levels[j] = (displayconfig[i].brightness_min & 0xff) + (step *(j-1))/100;
+  
+  pb->levels[1] = displayconfig[i].brightness_min;
+  pb->levels[maxlevels] = displayconfig[i].brightness_max;
+  
+  /* BSP-1559: Create brightness curve for zero dimming feature (3 segments envelope) */
+  if((displayconfig[i].brightness_min & 0xff00) && (maxlevels > 16)) 
+  {
+    int lev;
 
-    // Scan the display array to search for the required dispid
-    if(dispid == NODISPLAY)
-        return -1;
-
-    while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
-        i++;
-
-    if(displayconfig[i].dispid == NODISPLAY)
-        return -1;
-
-    // If we are here, we have a valid array index pointing to the desired display
-    // Configure the backlight controller, based on a 0-100% dutycycle range.
-    pb->lth_brightness = 0;
-    pb->scale = 100;
-
-    if(displayconfig[i].pwmfreq == 0)
-	displayconfig[i].pwmfreq = 1000;
-
-    pb->period = 1000000000l / displayconfig[i].pwmfreq;
-
-    //Now override the levels based on linear interpolation between brightness_min and brightness_max
-    if(displayconfig[i].brightness_max > 100)
-        displayconfig[i].brightness_max = 100;
-
-    if(displayconfig[i].brightness_min > displayconfig[i].brightness_max)
-	displayconfig[i].brightness_min = displayconfig[i].brightness_max;
-
-    if(maxlevels > 1)
-        step = 100 * (displayconfig[i].brightness_max - displayconfig[i].brightness_min) / (maxlevels-1);
-    for(j=1; j<maxlevels; j++)
-        pb->levels[j] = displayconfig[i].brightness_min + (step *(j-1))/100;
-
-    pb->levels[1] = displayconfig[i].brightness_min;
+    /* 1st segment m=brightness_min */
+    step = (displayconfig[i].brightness_min >> 8) & 0xff;
+    for(j=2; j<7; j++)
+    {
+      lev = j*step;
+      if(lev < 255)
+	pb->levels[j] = (lev << 8) & 0xff00;
+      else
+	pb->levels[j] = lev / 100;
+    }
+    
+    /* 2nd segment m=1 */
+    lev = (lev/100) + 1;
+    for(j=7; j<10; j++)
+      pb->levels[j] = lev++;
+    
+    lev++;
+    pb->levels[j] = lev;
+    
+    /* 3rd segment: interpolation till brightness_max */
+    step = 100 * (displayconfig[i].brightness_max - lev) / (maxlevels-j);
+    for(j=11;j<maxlevels; j++)
+      pb->levels[j] = lev + (step *(j-10))/100;
+    
     pb->levels[maxlevels] = displayconfig[i].brightness_max;
+  }
+  
+  for(j=1; j<(maxlevels+1); j++)
+    printk("j=%d lev=%d \n",j,pb->levels[j]);
 
-    return 0;
+  return 0;
 }
 
 static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness)
 {
-	int err;
-
 	if (pb->enabled)
 		return;
 
-	err = regulator_enable(pb->power_supply);
-	if (err < 0)
-		dev_err(pb->dev, "failed to enable power supply\n");
-
-	if (pb->enable_gpio)
-		gpiod_set_value_cansleep(pb->enable_gpio, 1);
+	if (gpio_is_valid(pb->enable_gpio)) {
+		if (pb->enable_gpio_flags & PWM_BACKLIGHT_GPIO_ACTIVE_LOW)
+			gpio_set_value(pb->enable_gpio, 0);
+		else
+			gpio_set_value(pb->enable_gpio, 1);
+	}
 
 	pwm_enable(pb->pwm);
 	pb->enabled = true;
@@ -136,27 +171,35 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	pwm_config(pb->pwm, 0, pb->period);
 	pwm_disable(pb->pwm);
 
-	if (pb->enable_gpio)
-		gpiod_set_value_cansleep(pb->enable_gpio, 0);
+	if (gpio_is_valid(pb->enable_gpio)) {
+		if (pb->enable_gpio_flags & PWM_BACKLIGHT_GPIO_ACTIVE_LOW)
+			gpio_set_value(pb->enable_gpio, 1);
+		else
+			gpio_set_value(pb->enable_gpio, 0);
+	}
 
-	regulator_disable(pb->power_supply);
 	pb->enabled = false;
 }
 
 static int compute_duty_cycle(struct pwm_bl_data *pb, int brightness)
 {
 	unsigned int lth = pb->lth_brightness;
-	u64 duty_cycle;
+	int duty_cycle;
 
 	if (pb->levels)
 		duty_cycle = pb->levels[brightness];
 	else
 		duty_cycle = brightness;
+	
+	/* BSP-1559: handle special brightness dimming values */
+	if(pb->levels)
+	  if(duty_cycle & 0xff00)
+	    {
+	      duty_cycle = ((duty_cycle >> 8) & 0xff);
+	      return ((duty_cycle * pb->period) / (pb->scale * 100));
+	    }
 
-	duty_cycle *= pb->period - lth;
-	do_div(duty_cycle, pb->scale);
-
-	return duty_cycle + lth;
+	return (duty_cycle * (pb->period - lth) / pb->scale) + lth;
 }
 
 static int pwm_backlight_update_status(struct backlight_device *bl)
@@ -186,6 +229,11 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	return 0;
 }
 
+static int pwm_backlight_get_brightness(struct backlight_device *bl)
+{
+	return bl->props.brightness;
+}
+
 static int pwm_backlight_check_fb(struct backlight_device *bl,
 				  struct fb_info *info)
 {
@@ -196,30 +244,20 @@ static int pwm_backlight_check_fb(struct backlight_device *bl,
 
 static const struct backlight_ops pwm_backlight_ops = {
 	.update_status	= pwm_backlight_update_status,
+	.get_brightness	= pwm_backlight_get_brightness,
 	.check_fb	= pwm_backlight_check_fb,
 };
 
 #ifdef CONFIG_OF
-static int pwm_backlight_check_fb_name(struct device *dev, struct fb_info *info)
-{
-	struct backlight_device *bl = dev_get_drvdata(dev);
-	struct pwm_bl_data *pb = bl_get_data(bl);
-
-	if (strcmp(info->fix.id, pb->fb_id) == 0)
-		return true;
-
-	return false;
-}
-
 static int pwm_backlight_parse_dt(struct device *dev,
 				  struct platform_pwm_backlight_data *data)
 {
 	struct device_node *node = dev->of_node;
+	enum of_gpio_flags flags;
 	struct property *prop;
 	int length;
 	u32 value;
 	int ret;
-	const char *names;
 
 	if (!node)
 		return -ENODEV;
@@ -256,12 +294,14 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		data->max_brightness--;
 	}
 
-	if (!of_property_read_string(node, "fb-names", &names)){
-		strcpy(data->fb_id, names);
-		data->check_fb = &pwm_backlight_check_fb_name;
-	}
+	data->enable_gpio = of_get_named_gpio_flags(node, "enable-gpios", 0,
+						    &flags);
+	if (data->enable_gpio == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
-	data->enable_gpio = -EINVAL;
+	if (gpio_is_valid(data->enable_gpio) && (flags & OF_GPIO_ACTIVE_LOW))
+		data->enable_gpio_flags |= PWM_BACKLIGHT_GPIO_ACTIVE_LOW;
+
 	return 0;
 }
 
@@ -279,45 +319,13 @@ static int pwm_backlight_parse_dt(struct device *dev,
 }
 #endif
 
-static int pwm_backlight_initial_power_state(const struct pwm_bl_data *pb)
-{
-	struct device_node *node = pb->dev->of_node;
-
-	/* Not booted with device tree or no phandle link to the node */
-	if (!node || !node->phandle)
-		return FB_BLANK_UNBLANK;
-
-	/*
-	 * If the driver is probed from the device tree and there is a
-	 * phandle link pointing to the backlight node, it is safe to
-	 * assume that another driver will enable the backlight at the
-	 * appropriate time. Therefore, if it is disabled, keep it so.
-	 */
-
-	/* if the enable GPIO is disabled, do not enable the backlight */
-	if (pb->enable_gpio && gpiod_get_value(pb->enable_gpio) == 0)
-		return FB_BLANK_POWERDOWN;
-
-	/* The regulator is disabled, do not enable the backlight */
-	if (!regulator_is_enabled(pb->power_supply))
-		return FB_BLANK_POWERDOWN;
-
-	/* The PWM is disabled, keep it like this */
-	if (!pwm_is_enabled(pb->pwm))
-		return FB_BLANK_POWERDOWN;
-
-	return FB_BLANK_UNBLANK;
-}
-
 static int pwm_backlight_probe(struct platform_device *pdev)
 {
 	struct platform_pwm_backlight_data *data = dev_get_platdata(&pdev->dev);
 	struct platform_pwm_backlight_data defdata;
 	struct backlight_properties props;
 	struct backlight_device *bl;
-	struct device_node *node = pdev->dev.of_node;
 	struct pwm_bl_data *pb;
-	struct pwm_args pargs;
 	int ret;
 
 	if (!data) {
@@ -353,76 +361,44 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	} else
 		pb->scale = data->max_brightness;
 
+	pb->enable_gpio = data->enable_gpio;
+	pb->enable_gpio_flags = data->enable_gpio_flags;
 	pb->notify = data->notify;
 	pb->notify_after = data->notify_after;
 	pb->check_fb = data->check_fb;
 	pb->exit = data->exit;
 	pb->dev = &pdev->dev;
 	pb->enabled = false;
-	strcpy(pb->fb_id, data->fb_id);
 
-	pb->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable",
-						  GPIOD_ASIS);
-	if (IS_ERR(pb->enable_gpio)) {
-		ret = PTR_ERR(pb->enable_gpio);
-		goto err_alloc;
-	}
+	if (gpio_is_valid(pb->enable_gpio)) {
+		unsigned long flags;
 
-	/*
-	 * Compatibility fallback for drivers still using the integer GPIO
-	 * platform data. Must go away soon.
-	 */
-	if (!pb->enable_gpio && gpio_is_valid(data->enable_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, data->enable_gpio,
-					    GPIOF_OUT_INIT_HIGH, "enable");
+		if (pb->enable_gpio_flags & PWM_BACKLIGHT_GPIO_ACTIVE_LOW)
+			flags = GPIOF_OUT_INIT_HIGH;
+		else
+			flags = GPIOF_OUT_INIT_LOW;
+
+		ret = gpio_request_one(pb->enable_gpio, flags, "enable");
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to request GPIO#%d: %d\n",
-				data->enable_gpio, ret);
+				pb->enable_gpio, ret);
 			goto err_alloc;
 		}
-
-		pb->enable_gpio = gpio_to_desc(data->enable_gpio);
-	}
-
-	/*
-	 * If the GPIO is not known to be already configured as output, that
-	 * is, if gpiod_get_direction returns either 1 or -EINVAL, change the
-	 * direction to output and set the GPIO as active.
-	 * Do not force the GPIO to active when it was already output as it
-	 * could cause backlight flickering or we would enable the backlight too
-	 * early. Leave the decision of the initial backlight state for later.
-	 */
-	if (pb->enable_gpio &&
-	    gpiod_get_direction(pb->enable_gpio) != 0)
-		gpiod_direction_output(pb->enable_gpio, 1);
-
-	pb->power_supply = devm_regulator_get(&pdev->dev, "power");
-	if (IS_ERR(pb->power_supply)) {
-		ret = PTR_ERR(pb->power_supply);
-		goto err_alloc;
 	}
 
 	pb->pwm = devm_pwm_get(&pdev->dev, NULL);
-	if (IS_ERR(pb->pwm) && PTR_ERR(pb->pwm) != -EPROBE_DEFER && !node) {
-		dev_err(&pdev->dev, "unable to request PWM, trying legacy API\n");
-		pb->legacy = true;
-		pb->pwm = pwm_request(data->pwm_id, "pwm-backlight");
-	}
-
 	if (IS_ERR(pb->pwm)) {
-		ret = PTR_ERR(pb->pwm);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "unable to request PWM\n");
-		goto err_alloc;
+		dev_err(&pdev->dev, "unable to request PWM, trying legacy API\n");
+
+		pb->pwm = pwm_request(data->pwm_id, "pwm-backlight");
+		if (IS_ERR(pb->pwm)) {
+			dev_err(&pdev->dev, "unable to request legacy PWM\n");
+			ret = PTR_ERR(pb->pwm);
+			goto err_gpio;
+		}
 	}
 
 	dev_dbg(&pdev->dev, "got pwm for backlight\n");
-
-	/*
-	 * FIXME: pwm_apply_args() should be removed when switching to
-	 * the atomic PWM API.
-	 */
-	pwm_apply_args(pb->pwm);
 
 	/*
 	 * The DT case will set the pwm_period_ns field to 0 and store the
@@ -430,15 +406,14 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	 * set the period from platform data if it has not already been set
 	 * via the PWM lookup table.
 	 */
-	pwm_get_args(pb->pwm, &pargs);
-	pb->period = pargs.period;
-	if (!pb->period && (data->pwm_period_ns > 0))
-		pb->period = data->pwm_period_ns;
+	if (data->pwm_period_ns > 0)
+		pwm_set_period(pb->pwm, data->pwm_period_ns);
 
+	pb->period = pwm_get_period(pb->pwm);
 	pb->lth_brightness = data->lth_brightness * (pb->period / pb->scale);
-
+	
 	dispid_get_backlight(pb, hw_dispid, data->max_brightness);
-
+	
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = data->max_brightness;
@@ -447,9 +422,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		ret = PTR_ERR(bl);
-		if (pb->legacy)
-			pwm_free(pb->pwm);
-		goto err_alloc;
+		goto err_gpio;
 	}
 
 	if (data->dft_brightness > data->max_brightness) {
@@ -460,12 +433,14 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	}
 
 	bl->props.brightness = data->dft_brightness;
-	bl->props.power = pwm_backlight_initial_power_state(pb);
 	backlight_update_status(bl);
 
 	platform_set_drvdata(pdev, bl);
 	return 0;
 
+err_gpio:
+	if (gpio_is_valid(pb->enable_gpio))
+		gpio_free(pb->enable_gpio);
 err_alloc:
 	if (data->exit)
 		data->exit(&pdev->dev);
@@ -482,18 +457,7 @@ static int pwm_backlight_remove(struct platform_device *pdev)
 
 	if (pb->exit)
 		pb->exit(&pdev->dev);
-	if (pb->legacy)
-		pwm_free(pb->pwm);
-
 	return 0;
-}
-
-static void pwm_backlight_shutdown(struct platform_device *pdev)
-{
-	struct backlight_device *bl = platform_get_drvdata(pdev);
-	struct pwm_bl_data *pb = bl_get_data(bl);
-
-	pwm_backlight_power_off(pb);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -509,7 +473,6 @@ static int pwm_backlight_suspend(struct device *dev)
 
 	if (pb->notify_after)
 		pb->notify_after(pb->dev, 0);
-
 	return 0;
 }
 
@@ -518,7 +481,6 @@ static int pwm_backlight_resume(struct device *dev)
 	struct backlight_device *bl = dev_get_drvdata(dev);
 
 	backlight_update_status(bl);
-
 	return 0;
 }
 #endif
@@ -540,7 +502,6 @@ static struct platform_driver pwm_backlight_driver = {
 	},
 	.probe		= pwm_backlight_probe,
 	.remove		= pwm_backlight_remove,
-	.shutdown	= pwm_backlight_shutdown,
 };
 
 module_platform_driver(pwm_backlight_driver);

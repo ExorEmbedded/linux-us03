@@ -3,9 +3,9 @@
 #define _LINUX_TTY_H
 
 #include <linux/fs.h>
+#include <linux/kthread.h>
 #include <linux/major.h>
 #include <linux/termios.h>
-#include <linux/workqueue.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
 #include <linux/mutex.h>
@@ -83,7 +83,7 @@ static inline char *flag_buf_ptr(struct tty_buffer *b, int ofs)
 
 struct tty_bufhead {
 	struct tty_buffer *head;	/* Queue head */
-	struct work_struct work;
+	struct kthread_work work;
 	struct mutex	   lock;
 	atomic_t	   priority;
 	struct tty_buffer sentinel;
@@ -499,10 +499,12 @@ extern void session_clear_tty(struct pid *session);
 extern void no_tty(void);
 extern void tty_buffer_free_all(struct tty_port *port);
 extern void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld);
+extern bool tty_buffer_queue_work(struct tty_port *port);
 extern void tty_buffer_init(struct tty_port *port);
 extern void tty_buffer_set_lock_subclass(struct tty_port *port);
+extern void tty_buffer_init_kthread(void);
 extern bool tty_buffer_restart_work(struct tty_port *port);
-extern bool tty_buffer_cancel_work(struct tty_port *port);
+extern void tty_buffer_cancel_work(struct tty_port *port);
 extern void tty_buffer_flush_work(struct tty_port *port);
 extern speed_t tty_termios_baud_rate(struct ktermios *termios);
 extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);

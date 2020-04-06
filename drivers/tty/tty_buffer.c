@@ -3,6 +3,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/kthread.h>
 #include <linux/errno.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -11,11 +12,13 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/ratelimit.h>
+#include <uapi/linux/sched/types.h>
 
 
 #define MIN_TTYB_SIZE	256
@@ -71,7 +74,7 @@ void tty_buffer_unlock_exclusive(struct tty_port *port)
 	atomic_dec(&buf->priority);
 	mutex_unlock(&buf->lock);
 	if (restart)
-		queue_work(system_unbound_wq, &buf->work);
+		tty_buffer_queue_work(port);
 }
 EXPORT_SYMBOL_GPL(tty_buffer_unlock_exclusive);
 
@@ -404,7 +407,7 @@ void tty_schedule_flip(struct tty_port *port)
 	 * flush_to_ldisc() sees buffer data.
 	 */
 	smp_store_release(&buf->tail->commit, buf->tail->used);
-	queue_work(system_unbound_wq, &buf->work);
+	tty_buffer_queue_work(port);
 }
 EXPORT_SYMBOL(tty_schedule_flip);
 
@@ -491,7 +494,7 @@ receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
  *		 'consumer'
  */
 
-static void flush_to_ldisc(struct work_struct *work)
+static void flush_to_ldisc(struct kthread_work *work)
 {
 	struct tty_port *port = container_of(work, struct tty_port, buf.work);
 	struct tty_bufhead *buf = &port->buf;
@@ -551,6 +554,26 @@ void tty_flip_buffer_push(struct tty_port *port)
 }
 EXPORT_SYMBOL(tty_flip_buffer_push);
 
+static DEFINE_KTHREAD_WORKER(tty_buffer_worker);
+
+bool tty_buffer_queue_work(struct tty_port *port)
+{
+	return kthread_queue_work(&tty_buffer_worker, &port->buf.work);
+}
+
+void tty_buffer_init_kthread(void)
+{
+	struct sched_param param = { .sched_priority = 1 };
+	struct task_struct *kworker_task;
+
+	kworker_task = kthread_run(kthread_worker_fn, &tty_buffer_worker, "tty");
+	if (IS_ERR(kworker_task)) {
+		pr_err("failed to create message pump task\n");
+		return;
+	}
+	sched_setscheduler(kworker_task, SCHED_FIFO, &param);
+}
+
 /**
  *	tty_buffer_init		-	prepare a tty buffer structure
  *	@tty: tty to initialise
@@ -570,7 +593,7 @@ void tty_buffer_init(struct tty_port *port)
 	init_llist_head(&buf->free);
 	atomic_set(&buf->mem_used, 0);
 	atomic_set(&buf->priority, 0);
-	INIT_WORK(&buf->work, flush_to_ldisc);
+	kthread_init_work(&buf->work, flush_to_ldisc);
 	buf->mem_limit = TTYB_DEFAULT_MEM_LIMIT;
 }
 
@@ -599,15 +622,15 @@ void tty_buffer_set_lock_subclass(struct tty_port *port)
 
 bool tty_buffer_restart_work(struct tty_port *port)
 {
-	return queue_work(system_unbound_wq, &port->buf.work);
+	return tty_buffer_queue_work(port);
 }
 
-bool tty_buffer_cancel_work(struct tty_port *port)
+void tty_buffer_cancel_work(struct tty_port *port)
 {
-	return cancel_work_sync(&port->buf.work);
+	tty_buffer_flush_work(port);
 }
 
 void tty_buffer_flush_work(struct tty_port *port)
 {
-	flush_work(&port->buf.work);
+	kthread_flush_work(&port->buf.work);
 }

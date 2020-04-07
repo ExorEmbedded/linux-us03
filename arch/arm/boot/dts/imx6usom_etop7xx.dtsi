@@ -130,47 +130,47 @@
 
 	working_hours {
 	  compatible = "working_hours";
-	  eeprom = <&seeprom0>;
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
 	  backlight = <&pwm_bl00>;
-	  rtcnvram = <&m41t83>;
 	  status = "okay";
-	};
-
+	};	
+	
 	plxx0: plugin0 {
 	  compatible = "exor,plxx_manager";
-	  eeprom = <&plxxseeprom>;
-	  ioexp = <&plxxioexp>;
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
 	  sel-gpio = <&gpio7 5 0>;
 	  index = <0>;
 	  status = "okay";
-	};
-
+	};	
+	
 	plxx1: plugin1 {
 	  compatible = "exor,plxx_manager";
-	  eeprom = <&plxxseeprom>;
-	  ioexp = <&plxxioexp>;
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
 	  sel-gpio = <&gpio7 7 0>;
 	  index = <1>;
 	  status = "okay";
-	};
-
+	};	
+	
 	plxx2: plugin2 {
 	  compatible = "exor,plxx_manager";
-	  eeprom = <&plxxseeprom>;
-	  ioexp = <&plxxioexp>;
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
 	  sel-gpio = <&gpio7 3 0>;
 	  index = <2>;
 	  status = "okay";
-	};
-
+	};	
+	
 	plxx3: plugin3 {
 	  compatible = "exor,plxx_manager";
-	  eeprom = <&plxxseeprom>;
-	  ioexp = <&plxxioexp>;
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
 	  sel-gpio = <&gpio7 4 0>;
 	  index = <3>;
 	  status = "okay";
-	};
+	};		
 
         v4l2_out {
                 compatible = "fsl,mxc_v4l2_output";
@@ -432,7 +432,7 @@
 	};
 	
 	m41t83:m41t83@68 {
-		compatible = "stm,m41t83";
+		compatible = "st,m41t83";
 		reg = <0x68>;
 	};
 

@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/kthread.h>
+#include <linux/i2c.h>
 #include <linux/I2CSeeprom.h>
 
 #include <linux/of.h>
@@ -54,6 +55,392 @@ struct plxx_data
     u8                       eeprom[FULLEEPROMSIZE];  // Image of the I2C SEEPROM contents of the plugin
     bool                     f_updated;               // Flag indicating if datas for the current plugin were still taken
 };
+
+/* -------------------------------------------------------------------------------------------------------------- *
+ *
+ * PLCM09 related stuff
+ * 
+ * -------------------------------------------------------------------------------------------------------------- */
+#define PLCM09_U3ADDR (0x22)
+#define PLCM09_U5ADDR (0x21)
+#define PLCM09_INREG  (0x00)
+#define PLCM09_OUTREG (0x01)
+#define PLCM09_CFGREG (0x03)
+
+#define PLCM09_LED1        PLCM09_U3ADDR,1
+#define PLCM09_LED2        PLCM09_U3ADDR,2
+#define PLCM09_LED_POL     PLCM09_U3ADDR,3
+#define PLCM09_XO1         PLCM09_U3ADDR,4
+#define PLCM09_XO2         PLCM09_U3ADDR,5
+#define PLCM09_XI1         PLCM09_U3ADDR,6
+#define PLCM09_XI2         PLCM09_U3ADDR,7
+
+#define PLCM09_PWR_KEY     PLCM09_U5ADDR,0
+#define PLCM09_PWR_DW      PLCM09_U5ADDR,1
+#define PLCM09_RESET       PLCM09_U5ADDR,2
+#define PLCM09_RING        PLCM09_U5ADDR,5
+#define PLCM09_AP_READY    PLCM09_U5ADDR,7
+
+/* Checks the PLCM09 presence and, if present, initializes the gpio expanders
+ */
+static int plcm09_init(struct plxx_data *data)
+{
+  struct i2c_msg msg;
+  int ret = 0;
+  unsigned char buf[2];
+  
+  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  if(!adapter)
+    return -1;
+  
+  //Try to init U3 i2c gpio expander
+  msg.addr = PLCM09_U3ADDR;
+  msg.flags = 0;
+  msg.len = 2;
+  msg.buf = buf;
+
+  buf[0] = PLCM09_OUTREG;
+  buf[1] = 0xF1; //All outs = 1 except LED_POL, LED1, LED2
+  ret = i2c_transfer(adapter, &msg, 1);
+  if(ret < 0)
+    goto init_end;
+  
+  buf[0] = PLCM09_CFGREG;
+  buf[1] = 0xC0; //P6,7 = cfg input
+  ret = i2c_transfer(adapter, &msg, 1);
+  if(ret < 0)
+    goto init_end;
+
+  //Try to init U5 i2c gpio expander
+  msg.addr = PLCM09_U5ADDR;
+  msg.flags = 0;
+  msg.len = 2;
+  msg.buf = buf;
+
+  buf[0] = PLCM09_OUTREG;
+  buf[1] = 0x00; //All outs = 0
+  ret = i2c_transfer(adapter, &msg, 1);
+  if(ret < 0)
+    goto init_end;
+  
+  buf[0] = PLCM09_CFGREG;
+  buf[1] = 0xF0; //P3...7 = cfg input
+  ret = i2c_transfer(adapter, &msg, 1);
+ 
+init_end:
+  i2c_put_adapter(adapter);
+  return ret;
+}
+
+/* Sets the level of the specified plcm09 output line
+ */
+static int plcm09_set_out(struct plxx_data *data, unsigned char sa, unsigned char pin, unsigned char val)
+{
+  struct i2c_msg msg;
+  int ret = 0;
+  unsigned char buf[2];
+  unsigned char currval, newval;
+  
+  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  if(!adapter)
+    return -1;
+
+  //Get the current OUTREG value 
+  msg.addr = sa;
+  msg.flags = 0;
+  msg.len = 1;
+  msg.buf = buf;
+
+  buf[0] = PLCM09_OUTREG;
+  ret = i2c_transfer(adapter, &msg, 1);
+  if(ret < 0)
+    goto out_end;
+  
+  msg.flags = I2C_M_RD;
+  msg.len = 1;
+  msg.buf = &currval;
+  ret = i2c_transfer(adapter, &msg, 1);
+  if(ret < 0)
+    goto out_end;
+  
+  //Compute the new OUTREG value 
+  if(val)
+    newval = currval | (1 << pin);
+  else
+    newval = currval & (~(1<<pin));
+  
+  //Write the new OUTREG value
+  msg.addr = sa;
+  msg.flags = 0;
+  msg.len = 2;
+  msg.buf = buf;
+  
+  buf[0] = PLCM09_OUTREG;
+  buf[1] = newval;
+  ret = i2c_transfer(adapter, &msg, 1);
+
+out_end:
+  i2c_put_adapter(adapter);
+  return ret;
+}
+
+/* Return the level of the specified plcm09 line
+ */
+static int plcm09_get_in(struct plxx_data *data, unsigned char sa, unsigned char pin)
+{
+  struct i2c_msg msg;
+  unsigned char regaddr;
+  unsigned char currval;
+  int ret=0;
+
+  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  if(!adapter)
+    return -1;
+  
+  //Get the current INREG value 
+  msg.addr = sa;
+  msg.flags = 0;
+  msg.len = 1;
+  msg.buf = &regaddr;
+  regaddr = PLCM09_INREG;
+  ret = i2c_transfer(adapter, &msg, 1);
+  if(ret < 0)
+    goto in_end;
+  
+  msg.flags = I2C_M_RD;
+  msg.len = 1;
+  msg.buf = &currval;
+  ret = i2c_transfer(adapter, &msg, 1);
+  if(ret < 0)
+    goto in_end;
+  
+  //Compute the return value 
+  ret = 0;
+  if(currval & (1<<pin))
+    ret=1;
+  
+in_end:
+  i2c_put_adapter(adapter);
+  return ret;
+}
+
+static ssize_t plcm09_led1_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 1;
+  
+  mutex_lock(&plxx_lock);
+
+  if(plcm09_get_in(data, PLCM09_LED1) == 0)
+    tmp = 0;
+
+  mutex_unlock(&plxx_lock);
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcm09_led1_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  unsigned char tmp = 1;
+
+  mutex_lock(&plxx_lock);
+
+  if(buf[0] == '0')
+    tmp = 0;
+  
+  plcm09_set_out(data, PLCM09_LED1, tmp);
+  
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+static ssize_t plcm09_led2_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 1;
+  
+  mutex_lock(&plxx_lock);
+
+  if(plcm09_get_in(data, PLCM09_LED2) == 0)
+    tmp = 0;
+
+  mutex_unlock(&plxx_lock);
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcm09_led2_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  unsigned char tmp = 1;
+
+  mutex_lock(&plxx_lock);
+
+  if(buf[0] == '0')
+    tmp = 0;
+  
+  plcm09_set_out(data, PLCM09_LED2, tmp);
+  
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+static ssize_t plcm09_xo1_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 0;
+  
+  mutex_lock(&plxx_lock);
+
+  if(plcm09_get_in(data, PLCM09_XO1) == 0)
+    tmp = 1;
+
+  mutex_unlock(&plxx_lock);
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcm09_xo1_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  unsigned char tmp = 0;
+
+  mutex_lock(&plxx_lock);
+
+  if(buf[0] == '0')
+    tmp = 1;
+  
+  plcm09_set_out(data, PLCM09_XO1, tmp);
+  
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+static ssize_t plcm09_xo2_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 0;
+  
+  mutex_lock(&plxx_lock);
+
+  if(plcm09_get_in(data, PLCM09_XO2) == 0)
+    tmp = 1;
+
+  mutex_unlock(&plxx_lock);
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcm09_xo2_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  unsigned char tmp = 0;
+
+  mutex_lock(&plxx_lock);
+
+  if(buf[0] == '0')
+    tmp = 1;
+  
+  plcm09_set_out(data, PLCM09_XO2, tmp);
+  
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+static ssize_t plcm09_xi1_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 0;
+  
+  mutex_lock(&plxx_lock);
+
+  if(plcm09_get_in(data, PLCM09_XI1) > 0)
+    tmp = 1;
+
+  mutex_unlock(&plxx_lock);
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcm09_xi2_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 0;
+  
+  mutex_lock(&plxx_lock);
+
+  if(plcm09_get_in(data, PLCM09_XI2) > 0)
+    tmp = 1;
+
+  mutex_unlock(&plxx_lock);
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcm09_ringing_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 0;
+  
+  mutex_lock(&plxx_lock);
+
+  if(plcm09_get_in(data, PLCM09_RING) == 0)
+    tmp = 1;
+
+  mutex_unlock(&plxx_lock);
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcm09_power_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+
+  mutex_lock(&plxx_lock);
+
+  if(buf[0] == '1')
+  {
+    printk("PLCM09 power ON\n");
+    plcm09_set_out(data, PLCM09_PWR_KEY, 1);
+    msleep(200);
+    plcm09_set_out(data, PLCM09_PWR_KEY, 0);
+  }
+  else
+  {
+    printk("PLCM09 power OFF\n");
+    plcm09_set_out(data, PLCM09_PWR_DW, 1);
+    msleep(200);
+    plcm09_set_out(data, PLCM09_PWR_DW, 0);
+  }
+  
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+static DEVICE_ATTR(plcm09_led1, S_IRUGO | S_IWUSR, plcm09_led1_get, plcm09_led1_set);
+static DEVICE_ATTR(plcm09_led2, S_IRUGO | S_IWUSR, plcm09_led2_get, plcm09_led2_set);
+static DEVICE_ATTR(plcm09_xo1, S_IRUGO | S_IWUSR, plcm09_xo1_get, plcm09_xo1_set);
+static DEVICE_ATTR(plcm09_xo2, S_IRUGO | S_IWUSR, plcm09_xo2_get, plcm09_xo2_set);
+static DEVICE_ATTR(plcm09_xi1, S_IRUGO, plcm09_xi1_get, NULL);
+static DEVICE_ATTR(plcm09_xi2, S_IRUGO, plcm09_xi2_get, NULL);
+static DEVICE_ATTR(plcm09_ringing, S_IRUGO, plcm09_ringing_get, NULL);
+static DEVICE_ATTR(plcm09_power, S_IWUSR, NULL, plcm09_power_set);
+
+static struct attribute *plcm09_sysfs_attributes[] = {
+  &dev_attr_plcm09_led1.attr,
+  &dev_attr_plcm09_led2.attr,
+  &dev_attr_plcm09_xo1.attr,
+  &dev_attr_plcm09_xo2.attr,
+  &dev_attr_plcm09_xi1.attr,
+  &dev_attr_plcm09_xi2.attr,
+  &dev_attr_plcm09_ringing.attr,
+  &dev_attr_plcm09_power.attr,
+  NULL
+};
+
+static const struct attribute_group plcm09_attr_group = {
+  .attrs = plcm09_sysfs_attributes,    //sysfs single entries
+};
+
+/* -------------------------------------------------------------------------------------------------------------- *
+ * 
+ * END of PLCM09 related stuff
+ * 
+ * -------------------------------------------------------------------------------------------------------------- */
 
 static int UpdatePluginData(struct plxx_data *data);
 
@@ -528,6 +915,19 @@ static int plxx_probe(struct platform_device *pdev)
     {
         dev_err(&pdev->dev, "device create file failed\n");
         goto plxx_error1;
+    }
+
+    //PLCM09 detection and init
+    if(plcm09_init(data) >= 0)
+    {
+      //PLCM09 detected, add the corresponding sysfs group
+      printk("PLCM09 plugin module detected; index=%d\n",data->index);
+      res = sysfs_create_group(&pdev->dev.kobj, &plcm09_attr_group);
+      if (res) 
+      {
+	dev_err(&pdev->dev, "device create file failed\n");
+	goto plxx_error1;
+      }
     }
 
     return res;

@@ -73,6 +73,7 @@ int dispid_get_backlight(struct pwm_bl_data* pb, int dispid, int maxlevels)
   int i=0;
   int j;
   int step = 0;
+  extern int f_zerodimm;
   
   // Scan the display array to search for the required dispid
   if(dispid == NODISPLAY)
@@ -113,6 +114,7 @@ int dispid_get_backlight(struct pwm_bl_data* pb, int dispid, int maxlevels)
   if((displayconfig[i].brightness_min & 0xff00) && (maxlevels > 16)) 
   {
     int lev;
+    f_zerodimm = 1;
 
     /* 1st segment m=brightness_min */
     step = (displayconfig[i].brightness_min >> 8) & 0xff;

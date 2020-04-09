@@ -136,6 +136,12 @@ static char *execute_command;
 static char *ramdisk_execute_command;
 
 /*----------------------------------------------------------------------------------------------------------------*
+BSP-1559: exported f_zerodimm flag to indicate if zero dimming feature for the curent display
+*----------------------------------------------------------------------------------------------------------------*/
+int f_zerodimm = 0;
+EXPORT_SYMBOL(f_zerodimm);
+
+/*----------------------------------------------------------------------------------------------------------------*
 Export the hw_dispid variable, defining the display id if passed from cmdline.
 *----------------------------------------------------------------------------------------------------------------*/
 int hw_dispid = 0xFFFF; //This variable will hold the display id value, when passed from the cmdline

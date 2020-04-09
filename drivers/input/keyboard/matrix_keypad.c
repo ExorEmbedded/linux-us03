@@ -25,6 +25,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <linux/kobject.h>
 
 struct matrix_keypad {
 	const struct matrix_keypad_platform_data *pdata;
@@ -39,7 +40,32 @@ struct matrix_keypad {
 	bool scan_pending;
 	bool stopped;
 	bool gpio_all_disabled;
+	uint64_t raw_keymap;
 };
+
+static ssize_t key_read(struct file *filp, struct kobject *kobj,
+						struct bin_attribute *bin_attr,
+						char *buf, loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
+
+	dev_dbg(&pdev->dev, "%s %llX  count: %d offset %lld\n", __func__, keypad->raw_keymap, count, off);
+	memcpy(buf, &keypad->raw_keymap, sizeof(keypad->raw_keymap));
+	return count;
+}
+
+static struct bin_attribute key_attr = {
+	.attr = {
+		.name = "rawkeypad",
+		.mode = S_IRUGO,
+	},
+	.size = sizeof(uint64_t),	//Size of matrix_keypad.raw_keymap var
+	.read = key_read,
+};
+
+
 
 /*
  * NOTE: normally the GPIO has to be put into HiZ when de-activated to cause
@@ -156,6 +182,11 @@ static void matrix_keypad_scan(struct work_struct *work)
 			input_report_key(input_dev,
 					 keycodes[code],
 					 new_state[col] & (1 << row));
+
+			if(new_state[col] & (1 << row))
+				keypad->raw_keymap = keypad->raw_keymap | (1 << ((col*4)+row));
+			else
+				keypad->raw_keymap = keypad->raw_keymap & ~(1<<((col*4)+row));
 		}
 	}
 #ifdef CONFIG_KEYBOARD_MATRIX_SHUTDOWN
@@ -439,7 +470,7 @@ matrix_keypad_parse_dt(struct device *dev)
 	unsigned int *gpios;
 	int ret, i, nrow, ncol;
 	enum of_gpio_flags flags;
-	unsigned int tmp;
+	unsigned int tmp __maybe_unused;
 
 	if (!np) {
 		dev_err(dev, "device lacks DT data\n");
@@ -611,6 +642,9 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
 	platform_set_drvdata(pdev, keypad);
 
+	/* create the sysfs key file */
+	return sysfs_create_bin_file(&pdev->dev.kobj, &key_attr);
+
 	return 0;
 
 err_free_gpio:
@@ -637,6 +671,7 @@ static int matrix_keypad_remove(struct platform_device *pdev)
 	matrix_keypad_free_gpio(keypad);
 	input_unregister_device(keypad->input_dev);
 	kfree(keypad);
+	sysfs_remove_bin_file(&pdev->dev.kobj, &key_attr);
 
 	return 0;
 }

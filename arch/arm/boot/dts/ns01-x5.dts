@@ -146,7 +146,7 @@
 		gpio-activelow;
 		gpio-colactivehigh;
 		engpio = <&gpio1 18 0>;
-		shutdown-code=<0x0003006C>;	/* KEY_S + KEY_F3 */
+		shutdown-code=<0x00BE00BC>;	/* KEY_F20 (00BE) + KEY_F18 (00BC) */
 		shutdown-count=<25>;		/* 25 * 200mS = 5 secs */
 		status = "okay";
 
@@ -169,29 +169,29 @@
 
 		/* row << 24 | column << 16 | key-code */
 		linux,keymap = <
-			0x0000001F  /* KEY_S       (0)  */
-			0x0100003D  /* KEY_F3      (5)  */
-			0x02000041  /* KEY_F7      (10) */
-			0x03000023  /* KEY_H       (15) */
+			0x000001D2  /* KEY_FN_F1   (0)  */
+			0x010001D3  /* KEY_FN_F2   (5)  */
+			0x020001D4  /* KEY_FN_F3   (10) */
+			0x030001D5  /* KEY_FN_F4   (15) */
 
-			0x0001004E  /* KEY_KPPLUS  (1)  */
-			0x0101003E  /* KEY_F4      (6)  */
-			0x02010042  /* KEY_F8      (11) */
-			0x0301003C  /* KEY_F2      (16) */
+			0x000101D6  /* KEY_FN_F5   (1)  */
+			0x010101D7  /* KEY_FN_F6   (6)  */
+			0x020101D8  /* KEY_FN_F7   (11) */
+			0x030101D9  /* KEY_FN_F8   (16) */
 
-			0x0002004A  /* KEY_KPMINUS (2)  */
-			0x0102003F  /* KEY_F5      (7)  */
-			0x02020043  /* KEY_F9      (12) */
-			0x0302003B  /* KEY_F1      (17) */
+			0x000201DA  /* KEY_FN_F9   (2)  */
+			0x010201DB  /* KEY_FN_F10  (7)  */
+			0x020201DC  /* KEY_FN_F11  (12) */
+			0x030201DD  /* KEY_FN_F12  (17) */
 
-			0x0003001C  /* KEY_ENTER   (3)  */
-			0x01030040  /* KEY_F6      (8)  */
-			0x0203006A  /* KEY_RIGHT   (13) */
-			0x03030002  /* KEY_1       (18) */
+			0x000300C2  /* KEY_F24     (3)  */
+			0x010300C1  /* KEY_F23     (8)  */
+			0x020300C0  /* KEY_F22     (13) */
+			0x030300BF  /* KEY_F21     (18) */
 
-			0x00040003  /* KEY_2       (4)  */
-			0x01040067  /* KEY_UP      (9)  */
-			0x0204006C  /* KEY_DOWN    (14) */
+			0x000400BE  /* KEY_F20     (4)  */
+			0x010400BD  /* KEY_F19     (9)  */
+			0x020400BC  /* KEY_F18     (14) */
 			0x03040000  /* KEY_RESERVED     */
 		>;
 	};
@@ -203,14 +203,15 @@
         status = "okay";
     };
 
-    rot_enc_left {
+    rot_enc_right {
         compatible = "rotary-encoder";
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_encoderpad>;
         gpios = <&gpio4 10 0>, <&gpio4 12 0>;
         linux,axis = <0>; /* REL_X */
-        rotary-encoder,encoding = "binary";
-        rotary-encoder,relative-axis;
+        rotary-encoder,encoding = "gray";
+        rotary-encoder,steps = <4096>;
+        rotary-encoder,rollover;
     };
 
     gpio-poweroff {

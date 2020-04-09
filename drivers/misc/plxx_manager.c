@@ -56,6 +56,7 @@ struct plxx_data
     bool                     f_updated;               // Flag indicating if datas for the current plugin were still taken
 };
 
+#ifdef CONFIG_SOC_IMX6Q
 /* -------------------------------------------------------------------------------------------------------------- *
  *
  * PLCM09 related stuff
@@ -441,6 +442,7 @@ static const struct attribute_group plcm09_attr_group = {
  * END of PLCM09 related stuff
  * 
  * -------------------------------------------------------------------------------------------------------------- */
+#endif
 
 static int UpdatePluginData(struct plxx_data *data);
 
@@ -916,7 +918,7 @@ static int plxx_probe(struct platform_device *pdev)
         dev_err(&pdev->dev, "device create file failed\n");
         goto plxx_error1;
     }
-
+#ifdef CONFIG_SOC_IMX6Q
     //PLCM09 detection and init
     if(plcm09_init(data) >= 0)
     {
@@ -929,7 +931,7 @@ static int plxx_probe(struct platform_device *pdev)
 	goto plxx_error1;
       }
     }
-
+#endif
     return res;
 plxx_error1:
     kfree(data);

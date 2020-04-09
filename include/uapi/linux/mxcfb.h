@@ -179,6 +179,7 @@ struct mxcfb_csc_matrix {
 #define MXCFB_GET_FB_BLANK     _IOR('F', 0x2B, u_int32_t)
 #define MXCFB_SET_DIFMT		_IOW('F', 0x2C, u_int32_t)
 #define MXCFB_CSC_UPDATE	_IOW('F', 0x2D, struct mxcfb_csc_matrix)
+#define MXCFB_CSC_UPDATE_LCD	_IOW('F', 0x3F, struct mxcfb_csc_matrix)
 #define MXCFB_SET_GPU_SPLIT_FMT	_IOW('F', 0x2F, struct mxcfb_gpu_split_fmt)
 #define MXCFB_SET_PREFETCH	_IOW('F', 0x30, int)
 #define MXCFB_GET_PREFETCH	_IOR('F', 0x31, int)

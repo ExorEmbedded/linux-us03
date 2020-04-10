@@ -733,9 +733,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	fsl,uart-has-rtscts;
-//!!!	rts-gpio = <&gpio3 14 0>;
-//!!!	mode-gpio = <&gpio3 15 0>;
-//!!!	rxen-gpio = <&gpio6 31 0>;
+	rts-gpio = <&gpio3 14 0>;
+	mode-gpio = <&gpio3 15 0>;
+	rxen-gpio = <&gpio6 31 0>;
 	status = "okay";
 	/delete-property/dmas;
 	/delete-property/dma-names;

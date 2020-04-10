@@ -595,6 +595,15 @@ config SERIAL_IMX
 	  If you have a machine based on a Motorola IMX CPU you
 	  can enable its onboard serial port by enabling this option.
 
+config SERIAL_IMX_EXOR_UART
+	tristate "EXOR IMX serial port support"
+	depends on !SERIAL_IMX
+	select SERIAL_CORE
+	select RATIONAL
+	help
+	  If you have a machine based on a Motorola IMX CPU you
+	  can enable its onboard serial port by enabling this option.
+
 config SERIAL_IMX_CONSOLE
 	bool "Console on IMX serial port"
 	depends on SERIAL_IMX=y

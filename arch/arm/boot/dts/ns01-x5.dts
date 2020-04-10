@@ -146,7 +146,7 @@
 		gpio-activelow;
 		gpio-colactivehigh;
 		engpio = <&gpio1 18 0>;
-		shutdown-code=<0x00BE00BC>;	/* KEY_F20 (00BE) + KEY_F18 (00BC) */
+		shutdown-code=<0x00BB00BD>;	/* KEY_F17 (00BB) + KEY_F19 (00BD) */
 		shutdown-count=<25>;		/* 25 * 200mS = 5 secs */
 		status = "okay";
 
@@ -169,30 +169,30 @@
 
 		/* row << 24 | column << 16 | key-code */
 		linux,keymap = <
-			0x000001D2  /* KEY_FN_F1   (0)  */
-			0x010001D3  /* KEY_FN_F2   (5)  */
-			0x020001D4  /* KEY_FN_F3   (10) */
-			0x030001D5  /* KEY_FN_F4   (15) */
+			0x0000003B	/* KEY_F1	(0)	*/
+			0x0100003C	/* KEY_F2	(5)	*/
+			0x0200003D	/* KEY_F3	(10)	*/
+			0x0300003E	/* KEY_F4	(15)	*/
 
-			0x000101D6  /* KEY_FN_F5   (1)  */
-			0x010101D7  /* KEY_FN_F6   (6)  */
-			0x020101D8  /* KEY_FN_F7   (11) */
-			0x030101D9  /* KEY_FN_F8   (16) */
+			0x0001003F	/* KEY_F5	(1)	*/
+			0x01010040	/* KEY_F6	(6)	*/
+			0x02010041	/* KEY_F7	(11)	*/
+			0x03010042	/* KEY_F8	(16)	*/
 
-			0x000201DA  /* KEY_FN_F9   (2)  */
-			0x010201DB  /* KEY_FN_F10  (7)  */
-			0x020201DC  /* KEY_FN_F11  (12) */
-			0x030201DD  /* KEY_FN_F12  (17) */
+			0x00020043	/* KEY_F9	(2)	*/
+			0x01020044	/* KEY_F10	(7)	*/
+			0x02020057	/* KEY_F11	(12)	*/
+			0x03020058	/* KEY_F12	(17)	*/
 
-			0x000300C2  /* KEY_F24     (3)  */
-			0x010300C1  /* KEY_F23     (8)  */
-			0x020300C0  /* KEY_F22     (13) */
-			0x030300BF  /* KEY_F21     (18) */
+			0x000300B7	/* KEY_F13	(3)	*/
+			0x010300B8	/* KEY_F14	(8)	*/
+			0x020300B9	/* KEY_F15	(13)	*/
+			0x030300BA	/* KEY_F16	(18)	*/
 
-			0x000400BE  /* KEY_F20     (4)  */
-			0x010400BD  /* KEY_F19     (9)  */
-			0x020400BC  /* KEY_F18     (14) */
-			0x03040000  /* KEY_RESERVED     */
+			0x000400BB	/* KEY_F17	(4)	*/
+			0x010400BC	/* KEY_F18	(9)	*/
+			0x020400BD	/* KEY_F19	(14)	*/
+			0x03040000  /* KEY_RESERVED		*/
 		>;
 	};
 

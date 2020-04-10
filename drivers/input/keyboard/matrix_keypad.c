@@ -579,6 +579,95 @@ matrix_keypad_parse_dt(struct device *dev)
 	return ERR_PTR(-EINVAL);
 }
 #endif
+static int matrix_keypad_getkeycode(struct input_dev *input_dev,
+									struct input_keymap_entry *ke)
+{
+	unsigned int scancode;
+	struct matrix_keypad *keypad = input_get_drvdata(input_dev);
+	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
+	const uint32_t row_shift = get_count_order(pdata->num_col_gpios);
+	const unsigned short *keycodes = input_dev->keycode;
+	uint16_t r, c;
+	bool stop = false;
+
+	dev_info(&input_dev->dev, "shutdown_keycode1: %X - shutdown_keycode2: %X\n", \
+			 pdata->shutdown_keycode1, pdata->shutdown_keycode2 );
+
+	if (input_scancode_to_scalar(ke, &scancode))
+		return -EINVAL;
+
+	for(r=0; r<pdata->num_row_gpios && !stop; r++)
+	{
+		for(c=0; c<pdata->num_col_gpios && !stop; c++)
+		{
+			if(keycodes[MATRIX_SCAN_CODE(r, c, row_shift)] == scancode)
+			{
+				ke->keycode = keycodes[MATRIX_SCAN_CODE(r, c, row_shift)];
+				ke->len = sizeof(scancode);
+				memcpy(&ke->scancode, &scancode, sizeof(scancode));
+				ke->index = keycodes[MATRIX_SCAN_CODE(r, c, row_shift)];
+				stop = true;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int matrix_keypad_setkeycode(struct input_dev *input_dev,
+									const struct input_keymap_entry *ke,
+									unsigned int *old_keycode)
+{
+	unsigned int scancode;
+	struct matrix_keypad *keypad = input_get_drvdata(input_dev);
+	struct matrix_keypad_platform_data *pdata = keypad->pdata;
+	const uint32_t row_shift = get_count_order(pdata->num_col_gpios);
+	unsigned short *keycodes = input_dev->keycode;
+	uint16_t r = 0, c = 0;
+	bool stop = false;
+
+	if (input_scancode_to_scalar(ke, &scancode))
+		return -EINVAL;
+
+	for(r=0; r<pdata->num_row_gpios && !stop; r++)
+	{
+		for(c=0; c<pdata->num_col_gpios && !stop; c++)
+		{
+			if(keycodes[MATRIX_SCAN_CODE(r, c, row_shift)] == scancode)
+			{
+				dev_info(&input_dev->dev, "Change KeyCode from %X to %X \n", \
+						 keycodes[MATRIX_SCAN_CODE(r, c, row_shift)], ke->keycode );
+
+				*old_keycode = keycodes[MATRIX_SCAN_CODE(r, c, row_shift)];
+				keycodes[MATRIX_SCAN_CODE(r, c, row_shift)] =  ke->keycode;
+				__set_bit(ke->keycode, input_dev->keybit);
+				stop = true;
+
+#ifdef CONFIG_KEYBOARD_MATRIX_SHUTDOWN
+				if(pdata->shutdown_keycode1 == *old_keycode)
+				{
+					dev_info(&input_dev->dev, "Change shutdown_keycode1 from %X to %x", \
+							 pdata->shutdown_keycode1, ke->keycode);
+					pdata->shutdown_keycode1 = ke->keycode;
+				}
+
+				if(pdata->shutdown_keycode2 == *old_keycode)
+				{
+					dev_info(&input_dev->dev, "Change shutdown_keycode1 from %X to %x", \
+							 pdata->shutdown_keycode2, ke->keycode);
+					pdata->shutdown_keycode2 = ke->keycode;
+				}
+#endif
+			}
+		}
+	}
+
+	if( r==pdata->num_row_gpios) // If first loop exit, key not found
+		return -EINVAL;
+
+	__clear_bit(*old_keycode, input_dev->keybit);
+	return 0;
+}
 
 static int matrix_keypad_probe(struct platform_device *pdev)
 {
@@ -616,6 +705,8 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 	input_dev->dev.parent	= &pdev->dev;
 	input_dev->open		= matrix_keypad_start;
 	input_dev->close	= matrix_keypad_stop;
+	input_dev->getkeycode	= matrix_keypad_getkeycode;
+	input_dev->setkeycode	= matrix_keypad_setkeycode;
 
 	err = matrix_keypad_build_keymap(pdata->keymap_data, NULL,
 					 pdata->num_row_gpios,
@@ -644,8 +735,6 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 
 	/* create the sysfs key file */
 	return sysfs_create_bin_file(&pdev->dev.kobj, &key_attr);
-
-	return 0;
 
 err_free_gpio:
 	matrix_keypad_free_gpio(keypad);

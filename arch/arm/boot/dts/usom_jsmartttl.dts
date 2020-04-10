@@ -1,0 +1,65 @@
+/*
+ * Copyright (C) 2016 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a. (starting from the usom_be15a.dts file)
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6usom_jsmart.dtsi"
+
+/ {
+	model = "JSMART i.MX6 DualLite Board";
+	compatible = "fsl,imx6dl-sabresd", "fsl,imx6dl";
+};
+
+&ldb {
+  status = "disabled";
+};
+
+&mxcfb1 {
+	compatible = "fsl,mxc_sdc_fb";
+	disp_dev = "lcd";
+	interface_pix_fmt = "RGB565";
+	mode_str ="CLAA-WVGA";
+	default_bpp = <16>;
+	int_clk = <0>;
+	late_init = <0>;
+	status = "disabled";
+};
+	
+&ttllcd0 {
+	compatible = "fsl,lcd";
+	ipu_id = <0>;
+	disp_id = <0>;
+	default_ifmt = "RGB565";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ipu1>;
+	enable-gpios = <&gpio7 1 0>;
+	status = "okay";
+};
+
+&i2c3 {
+	polytouch: edt-ft5x06@38 {
+		compatible = "edt,edt-ft5406", "edt,edt-ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <9 8>;
+		int-gpios = <&gpio3 9 0>;
+	};
+};
+
+&mxcfb1 {
+	status = "okay";
+};
+
+&pxp {
+	status = "okay";
+};

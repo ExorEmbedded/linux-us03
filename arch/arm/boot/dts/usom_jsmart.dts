@@ -1,0 +1,29 @@
+/*
+ * Copyright (C) 2016 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a. (starting from the usom_be15a.dts file)
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6usom_jsmart.dtsi"
+
+/ {
+	model = "JSMART i.MX6 DualLite Board";
+	compatible = "fsl,imx6dl-sabresd", "fsl,imx6dl";
+};
+
+&mxcfb1 {
+	status = "okay";
+};
+
+&pxp {
+	status = "okay";
+};

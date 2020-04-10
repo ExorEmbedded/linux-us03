@@ -407,6 +407,9 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-wandboard-revb1.dtb \
 	usom_etop7xx.dtb \
 	usom_etop7xxq.dtb \
+	usom_jsmart.dtb \
+	usom_jsmartq.dtb \
+	usom_jsmartttl.dtb \
 	imx6dqscm-1gb-qwks-rev2-fix-ldo.dtb \
 	imx6dqscm-1gb-qwks-rev2-interleave-android-ldo.dtb \
 	imx6dqscm-1gb-qwks-rev2-wifi-fix-ldo.dtb \

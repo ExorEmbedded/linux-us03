@@ -363,7 +363,7 @@
 
 	htu21d@40 {
 	  /* Temperature/humidity */
-	  compatible = "htu21";
+	  compatible = "meas,htu21";
 	  reg = <0x40>;
 	};
 	

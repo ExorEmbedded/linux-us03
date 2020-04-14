@@ -309,13 +309,19 @@
 	};
 
 	touch: touch@4b {
-	  compatible = "tsc2004";
+	  compatible = "ti,tsc2004";
 	  reg = <0x4b>;
-	  x-plate-ohms = <400>;
-	  intr-gpio = <&gpio3 9 0>; /* GPIO3 9 as intr pin input */
-	  reset-gpio = <&gpio2 3 0>; /* GPIO2 3 as HW reset output */
+	  ti,x-plate-ohms = <400>;
+	  interrupts-extended = <&gpio3 9 0>; /* GPIO3 9 as intr pin input */
+	  reset-gpios = <&gpio2 3 0>; /* GPIO2 3 as HW reset output */
+	  
+	  touchscreen-fuzz-x = <4>;
+	  touchscreen-fuzz-y = <4>;
+	  touchscreen-fuzz-pressure = <2>;
+	  touchscreen-size-x = <4096>;
+	  touchscreen-size-y = <4096>;
+	  touchscreen-max-pressure = <2048>;
 	};
-	
 };
 
 &iomuxc {

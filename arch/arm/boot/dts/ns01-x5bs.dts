@@ -180,6 +180,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart6>;
 	fsl,uart-has-rtscts;
+	is-plugin-module;
 	status = "okay";
 	plugin1 = <&plxx0>;
 	plugin2 = <&plxx1>;
@@ -346,6 +347,11 @@
 	seeprom0:seeprom0@54 {
 		compatible = "atmel,24c02";
 		reg = <0x54>;
+	};
+
+	seepromuid:seepromuid@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
 	};
 
 	seeprom1:seeprom1@50 {

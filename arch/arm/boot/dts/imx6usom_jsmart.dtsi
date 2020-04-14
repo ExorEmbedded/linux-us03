@@ -345,7 +345,7 @@
 
 	lis331dlh@18 {
 	  /* Accelerometer */
-	  compatible = "lis331dlh";
+	  compatible = "st,lis331dlh-accel";
 	  reg = <0x18>;
 	};
 

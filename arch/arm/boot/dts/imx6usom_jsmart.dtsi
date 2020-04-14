@@ -357,7 +357,7 @@
 
 	lps22hb@5d {
 	    /* Pressure sensor LPS22HB */
-	    compatible = "st,lps22hb";
+	    compatible = "st,lps22hb-press";
 	    reg = <0x5d>;
 	};
 

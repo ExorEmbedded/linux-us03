@@ -410,6 +410,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	usom_jsmart.dtb \
 	usom_jsmartq.dtb \
 	usom_jsmartttl.dtb \
+	usom_be15a.dtb \
+	usom_be15b.dtb \
 	imx6dqscm-1gb-qwks-rev2-fix-ldo.dtb \
 	imx6dqscm-1gb-qwks-rev2-interleave-android-ldo.dtb \
 	imx6dqscm-1gb-qwks-rev2-wifi-fix-ldo.dtb \

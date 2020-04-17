@@ -22,6 +22,10 @@
 
 #define HAVE_AG_RING
 
+#if defined(CONFIG_SOC_IMX6ULL) || defined(CONFIG_SOC_IMX6UL)
+#undef HAVE_AG_RING
+#endif
+
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
     defined(CONFIG_ARM64)

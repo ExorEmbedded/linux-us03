@@ -4600,7 +4600,7 @@ fec_probe(struct platform_device *pdev)
 {
 	struct fec_enet_private *fep;
 	struct fec_platform_data *pdata;
-	struct net_device *ndev;
+	struct net_device *ndev = NULL;
 	int i, irq, ret = 0;
 	struct resource *r;
 	const struct of_device_id *of_id;
@@ -4612,7 +4612,16 @@ fec_probe(struct platform_device *pdev)
 	fec_enet_get_queue_num(pdev, &num_tx_qs, &num_rx_qs);
 
 	/* Init network device */
-	ndev = alloc_etherdev_mqs(sizeof(struct fec_enet_private) +
+	if (pdev->dev.of_node) {
+		int id = of_alias_get_id(pdev->dev.of_node, "ethernet");
+		if (id >= 0) {
+			char name[IFNAMSIZ];
+			snprintf(name, sizeof(name), "eth%d", id);
+			ndev = alloc_netdev_mqs(sizeof(struct fec_enet_private), name, NET_NAME_UNKNOWN, ether_setup, num_tx_qs, num_rx_qs);
+		}
+	}
+	if (!ndev)
+		ndev = alloc_etherdev_mqs(sizeof(struct fec_enet_private) +
 				  FEC_STATS_SIZE, num_tx_qs, num_rx_qs);
 	if (!ndev)
 		return -ENOMEM;

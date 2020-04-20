@@ -1648,14 +1648,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't get irq%d: %d\n", irq, ret);
 		goto out_master_put;
 	}
-#if defined(CONFIG_SOC_IMX6ULL) || defined(CONFIG_SOC_IMX6UL)	
-	//Set Initial SCLK level to hi if required 
-	if (of_find_property(np, "spi-clkhi", NULL))
-	{
-	  writel(MX51_ECSPI_CTRL_MODE_MASK | MX51_ECSPI_CTRL_ENABLE, spi_imx->base + MX51_ECSPI_CTRL);
-	  writel(MX51_ECSPI_CONFIG_SCLKCTL(0) | MX51_ECSPI_CONFIG_SCLKPOL(0), spi_imx->base + MX51_ECSPI_CONFIG);
-	}
-#endif
+
 	spi_imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(spi_imx->clk_ipg)) {
 		ret = PTR_ERR(spi_imx->clk_ipg);
@@ -1701,6 +1694,14 @@ static int spi_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "bitbang start failed with %d\n", ret);
 		goto out_clk_put;
 	}
+#if defined(CONFIG_SOC_IMX6ULL) || defined(CONFIG_SOC_IMX6UL)	
+	//Set Initial SCLK level to hi if required 
+	if (of_find_property(np, "spi-clkhi", NULL))
+	{
+	  writel(MX51_ECSPI_CTRL_MODE_MASK | MX51_ECSPI_CTRL_ENABLE, spi_imx->base + MX51_ECSPI_CTRL);
+	  writel(MX51_ECSPI_CONFIG_SCLKCTL(0) | MX51_ECSPI_CONFIG_SCLKPOL(0), spi_imx->base + MX51_ECSPI_CONFIG);
+	}
+#endif
 
 	dev_info(&pdev->dev, "probed\n");
 

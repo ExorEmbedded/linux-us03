@@ -546,6 +546,13 @@ config PLXX_MANAGER
 	depends on EEPROM_AT24
 	help
 	    Say Y to add the plugin plxx manager driver.
+
+config EXGPIO_INIT
+	tristate "Exor GPIO initializer, based on dtb"
+	depends on OF
+	help
+	    Say Y to add support for initializing gpio lines through dtb.
+	    
 	    
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

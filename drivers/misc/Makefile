@@ -62,6 +62,7 @@ obj-$(CONFIG_WORKING_HOURS)	+= working_hours.o
 obj-$(CONFIG_PLXX_MANAGER)	+= plxx_manager.o
 obj-y				+= nxp-pn5xx/
 obj-m				+= xethm_vs.o
+obj-$(CONFIG_EXGPIO_INIT) 	+= gpio_initializer.o
 
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_bugs.o

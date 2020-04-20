@@ -48,6 +48,9 @@
 #include <linux/platform_data/serial-imx.h>
 #include <linux/platform_data/dma-imx.h>
 
+#if defined(CONFIG_LEDS_TRIGGER_PA18)
+#include <linux/leds.h>
+#endif
 /* Register definitions */
 #define URXD0 0x0  /* Receiver Register */
 #define URTX0 0x40 /* Transmitter Register */
@@ -250,6 +253,10 @@ struct imx_port {
 	int			rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
 	int                     mode_two_lines_only;
 	bool			context_saved;
+#if defined(CONFIG_LEDS_TRIGGER_PA18)	
+	struct led_trigger	led_trigger_rx;
+	struct led_trigger	led_trigger_tx;
+#endif	
 #define DMA_TX_IS_WORKING 1
 	unsigned long		flags;
 };
@@ -429,6 +436,9 @@ static inline int is_imx6q_uart(struct imx_port *sport)
 {
 	return sport->devdata->devtype == IMX6Q_UART;
 }
+#if defined(CONFIG_LEDS_TRIGGER_PA18)
+static unsigned long led_delay = 50;
+#endif
 /*
  * Save and restore functions for UCR1, UCR2 and UCR3 registers
  */
@@ -563,7 +573,10 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		imx_stop_tx(&sport->port);
 		return;
 	}
-
+#if defined(CONFIG_LEDS_TRIGGER_PA18)	
+	led_trigger_blink_oneshot(&sport->led_trigger_tx,
+				  &led_delay, &led_delay, 0);
+#endif
 	if (sport->dma_is_enabled) {
 		/*
 		 * We've just sent a X-char Ensure the TX DMA is enabled
@@ -797,7 +810,10 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 	unsigned int rx, flg, ignored = 0;
 	struct tty_port *port = &sport->port.state->port;
 	unsigned long flags, temp;
-
+#if defined(CONFIG_LEDS_TRIGGER_PA18)
+	led_trigger_blink_oneshot(&sport->led_trigger_rx,
+				  &led_delay, &led_delay, 0);
+#endif	
 	spin_lock_irqsave(&sport->port.lock, flags);
 
 	while (readl(sport->port.membase + USR2) & USR2_RDR) {
@@ -2267,7 +2283,43 @@ static inline int serial_imx_probe_dt(struct imx_port *sport,
 	return 1;
 }
 #endif
+#if defined(CONFIG_LEDS_TRIGGER_PA18)
+static void imx_register_led_trigger(struct device *dev, struct imx_port *sport)
+{
+#ifdef CONFIG_LEDS_TRIGGERS
+	int ret;
+	char *name;
 
+	name = devm_kasprintf(dev, GFP_KERNEL, "ttymxc%d-rx|ttymxc%d-tx",
+			      sport->port.line, sport->port.line);
+	if (!name) {
+		dev_warn(dev, "failed to allocate led trigger name\n");
+		return;
+	}
+
+	sport->led_trigger_rx.name = name;
+
+	name = strchr(name, '|');
+	*name = '\0';
+
+	sport->led_trigger_tx.name = name + 1;
+
+	ret = led_trigger_register(&sport->led_trigger_rx);
+	if (ret) {
+		dev_warn(dev, "failed to register rx led trigger\n");
+		goto err_register_rx;
+	}
+
+	ret = led_trigger_register(&sport->led_trigger_tx);
+	if (ret) {
+		dev_warn(dev, "failed to register tx led trigger\n");
+		led_trigger_unregister(&sport->led_trigger_rx);
+err_register_rx:
+		devm_kfree(dev, name);
+	}
+#endif
+}
+#endif
 static void serial_imx_probe_pdata(struct imx_port *sport,
 		struct platform_device *pdev)
 {
@@ -2442,7 +2494,9 @@ static int serial_imx_probe(struct platform_device *pdev)
 	imx_ports[sport->port.line] = sport;
 
 	platform_set_drvdata(pdev, sport);
-
+#if defined(CONFIG_LEDS_TRIGGER_PA18)
+	imx_register_led_trigger(&pdev->dev, sport);
+#endif
 	return uart_add_one_port(&imx_reg, &sport->port);
 }
 
@@ -2450,6 +2504,10 @@ static int serial_imx_remove(struct platform_device *pdev)
 {
 	struct imx_port *sport = platform_get_drvdata(pdev);
 
+#if defined(CONFIG_LEDS_TRIGGER_PA18)
+	led_trigger_unregister(&sport->led_trigger_rx);
+#endif
+	
 	return uart_remove_one_port(&imx_reg, &sport->port);
 }
 

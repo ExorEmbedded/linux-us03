@@ -95,6 +95,8 @@ struct tsc200x {
 	int			in_y;
 	int                     in_z1;
 	int			in_z2;
+	
+	int 			count;
 
 	spinlock_t		lock;
 	struct timer_list	penup_timer;
@@ -130,6 +132,7 @@ static void tsc200x_update_pen_state(struct tsc200x *ts,
 		}
 	} else {
 		input_report_abs(ts->idev, ABS_PRESSURE, 0);
+		ts->count=0;
 		if (ts->pen_down) {
 			input_report_key(ts->idev, BTN_TOUCH, 0);
 			ts->pen_down = false;
@@ -147,6 +150,7 @@ static irqreturn_t tsc200x_irq_thread(int irq, void *_ts)
 	unsigned int pressure;
 	struct tsc200x_data tsdata;
 	int error;
+	int prev_x, prev_y;
 
 	/* read the coordinates */
 	error = regmap_bulk_read(ts->regmap, TSC200X_REG_X, &tsdata,
@@ -178,10 +182,37 @@ static irqreturn_t tsc200x_irq_thread(int irq, void *_ts)
 	 * At this point we are happy we have a valid and useful reading.
 	 * Remember it for later comparisons. We may now begin downsampling.
 	 */
+	prev_x = ts->in_x;
+	prev_y = ts->in_y;
 	ts->in_x = tsdata.x;
 	ts->in_y = tsdata.y;
 	ts->in_z1 = tsdata.z1;
 	ts->in_z2 = tsdata.z2;
+
+	/* Skip the very fisrt sample after pen down event */
+	if(ts->count++ == 0)
+	  goto out;
+	
+	mod_timer(&ts->penup_timer,
+		  jiffies + msecs_to_jiffies(TSC200X_PENUP_TIME_MS));
+	
+	/* Check for samples stability  */
+	if(ts->count < 4)
+	{
+	  if (abs(ts->in_x - prev_x) > 100)
+	    goto out;
+	  
+	  if (abs(ts->in_y - prev_y) > 100)
+	    goto out;
+	}
+	else
+	{
+	  if (abs(ts->in_x - prev_x) > 200)
+	    goto out;
+	  
+	  if (abs(ts->in_y - prev_y) > 200)
+	    goto out;
+	}
 
 	/* Compute touch pressure resistance using equation #1 */
 	pressure = tsdata.x * (tsdata.z2 - tsdata.z1) / tsdata.z1;

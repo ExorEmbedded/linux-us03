@@ -33,7 +33,7 @@
 		serial5 = &uart2;
 		serial6 = &uart7;
 		serial7 = &uart8;
-		watchdog1 = &wdog1;
+		watchdog0 = &wdog1;
 	};
 
 	chosen {

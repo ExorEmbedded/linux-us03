@@ -148,6 +148,8 @@
 &uart1 {
 	pinctrl-names = "default";
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;	
 };
 
 &uart6 {
@@ -158,6 +160,8 @@
 	mode-gpio = <&gpio4 13 0>;
 	rxen-gpio = <&gpio4 14 0>;
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;	
 };
 
 &usbotg1 {
@@ -603,6 +607,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;	
 	
 	spidev1_0: spi1@0 {
 		compatible = "generic,spidev";
@@ -617,6 +623,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;	
 	
 	spidev2_0: spi2@0 {
 		compatible = "generic,spidev";

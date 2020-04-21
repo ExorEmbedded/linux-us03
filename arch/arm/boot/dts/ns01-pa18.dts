@@ -150,6 +150,8 @@
 	pinctrl-0 = <&pinctrl_uart1>;
 	rts-gpio = <&gpio4 24 0>;
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;	
 };
 
 &uart6 {
@@ -161,6 +163,8 @@
 	rxen-gpio = <&gpio1 22 0>;
 	mode-two-lines-only;
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;	
 };
 
 &usbotg1 {
@@ -480,6 +484,8 @@
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	spi-clkhi;
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;	
 	
 	spidev1_0: spi1@0 {
 		spi-cpol;
@@ -496,6 +502,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;	
 
 	fram: at25@0 {
         /* CS3 FRAM */

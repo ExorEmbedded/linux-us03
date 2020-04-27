@@ -1,3 +1,5 @@
+#error CVE-2018-10323
+
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.

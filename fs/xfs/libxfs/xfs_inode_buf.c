@@ -1,4 +1,4 @@
-#error CVE-2018-10322
+#error CVE-2018-10322 CVE-2018-13095
 
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.

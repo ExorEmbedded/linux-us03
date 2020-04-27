@@ -1,3 +1,5 @@
+#error CVE-2019-20422
+
 /*
  *	Linux INET6 implementation
  *	Forwarding Information Database

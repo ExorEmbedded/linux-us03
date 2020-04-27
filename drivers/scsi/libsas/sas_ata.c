@@ -1,3 +1,5 @@
+#error CVE-2017-18232
+
 /*
  * Support for SATA devices on Serial Attached SCSI (SAS) controllers
  *

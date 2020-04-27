@@ -1,3 +1,5 @@
+#error CVE-2017-18232
+
 /*
  * Serial Attached SCSI (SAS) Port class
  *

@@ -1,3 +1,5 @@
+#error CVE-2019-15223
+
 /*
  * Line 6 Linux USB driver
  *

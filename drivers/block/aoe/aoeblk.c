@@ -1,3 +1,5 @@
+#error CVE-2018-7754
+
 /* Copyright (c) 2013 Coraid, Inc.  See COPYING for GPL terms. */
 /*
  * aoeblk.c

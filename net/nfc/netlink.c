@@ -1,3 +1,5 @@
+#error CVE-2019-12984
+
 /*
  * Copyright (C) 2011 Instituto Nokia de Tecnologia
  *

@@ -4196,7 +4196,7 @@ CONFIG_MMC_SDHCI_XENON=y
 #
 # MXC Vivante GPU support
 #
-CONFIG_MXC_GPU_VIV=y
+# CONFIG_MXC_GPU_VIV is not set
 
 #
 # MXC HANTRO(Video Processing Unit) support

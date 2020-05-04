@@ -122,22 +122,14 @@
         status = "okay";
     };
 
-    beeper {
-      /* Piezoelectric buzzer */
-      compatible = "gpio-beeper";
-      pinctrl-0 = <&pinctrl_beeper>;
-      pinctrl-names = "default";
-      gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
-    };
-    
-    working_hours {
-      compatible = "working_hours";
-      nvmem-names = "eeprom", "rtcnvram";
-      nvmem = <&seeprom0>, <&m41t83>;
-      backlight = <&pwm_bl00>;
-      status = "okay";
-    };
-    
+	beeper {
+		/* Piezoelectric buzzer */
+		compatible = "gpio-beeper";
+		pinctrl-0 = <&pinctrl_beeper>;
+		pinctrl-names = "default";
+		gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+	};
+
 	matrix_keypad {
 		compatible = "gpio-matrix-keypad";
 		pinctrl-names = "default";

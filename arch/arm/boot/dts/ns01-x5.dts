@@ -197,7 +197,7 @@
     };
 
     rot_enc_right {
-        compatible = "rotary-encoder";
+        compatible = "dual-rotary-encoder";
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_encoderpad>;
         gpios = <&gpio4 10 0>, <&gpio4 12 0>;

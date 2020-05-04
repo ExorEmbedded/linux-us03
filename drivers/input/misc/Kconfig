@@ -615,6 +615,13 @@ config INPUT_GPIO_ROTARY_ENCODER
 	  To compile this driver as a module, choose M here: the
 	  module will be called rotary_encoder.
 
+config INPUT_DUAL_ROTARY_ENCODER
+	tristate "Dual Input Rotary encoders connected to GPIO pins"
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here to add support for rotary encoders connected to GPIO lines.
+	  Expones dual input devs, ABS and REL.
+
 config INPUT_RB532_BUTTON
 	tristate "Mikrotik Routerboard 532 button interface"
 	depends on MIKROTIK_RB532

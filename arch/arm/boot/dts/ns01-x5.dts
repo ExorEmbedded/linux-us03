@@ -201,7 +201,7 @@
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_encoderpad>;
         gpios = <&gpio4 10 0>, <&gpio4 12 0>;
-        linux,axis = <0>; /* REL_X */
+        linux,axis = <0x08>; /* REL_WHEEL / ABS_WHEEL */
         rotary-encoder,encoding = "gray";
         rotary-encoder,steps = <4096>;
         rotary-encoder,rollover;

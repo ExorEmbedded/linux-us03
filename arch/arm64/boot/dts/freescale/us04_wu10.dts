@@ -1,0 +1,163 @@
+/*
+ * Copyright (C) 2019 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a.
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+  
+/dts-v1/;
+  
+#include "imx8mm_us04.dtsi"
+  
+/ {
+	model = "WU10 i.MX8MM US04 board";
+	compatible = "fsl,imx8mm-evk", "fsl,imx8mm";
+
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm1 0 50000 0>;
+	};
+};
+
+&backlight0 {
+    compatible = "pwm-backlight";
+    pwms = <&pwm3 0 50000 0>;
+    brightness-levels = <0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
+    default-brightness-level = <25>;
+    enable-gpios = <&gpio5 5 0>;
+    status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+	status = "okay";
+};
+
+&i2c1 {
+	lis331dlh@18 {
+		/* Accelerometer */
+		compatible = "st,lis331dlh-accel";
+		reg = <0x18>;
+	};
+
+	lps22hb@5d {
+		/* Pressure */
+		compatible = "st,lps22hb-press";
+		reg = <0x5d>;
+	};
+	
+	htu21@40 {
+		/* Humidity */
+		compatible = "meas,htu21";
+		reg = <0x40>;
+	};
+	
+	pca9633: pca9633 {
+		compatible = "nxp,pca9633";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x62>;
+		
+		red@0 {
+			label = "red";
+			reg = <0>;
+			linux,default-trigger = "none";
+		};
+		green@1 {
+			label = "green";
+			reg = <1>;
+			linux,default-trigger = "none";
+		};
+		blue@2 {
+			label = "blue";
+			reg = <2>;
+			linux,default-trigger = "none";
+		};
+		unused@3 {
+			label = "unused";
+			reg = <3>;
+			linux,default-trigger = "none";
+		};
+	};	
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-mode = "rmii";
+	phy-handle = <&ethphy0>;
+	fsl,magic-packet;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			max-speed = <100>;
+			reg = <1>;
+		};
+	};
+};
+
+&leds {
+	pinctrl-0 = <&pinctrl_leds>;
+	
+	led@4 {
+		label = "us03:sel_low_high";
+		gpios = <&gpio4 14 0>;
+		default-state = "off";
+	};
+};
+
+&iomuxc {
+	imx8mm-evk {
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
+				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
+			>;
+		};
+
+		pinctrl_leds: ledsgrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14         0x1c4
+			>;
+		};
+		
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ENET_MDC_ENET1_MDC		0x3
+				MX8MM_IOMUXC_ENET_MDIO_ENET1_MDIO	0x3
+				MX8MM_IOMUXC_ENET_TD2_ENET1_TX_CLK	0x4000001f
+				MX8MM_IOMUXC_ENET_TD1_ENET1_RGMII_TD1	0x56
+				MX8MM_IOMUXC_ENET_TD0_ENET1_RGMII_TD0	0x56
+				MX8MM_IOMUXC_ENET_RD1_ENET1_RGMII_RD1	0x56
+				MX8MM_IOMUXC_ENET_RD0_ENET1_RGMII_RD0	0x56
+				MX8MM_IOMUXC_ENET_RXC_ENET1_RX_ER	0x56
+				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x56
+				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x56
+			>;
+		};
+	};
+};
+

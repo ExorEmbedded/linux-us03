@@ -63,6 +63,11 @@
 		compatible = "meas,htu21";
 		reg = <0x40>;
 	};
+
+	opt3001@44 {
+	  compatible = "ti,opt3001";
+	  reg = <0x44>;
+	};			
 	
 	pca9633: pca9633 {
 		compatible = "nxp,pca9633";

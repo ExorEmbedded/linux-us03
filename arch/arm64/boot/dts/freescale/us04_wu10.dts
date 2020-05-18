@@ -22,6 +22,76 @@
 		compatible = "pwm-beeper";
 		pwms = <&pwm1 0 50000 0>;
 	};
+	
+	gpio_buttons: gpio_buttons@0 {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpiobutton>;
+
+		button@1 {
+		    label = "L1";
+		    linux,code = <59>; /* KEY_F1 */
+		    gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		};
+		button@2 {
+		    label = "L2";
+		    linux,code = <60>; /* KEY_F2 */
+		    gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+		};
+		button@3 {
+		    label = "L3";
+		    linux,code = <61>; /* KEY_F3 */
+		    gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		};
+		button@4 {
+		    label = "L4";
+		    linux,code = <62>; /* KEY_F4 */
+		    gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+		};
+		button@5 {
+		    label = "L5";
+		    linux,code = <63>; /* KEY_F5 */
+		    gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		};
+		button@6 {
+		    label = "L6";
+		    linux,code = <64>; /* KEY_F6 */
+		    gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
+		};
+		
+		button@7 {
+		    label = "R1";
+		    linux,code = <65>; /* KEY_F7 */
+		    gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;
+		};
+		button@8 {
+		    label = "R2";
+		    linux,code = <66>; /* KEY_F8 */
+		    gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;
+		};
+		button@9 {
+		    label = "R3";
+		    linux,code = <67>; /* KEY_F9 */
+		    gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
+		};
+		button@10 {
+		    label = "R4";
+		    linux,code = <68>; /* KEY_F10 */
+		    gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+		};
+		button@11 {
+		    label = "R5";
+		    linux,code = <87>; /* KEY_F11 */
+		    gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;
+		};
+		button@12 {
+		    label = "R6";
+		    linux,code = <88>; /* KEY_F12 */
+		    gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
+		};
+	};	
 };
 
 &backlight0 {
@@ -202,6 +272,23 @@
 				MX8MM_IOMUXC_ENET_RXC_ENET1_RX_ER	0x56
 				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x56
 				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x56
+			>;
+		};
+		
+		pinctrl_gpiobutton: pinctrl_gpiobuttongrp {
+			fsl,pins = <
+                MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7      0x1c4 /* Key L1 */
+                MX8MM_IOMUXC_GPIO1_IO06_GPIO1_IO6      0x1c4 /* Key L2 */
+                MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4      0x1c4 /* Key L3 */
+                MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9      0x1c4 /* Key L4 */
+                MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8      0x1c4 /* Key L5 */
+                MX8MM_IOMUXC_SAI1_TXD3_GPIO4_IO15      0x1c4 /* Key L6 */
+                MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7       0x1c4 /* Key R1 */
+                MX8MM_IOMUXC_SAI1_TXFS_GPIO4_IO10      0x1c4 /* Key R2 */
+                MX8MM_IOMUXC_SAI1_MCLK_GPIO4_IO20      0x1c4 /* Key R3 */
+                MX8MM_IOMUXC_SAI1_TXC_GPIO4_IO11       0x1c4 /* Key R4 */
+                MX8MM_IOMUXC_SAI1_RXFS_GPIO4_IO0       0x1c4 /* Key R5 */
+                MX8MM_IOMUXC_SAI1_TXD0_GPIO4_IO12      0x1c4 /* Key R6 */
 			>;
 		};
 	};

@@ -91,6 +91,15 @@
 		    linux,code = <88>; /* KEY_F12 */
 		    gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
 		};
+	};
+	
+	pwmleds:pwmleds {
+		compatible = "pwm-leds";
+		keybd_bkl_dimm {
+			label = "keybd_bkl_dimm";
+			pwms = <&pwm2 0 1000000>;
+			max-brightness = <255>;
+		};
 	};	
 };
 
@@ -106,6 +115,12 @@
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
 	status = "okay";
 };
 
@@ -192,9 +207,9 @@
 	pinctrl-0 = <&pinctrl_leds>;
 	
 	led@4 {
-		label = "us03:sel_low_high";
-		gpios = <&gpio4 14 0>;
-		default-state = "off";
+		label = "keybd_bkl_ena";
+		gpios = <&gpio4 24 0>;
+		default-state = "on";
 	};
 };
 
@@ -235,6 +250,13 @@
 			>;
 		};
 
+		pinctrl_pwm2: pwm2grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SCL_PWM2_OUT            0x1c4
+				MX8MM_IOMUXC_SAI2_TXFS_GPIO4_IO24         0x1c4
+			>;
+		};
+		
 		pinctrl_leds: ledsgrp {
 			fsl,pins = <
 				MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14         0x1c4
@@ -245,8 +267,6 @@
 			fsl,pins = <
 				MX8MM_IOMUXC_SAI2_RXFS_UART1_TX	    0x140
 				MX8MM_IOMUXC_SAI2_RXC_UART1_RX	    0x140
-				MX8MM_IOMUXC_SAI2_RXD0_UART1_RTS_B	0x140
-				MX8MM_IOMUXC_SAI2_TXFS_UART1_CTS_B	0x140
 				MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3   0x11
 				MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1   0x11
 				MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0   0x11

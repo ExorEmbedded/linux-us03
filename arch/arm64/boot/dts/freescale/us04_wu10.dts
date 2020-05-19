@@ -244,13 +244,23 @@
 };
 
 &ecspi1 {
-    fsl,spi-num-chipselects = <4>;
+    fsl,spi-num-chipselects = <5>;
+    pinctrl-0 = <&pinctrl_ecspi1_wu10>;
+    
     cs-gpios = <&gpio5 9 0>,  /* CS0 */
                <&gpio5 29 0>, /* CS1 */
                <&gpio4 25 0>, /* CS2 */
-               <&gpio4 27 0>; /* CS3 */
+               <&gpio4 27 0>, /* CS3 */
+               <&gpio5 26 0>; /* CS4 */
 	
 	/delete-node/ n25q256a@4;
+
+	tja1145: tja1145@4 {
+		compatible = "nxp,tja1145";
+		reg = <4>;
+		spi-cpha;
+		spi-max-frequency = <500000>;
+	};	
 };
 
 &iomuxc {
@@ -324,13 +334,26 @@
 			>;
 		};
 
+		pinctrl_ecspi1_wu10: ecspi1wu10grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK    0x11
+				MX8MM_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI    0x11
+				MX8MM_IOMUXC_ECSPI1_MISO_ECSPI1_MISO    0x11
+				MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9       0x11
+				MX8MM_IOMUXC_UART4_TXD_GPIO5_IO29       0x11
+				MX8MM_IOMUXC_SAI2_TXC_GPIO4_IO25        0x11
+				MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27       0x11
+				MX8MM_IOMUXC_UART3_RXD_GPIO5_IO26       0x11
+			>;
+		};
+		
 		pinctrl_dig_io: pinctrl_dig_iogrp {
 			fsl,pins = <
                 MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14      0x1c4 /* flt12 */
                 MX8MM_IOMUXC_SAI1_TXD4_GPIO4_IO16      0x1c4 /* flt34 */
-//                MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5       0x1c4 /* in1   */
+                MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5       0x1c4 /* in1   */
                 MX8MM_IOMUXC_SAI1_RXD2_GPIO4_IO4       0x1c4 /* in2   */
-//                MX8MM_IOMUXC_SAI1_RXD1_GPIO4_IO3       0x1c4 /* in3   */ //Still declared in imx8mm_us04.dtsi file
+                MX8MM_IOMUXC_SAI1_RXD1_GPIO4_IO3       0x1c4 /* in3   */ 
                 MX8MM_IOMUXC_SAI1_RXD0_GPIO4_IO2       0x1c4 /* in4   */
                 MX8MM_IOMUXC_SD2_RESET_B_GPIO2_IO19    0x1c4 /* en12  */
                 MX8MM_IOMUXC_SAI1_RXD4_GPIO4_IO6       0x1c4 /* en34  */

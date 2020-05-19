@@ -101,6 +101,16 @@
 			max-brightness = <255>;
 		};
 	};	
+	
+	dig_io:dig_io {
+	  compatible = "exor,gpio_initializer";
+	  pinctrl-names = "default";
+	  pinctrl-0 = <&pinctrl_dig_io>;
+	  gpios = <&gpio4 14 0x21>, <&gpio4 16 0x21>, <&gpio4 5 0x21>,  <&gpio4 4 0x21>,  <&gpio4 3 0x21>,  <&gpio4 2 0x21>,
+	          <&gpio2 19 0x20>, <&gpio4 6 0x20>,  <&gpio5 10 0x20>, <&gpio5 13 0x20>, <&gpio5 12 0x20>, <&gpio5 11 0x20>;
+	  gpio-names = "flt12", "flt34", "in1", "in2", "in3", "in4",
+	               "en12", "en34", "out1", "out2", "out3", "out4";
+	};
 };
 
 &backlight0 {
@@ -204,8 +214,6 @@
 };
 
 &leds {
-	pinctrl-0 = <&pinctrl_leds>;
-	
 	led@4 {
 		label = "keybd_bkl_ena";
 		gpios = <&gpio4 24 0>;
@@ -235,6 +243,16 @@
 	status = "okay";
 };
 
+&ecspi1 {
+    fsl,spi-num-chipselects = <4>;
+    cs-gpios = <&gpio5 9 0>,  /* CS0 */
+               <&gpio5 29 0>, /* CS1 */
+               <&gpio4 25 0>, /* CS2 */
+               <&gpio4 27 0>; /* CS3 */
+	
+	/delete-node/ n25q256a@4;
+};
+
 &iomuxc {
 	imx8mm-evk {
 		pinctrl_pwm3: pwm3grp {
@@ -257,12 +275,6 @@
 			>;
 		};
 		
-		pinctrl_leds: ledsgrp {
-			fsl,pins = <
-				MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14         0x1c4
-			>;
-		};
-
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_SAI2_RXFS_UART1_TX	    0x140
@@ -310,6 +322,23 @@
                 MX8MM_IOMUXC_SAI1_RXFS_GPIO4_IO0       0x1c4 /* Key R5 */
                 MX8MM_IOMUXC_SAI1_TXD0_GPIO4_IO12      0x1c4 /* Key R6 */
 			>;
+		};
+
+		pinctrl_dig_io: pinctrl_dig_iogrp {
+			fsl,pins = <
+                MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14      0x1c4 /* flt12 */
+                MX8MM_IOMUXC_SAI1_TXD4_GPIO4_IO16      0x1c4 /* flt34 */
+//                MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5       0x1c4 /* in1   */
+                MX8MM_IOMUXC_SAI1_RXD2_GPIO4_IO4       0x1c4 /* in2   */
+//                MX8MM_IOMUXC_SAI1_RXD1_GPIO4_IO3       0x1c4 /* in3   */ //Still declared in imx8mm_us04.dtsi file
+                MX8MM_IOMUXC_SAI1_RXD0_GPIO4_IO2       0x1c4 /* in4   */
+                MX8MM_IOMUXC_SD2_RESET_B_GPIO2_IO19    0x1c4 /* en12  */
+                MX8MM_IOMUXC_SAI1_RXD4_GPIO4_IO6       0x1c4 /* en34  */
+                MX8MM_IOMUXC_ECSPI2_SCLK_GPIO5_IO10    0x1c4 /* out1  */
+                MX8MM_IOMUXC_ECSPI2_SS0_GPIO5_IO13     0x1c4 /* out2  */
+                MX8MM_IOMUXC_ECSPI2_MISO_GPIO5_IO12    0x1c4 /* out3  */
+                MX8MM_IOMUXC_ECSPI2_MOSI_GPIO5_IO11    0x1c4 /* out4  */
+ 			>;
 		};
 	};
 };

@@ -243,6 +243,10 @@
 	status = "okay";
 };
 
+&can0 {
+	transceiver = <&tja1145>;
+};
+
 &ecspi1 {
     fsl,spi-num-chipselects = <5>;
     pinctrl-0 = <&pinctrl_ecspi1_wu10>;

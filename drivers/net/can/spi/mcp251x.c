@@ -76,6 +76,10 @@
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+#include <linux/spi/spi.h>
+#include <linux/spi/tja1145.h>
+#endif
 
 /* SPI interface instruction set */
 #define INSTRUCTION_WRITE	0x02
@@ -270,7 +274,39 @@ struct mcp251x_priv {
 	struct regulator *power;
 	struct regulator *transceiver;
 	struct clk *clk;
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	struct spi_device* transceiver_client;
+	struct tja1145_functions_accessor*  transceiver_fc;
+	struct work_struct work;
+#endif	
 };
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+static void mcp251x_can_plat_work_func(struct work_struct *work)
+{
+	struct mcp251x_priv *priv = container_of(work, struct mcp251x_priv, work);
+
+	printk("%s %d\n", __func__, priv->can.bittiming.bitrate );
+	if(priv->transceiver_fc && priv->transceiver_fc->transceiver_change_bitrate)
+		priv->transceiver_fc->transceiver_change_bitrate(priv->transceiver_fc, priv->can.bittiming.bitrate );
+}
+#endif
+
+static int mcp251x_can_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct mcp251x_priv *priv = netdev_priv(dev);
+	netdev_dbg(dev, "%s request for new ioctl\n", __func__);
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	if(cmd >= SIOCTJA1145SETWAKEUP )
+	{
+		netdev_dbg(dev, "%s request for new ioctl for can transceiver\n", __func__);
+		if(priv->transceiver_fc && priv->transceiver_fc->transceiver_ioctl)
+			priv->transceiver_fc->transceiver_ioctl(priv->transceiver_fc, ifr, cmd);
+	}
+#endif
+	return 0;
+}
 
 #define MCP251X_IS(_model) \
 static inline int mcp251x_is_##_model(struct spi_device *spi) \
@@ -609,6 +645,9 @@ static int mcp251x_do_set_bittiming(struct net_device *net)
 		mcp251x_read_reg(spi, CNF2),
 		mcp251x_read_reg(spi, CNF3));
 
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	schedule_work(&priv->work);
+#endif	
 	return 0;
 }
 
@@ -996,6 +1035,7 @@ static const struct net_device_ops mcp251x_netdev_ops = {
 	.ndo_stop = mcp251x_stop,
 	.ndo_start_xmit = mcp251x_hard_start_xmit,
 	.ndo_change_mtu = can_change_mtu,
+	.ndo_do_ioctl = mcp251x_can_ioctl,
 };
 
 static const struct of_device_id mcp251x_of_match[] = {
@@ -1033,7 +1073,11 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	struct mcp251x_priv *priv;
 	struct clk *clk;
 	int freq, ret;
-
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	u32  transceiver_handle = 0;
+	struct device_node* transceiver_node;
+#endif
+	
 	clk = devm_clk_get(&spi->dev, NULL);
 	if (IS_ERR(clk)) {
 		if (pdata)
@@ -1063,6 +1107,55 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	net->flags |= IFF_ECHO;
 
 	priv = netdev_priv(net);
+	
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	priv->transceiver_fc = NULL;
+	/*
+	 * TJA1145 transceiver
+	 */
+	ret = of_property_read_u32(spi->dev.of_node, "transceiver", &transceiver_handle);
+	if (ret != 0)
+	{
+		dev_info(&spi->dev, "No managed transceiver found\n");
+	}
+	else
+	{
+		dev_info(&spi->dev, "Managed transceiver found\n");
+		transceiver_node = of_find_node_by_phandle(transceiver_handle);
+		if (transceiver_node == NULL)
+		{
+			dev_err(&spi->dev, "Failed to find transceiver node\n");
+			return -ENODEV;
+		}
+
+		priv->transceiver_client = of_find_spi_device_by_node(transceiver_node);
+		if (priv->transceiver_client == NULL)
+		{
+			dev_err(&spi->dev, "Failed to find spi client\n");
+			of_node_put(transceiver_node);
+			ret = -EPROBE_DEFER;
+			goto out_free;
+		}
+		tja1145_driver_version(priv->transceiver_client);
+		/* release ref to the node and inc reference to the SPI client used */
+		of_node_put(transceiver_node);
+		transceiver_node = NULL;
+
+		/* And now get the TJA1145 function accessor */
+		priv->transceiver_fc = spi_tja1145_get_func_accessor(priv->transceiver_client);
+		if (IS_ERR_OR_NULL(priv->transceiver_fc))
+		{
+			dev_err(&spi->dev, "Failed to get tja1145 accessor\n");
+			ret = -EPROBE_DEFER;
+			goto out_free;
+		}
+		if( priv->transceiver_fc && priv->transceiver_fc->transceiver_start )
+			priv->transceiver_fc->transceiver_start(priv->transceiver_fc);
+		INIT_WORK(&priv->work, mcp251x_can_plat_work_func);
+        dev_info(&spi->dev, "Tja1145 correctly connected to m_can\n");
+	}
+#endif
+	
 	priv->can.bittiming_const = &mcp251x_bittiming_const;
 	priv->can.do_set_mode = mcp251x_do_set_mode;
 	priv->can.clock.freq = freq / 2;
@@ -1181,6 +1274,10 @@ static int mcp251x_can_remove(struct spi_device *spi)
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	struct net_device *net = priv->net;
 
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	if( priv->transceiver_fc && priv->transceiver_fc->transceiver_stop )
+		priv->transceiver_fc->transceiver_stop(priv->transceiver_fc);
+#endif
 	unregister_candev(net);
 
 	mcp251x_power_enable(priv->power, 0);

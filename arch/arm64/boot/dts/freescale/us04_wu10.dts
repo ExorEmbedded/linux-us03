@@ -111,6 +111,15 @@
 	  gpio-names = "flt12", "flt34", "in1", "in2", "in3", "in4",
 	               "en12", "en34", "out1", "out2", "out3", "out4";
 	};
+	
+	regulator_can1: regulator_can1 {
+            compatible = "regulator-fixed";
+            regulator-name = "can1_stb";
+            regulator-min-microvolt = <3300000>;
+            regulator-max-microvolt = <3300000>;
+            gpio = <&gpio4 13 0>;
+            enable-active-high;
+        };
 };
 
 &backlight0 {
@@ -247,6 +256,10 @@
 	transceiver = <&tja1145>;
 };
 
+&can1 {
+	xceiver-supply = <&regulator_can1>;
+};
+
 &ecspi1 {
     fsl,spi-num-chipselects = <5>;
     pinctrl-0 = <&pinctrl_ecspi1_wu10>;
@@ -348,6 +361,7 @@
 				MX8MM_IOMUXC_SAI2_TXC_GPIO4_IO25        0x11
 				MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27       0x11
 				MX8MM_IOMUXC_UART3_RXD_GPIO5_IO26       0x11
+				MX8MM_IOMUXC_SAI1_TXD1_GPIO4_IO13       0x11
 			>;
 		};
 		

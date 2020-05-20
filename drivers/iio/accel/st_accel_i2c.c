@@ -167,6 +167,8 @@ static int st_accel_i2c_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+	dev_info(&indio_dev->dev, "registered I2C accelerometer %s\n",
+		indio_dev->name);
 	return 0;
 }
 

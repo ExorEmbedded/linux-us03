@@ -25,6 +25,8 @@ struct ads1000 {
 #define ADS1000_CFG_REG 0x02
 #define ADS1000_OUT_REG 0x00
 
+#define ADS1000_DRIVER_NAME			"ads1000"
+
 static int ads1000_read_channel(struct ads1000 *adc, struct iio_chan_spec const *channel, int *value)
 {
     int ret;
@@ -135,7 +137,7 @@ static int ads1000_probe(struct i2c_client *client,
     }
 
 	iio->dev.parent = &client->dev;
-	iio->name = dev_name(&client->dev);
+	iio->name =  ADS1000_DRIVER_NAME; //dev_name(&client->dev);
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->info = &ads1000_info;
 
@@ -180,7 +182,7 @@ MODULE_DEVICE_TABLE(of, ads1000_of_match);
 
 static struct i2c_driver ads1000_driver = {
 	.driver = {
-		.name = "ads1000",
+		.name = ADS1000_DRIVER_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(ads1000_of_match),
 	},

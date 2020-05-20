@@ -1069,7 +1069,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	const struct of_device_id *of_id = of_match_device(mcp251x_of_match,
 							   &spi->dev);
 	struct mcp251x_platform_data *pdata = dev_get_platdata(&spi->dev);
-	struct net_device *net;
+	struct net_device *net = NULL;
 	struct mcp251x_priv *priv;
 	struct clk *clk;
 	int freq, ret;
@@ -1093,7 +1093,19 @@ static int mcp251x_can_probe(struct spi_device *spi)
 		return -ERANGE;
 
 	/* Allocate can/net device */
-	net = alloc_candev(sizeof(struct mcp251x_priv), TX_ECHO_SKB_MAX);
+	if (spi->dev.of_node)
+	{
+		int id = of_alias_get_id(spi->dev.of_node, "can");
+		if (id >= 0)
+		{
+			char name[IFNAMSIZ];
+			snprintf(name, sizeof(name), "can%d", id);
+			net = alloc_candev_alias(sizeof(*priv), TX_ECHO_SKB_MAX, name);
+		}
+	}
+	
+	if (!net)
+		net = alloc_candev(sizeof(struct mcp251x_priv), TX_ECHO_SKB_MAX);
 	if (!net)
 		return -ENOMEM;
 

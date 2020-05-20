@@ -736,6 +736,42 @@ struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
 EXPORT_SYMBOL_GPL(alloc_candev);
 
 /*
+ * Allocate and setup space for the CAN network device (alias used for naming)
+ */
+struct net_device *alloc_candev_alias(int sizeof_priv, unsigned int echo_skb_max, const char *alias)
+{
+	struct net_device *dev;
+	struct can_priv *priv;
+	int size;
+
+	if (echo_skb_max)
+		size = ALIGN(sizeof_priv, sizeof(struct sk_buff *)) +
+			echo_skb_max * sizeof(struct sk_buff *);
+	else
+		size = sizeof_priv;
+
+	dev = alloc_netdev(size, alias, NET_NAME_UNKNOWN, can_setup);
+	if (!dev)
+		return NULL;
+
+	priv = netdev_priv(dev);
+	priv->dev = dev;
+
+	if (echo_skb_max) {
+		priv->echo_skb_max = echo_skb_max;
+		priv->echo_skb = (void *)priv +
+			ALIGN(sizeof_priv, sizeof(struct sk_buff *));
+	}
+
+	priv->state = CAN_STATE_STOPPED;
+
+	INIT_DELAYED_WORK(&priv->restart_work, can_restart_work);
+
+	return dev;
+}
+EXPORT_SYMBOL_GPL(alloc_candev_alias);
+
+/*
  * Free space of the CAN network device
  */
 void free_candev(struct net_device *dev)

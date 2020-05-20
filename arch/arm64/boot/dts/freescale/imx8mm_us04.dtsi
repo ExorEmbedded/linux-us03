@@ -27,6 +27,8 @@
 		spi0 = &ecspi1;
 		spi1 = &ecspi3;
 		spi2 = &ecspi2;
+		can0 = &can0;
+		can1 = &can1;
 	};
     
 	chosen {

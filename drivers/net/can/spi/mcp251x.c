@@ -646,7 +646,8 @@ static int mcp251x_do_set_bittiming(struct net_device *net)
 		mcp251x_read_reg(spi, CNF3));
 
 #if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
-	schedule_work(&priv->work);
+	if(priv->transceiver_fc)
+		schedule_work(&priv->work);
 #endif	
 	return 0;
 }

@@ -55,7 +55,7 @@ static int ads1000_read_channel(struct ads1000 *adc, struct iio_chan_spec const 
     if(ret>2047)
         ret=0;
 
-    *value = ret;
+    *value = ret>>3;
 
 err_read_channel:
     mutex_unlock(&adc->lock);

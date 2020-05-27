@@ -41,7 +41,7 @@ static int gpio_beeper_event(struct input_dev *dev, unsigned int type,
 {
 	struct gpio_beeper *beep = input_get_drvdata(dev);
 
-	if (type != EV_SND || code != SND_BELL)
+	if (type != EV_SND)
 		return -ENOTSUPP;
 
 	if (value < 0)
@@ -89,6 +89,7 @@ static int gpio_beeper_probe(struct platform_device *pdev)
 	input->close		= gpio_beeper_close;
 	input->event		= gpio_beeper_event;
 
+	input_set_capability(input, EV_SND, SND_TONE);
 	input_set_capability(input, EV_SND, SND_BELL);
 
 	input_set_drvdata(input, beep);

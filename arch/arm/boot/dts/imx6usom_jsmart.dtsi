@@ -392,7 +392,7 @@
 		clock-frequency = <400000>;
 		interrupt-parent = <&gpio3>;
 		interrupt-gpios = <&gpio3 15 0>;
-		enable-gpios = <&gpio3 27 0>;
+		enable-gpios = <&gpio7 7 0>;
 	};
 };
 

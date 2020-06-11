@@ -590,8 +590,10 @@ static int matrix_keypad_getkeycode(struct input_dev *input_dev,
 	uint16_t r, c;
 	bool stop = false;
 
+#ifdef CONFIG_KEYBOARD_MATRIX_SHUTDOWN
 	dev_info(&input_dev->dev, "shutdown_keycode1: %X - shutdown_keycode2: %X\n", \
 			 pdata->shutdown_keycode1, pdata->shutdown_keycode2 );
+#endif
 
 	if (input_scancode_to_scalar(ke, &scancode))
 		return -EINVAL;
@@ -662,7 +664,7 @@ static int matrix_keypad_setkeycode(struct input_dev *input_dev,
 		}
 	}
 
-	if( r==pdata->num_row_gpios) // If first loop exit, key not found
+	if(!stop) // key not found
 		return -EINVAL;
 
 	__clear_bit(*old_keycode, input_dev->keybit);

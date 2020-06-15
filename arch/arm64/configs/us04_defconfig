@@ -1368,7 +1368,8 @@ CONFIG_EEPROM_AT25=y
 #
 # NXP PN5XX support
 #
-# CONFIG_NFC_NXP_PN5XX is not set
+
+CONFIG_NFC_NXP_PN5XX=y
 
 #
 # SCSI device support

@@ -90,6 +90,15 @@
 			reg = <3>;
 			linux,default-trigger = "none";
 		};
+	};
+
+	pn547: pn547@28 {
+		compatible = "nxp,pn547";
+		reg = <0x28>;
+		clock-frequency = <400000>;
+		interrupt-parent = <&gpio1>;
+		interrupt-gpios = <&gpio1 0 0>;
+		enable-gpios = <&gpio1 4 0>;
 	};	
 };
 
@@ -125,6 +134,17 @@
 
 &iomuxc {
 	imx8mm-evk {
+
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12      0x1c4
+				MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14      0x1c4
+				MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4   /* Wifi Reset */
+				MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0       0x1c4   /* NFC IRQ */
+				MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4       0x1c4   /* NFC Enable */
+			>;
+		};
+
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4

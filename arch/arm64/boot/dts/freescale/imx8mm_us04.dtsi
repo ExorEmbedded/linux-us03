@@ -60,7 +60,7 @@
   
         sela3a4@8 {
             label = "us03:sel_a3a4";
-            gpios = <&tca6408 5 0>;
+            gpios = <&tca6408 5 GPIO_ACTIVE_LOW>;
             default-state = "on";
         };
 	};

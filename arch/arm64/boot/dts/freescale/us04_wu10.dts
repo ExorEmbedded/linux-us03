@@ -22,7 +22,15 @@
 		compatible = "pwm-beeper";
 		pwms = <&pwm1 0 50000 0>;
 	};
-	
+
+	working_hours {
+	  compatible = "working_hours";
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
+	  backlight = <&backlight0>;
+	  status = "okay";
+	};	
+		
 	gpio_buttons: gpio_buttons@0 {
 		compatible = "gpio-keys";
 		#address-cells = <1>;

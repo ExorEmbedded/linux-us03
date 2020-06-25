@@ -1,5 +1,3 @@
-#error CVE-2019-19807
-
 /*
  *  Timers abstract layer
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>

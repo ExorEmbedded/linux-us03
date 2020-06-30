@@ -1,3 +1,5 @@
+#error CVE-2020-11668
+
 /*
  * USB IBM C-It Video Camera driver
  *

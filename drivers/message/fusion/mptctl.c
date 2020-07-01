@@ -1,3 +1,5 @@
+#error CVE-2020-12652
+
 /*
  *  linux/drivers/message/fusion/mptctl.c
  *      mpt Ioctl driver.

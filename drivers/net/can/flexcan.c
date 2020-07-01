@@ -863,7 +863,8 @@ static void flexcan_set_bittiming(struct net_device *dev)
 	flexcan_write(reg, &regs->ctrl);
 
 #if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
-	schedule_work(&priv->work);
+	if(priv->transceiver_fc)
+		schedule_work(&priv->work);
 #endif
 
 	/* print chip status */

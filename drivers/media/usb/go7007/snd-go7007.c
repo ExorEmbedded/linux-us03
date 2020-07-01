@@ -1,3 +1,5 @@
+#error CVE-2019-20810
+
 /*
  * Copyright (C) 2005-2006 Micronas USA Inc.
  *

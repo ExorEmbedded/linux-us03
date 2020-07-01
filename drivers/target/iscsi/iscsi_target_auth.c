@@ -1,3 +1,5 @@
+#error CVE-2018-14633
+
 /*******************************************************************************
  * This file houses the main functions for the iSCSI CHAP support
  *

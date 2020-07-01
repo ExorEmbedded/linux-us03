@@ -147,7 +147,8 @@
 			fsl,pins = <
 				MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12      0x1c4
 				MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14      0x1c4
-				MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4   /* Wifi Reset */
+				MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4
+				MX8MM_IOMUXC_SAI3_RXC_GPIO4_IO29        0x1c4   /* Wifi Reset */
 				MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0       0x1c4   /* NFC IRQ */
 				MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4       0x1c4   /* NFC Enable */
 			>;

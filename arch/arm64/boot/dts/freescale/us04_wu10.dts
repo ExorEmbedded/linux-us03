@@ -290,6 +290,16 @@
 
 &iomuxc {
 	imx8mm-evk {
+
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12      0x1c4
+				MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14      0x1c4
+				MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4
+				MX8MM_IOMUXC_SAI2_RXD0_GPIO4_IO23       0x1c4   /* Wifi Reset */
+			>;
+		};
+
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4

@@ -1,3 +1,5 @@
+#error CVE-2015-2877
+
 /*
  * Memory merging support.
  *

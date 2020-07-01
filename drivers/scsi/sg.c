@@ -1,3 +1,5 @@
+#error CVE-2020-12770
+
 /*
  *  History:
  *  Started: Aug 9 by Lawrence Foard (entropy@world.std.com),

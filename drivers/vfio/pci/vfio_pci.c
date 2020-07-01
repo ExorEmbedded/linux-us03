@@ -1,3 +1,5 @@
+#error CVE-2020-12888
+
 /*
  * Copyright (C) 2012 Red Hat, Inc.  All rights reserved.
  *     Author: Alex Williamson <alex.williamson@redhat.com>

@@ -1,5 +1,3 @@
-#error CVE-2019-19462
-
 /*
  * Public API and common code for kernel->userspace relay file support.
  *

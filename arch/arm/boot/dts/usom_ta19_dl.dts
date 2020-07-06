@@ -12,10 +12,10 @@
 
 /dts-v1/;
 
-#include "imx6q.dtsi"
+#include "imx6dl.dtsi"
 #include "usom_ta19.dtsi"
 
 / {
 	model = "TA19 i.MX6 Board";
-	compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
+	compatible = "fsl,imx6dl-sabresd", "fsl,imx6dl";
 };

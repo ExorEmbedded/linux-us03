@@ -413,6 +413,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	usom_be15a.dtb \
 	usom_be15b.dtb \
 	usom_ta19.dtb \
+	usom_ta19_dl.dtb \
 	ns01-ek435.dtb \
 	ns01-pa18.dtb \
 	ns01-evk.dtb \

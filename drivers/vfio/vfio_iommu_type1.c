@@ -1,3 +1,5 @@
+#error CVE-2019-3882
+
 /*
  * VFIO: IOMMU DMA mapping support for Type1 IOMMU
  *

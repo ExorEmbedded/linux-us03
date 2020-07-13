@@ -1,3 +1,5 @@
+#error CVE-2019-10126
+
 /*
  * Marvell Wireless LAN device driver: management IE handling- setting and
  * deleting IE.

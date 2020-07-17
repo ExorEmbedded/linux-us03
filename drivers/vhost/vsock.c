@@ -1,3 +1,5 @@
+#error CVE-2018-14625
+
 /*
  * vhost transport for vsock
  *

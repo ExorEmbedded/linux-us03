@@ -251,7 +251,7 @@ struct imx_port {
 	int			rts_gpio;         /* GPIO used as tx_en line for RS485 operation */
 	int			mode_gpio;        /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
 	int			rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
-	int                     mode_two_lines_only;
+	int			mode_two_lines_only;
 	bool			context_saved;
 #if defined(CONFIG_LEDS_TRIGGER_PA18)	
 	struct led_trigger	led_trigger_rx;
@@ -271,14 +271,14 @@ static void imx_rs485_stop_tx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	if ((sport->rts_gpio >= 0) && (port->rs485.flags & SER_RS485_ENABLED))
-	  if ((port->rs485.flags & SER_RS485_RTS_AFTER_SEND) == 0)
-	    gpio_set_value(sport->rts_gpio, 0);
-	
-	if ((port->rs485.flags & SER_RS485_ENABLED) && !(port->rs485.flags & SER_RS485_RX_DURING_TX)) 
+		if ((port->rs485.flags & SER_RS485_RTS_AFTER_SEND) == 0)
+			gpio_set_value(sport->rts_gpio, 0);
+
+	if ((port->rs485.flags & SER_RS485_ENABLED) && !(port->rs485.flags & SER_RS485_RX_DURING_TX))
 	{
-	  //RX enable by using the prg phy dedicated gpio pin
-	  if (gpio_is_valid(sport->rxen_gpio)) 
-	    gpio_set_value(sport->rxen_gpio, 1);
+		//RX enable by using the prg phy dedicated gpio pin
+		if (gpio_is_valid(sport->rxen_gpio))
+			gpio_set_value(sport->rxen_gpio, 1);
 	}
 }
 
@@ -287,77 +287,75 @@ static void imx_rs485_start_tx(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	if ((port->rs485.flags & SER_RS485_ENABLED) && !(port->rs485.flags & SER_RS485_RX_DURING_TX))
 	{
-	  //RX disable by using the prg phy dedicated gpio pin 
-	  if (gpio_is_valid(sport->rxen_gpio)) 
-	    gpio_set_value(sport->rxen_gpio, 0);
+		//RX disable by using the prg phy dedicated gpio pin
+		if (gpio_is_valid(sport->rxen_gpio))
+			gpio_set_value(sport->rxen_gpio, 0);
 	}
-  
+
 	if ((sport->rts_gpio >= 0) && (port->rs485.flags & SER_RS485_ENABLED))
 		gpio_set_value(sport->rts_gpio, 1);
-	
 }
 
 void imx_config_rs485(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	printk("%s -> (MCK) \n", __func__) ;
-
 	printk("--------- Setting UART /dev/ttymxc%d mode...\n", sport->port.line);
 	printk("--------- SER_RS485_ENABLED=%d \n", (port->rs485.flags & SER_RS485_ENABLED));
 
 	if (sport->rts_gpio >= 0)
 	{
-  	  gpio_set_value(sport->rts_gpio, 0);
-	  if (port->rs485.flags & SER_RS485_ENABLED)
-	  {
-	    if(port->rs485.flags & SER_RS485_RX_DURING_TX)
-	    {
-		printk("Setting UART to RS422\n");
-	    }
-	    else
-	    {
-		printk("Setting UART to RS485\n");
-	    }
-	  }
-	  else
-	  {
-		printk("Setting UART to RS232\n");
-		/*
-		* If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
-		*/
-		if (gpio_is_valid(sport->mode_gpio))
+		gpio_set_value(sport->rts_gpio, 0);
+		if (port->rs485.flags & SER_RS485_ENABLED)
 		{
-		  if(sport->mode_two_lines_only)
-		  {
-			  gpio_set_value(sport->rts_gpio, 0);
-		  }
-		  else 
-		  {
-			  gpio_set_value(sport->rts_gpio, 1);
-		  }
+			if(port->rs485.flags & SER_RS485_RX_DURING_TX)
+			{
+				printk("Setting UART to RS422\n");
+			}
+			else
+			{
+				printk("Setting UART to RS485\n");
+			}
 		}
-	  }
-	}
-	
-	// If we have a programmable phy, set the mode accordingly
-	if (gpio_is_valid(sport->mode_gpio)) 
-	{
-	  if(port->rs485.flags & SER_RS485_ENABLED)
-	    gpio_set_value(sport->mode_gpio, 1);
-	  else
-	    gpio_set_value(sport->mode_gpio, 0);
+		else
+		{
+			printk("Setting UART to RS232\n");
+			/*
+			 * If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
+			 */
+			if (gpio_is_valid(sport->mode_gpio))
+			{
+				if(sport->mode_two_lines_only)
+				{
+					gpio_set_value(sport->rts_gpio, 0);
+				}
+				else
+				{
+					gpio_set_value(sport->rts_gpio, 1);
+				}
+			}
+		}
 	}
 
-	//RX enable by using the prg phy dedicated gpio pin 
-	if (gpio_is_valid(sport->rxen_gpio)) 
-	  gpio_set_value(sport->rxen_gpio, 1);
-	
-	if (sport->have_rtscts) 
+	// If we have a programmable phy, set the mode accordingly
+	if (gpio_is_valid(sport->mode_gpio))
+	{
+		if(port->rs485.flags & SER_RS485_ENABLED)
+			gpio_set_value(sport->mode_gpio, 1);
+		else
+			gpio_set_value(sport->mode_gpio, 0);
+	}
+
+	//RX enable by using the prg phy dedicated gpio pin
+	if (gpio_is_valid(sport->rxen_gpio))
+		gpio_set_value(sport->rxen_gpio, 1);
+
+	if (sport->have_rtscts)
 	{
 		printk("UART have RTS/CTS\n");
 		if (port->rs485.flags & SER_RS485_ENABLED)
-		  writel(readl(sport->port.membase + UCR2) & ~UCR2_CTSC, sport->port.membase + UCR2);
-	} 
+			writel(readl(sport->port.membase + UCR2) & ~UCR2_CTSC, sport->port.membase + UCR2);
+	}
 	else
 	{
 		printk("UART does not have RTS/CTS... RS485 mode not possible\n");
@@ -739,18 +737,18 @@ static void imx_start_tx(struct uart_port *port)
 	}
 	else
 	{
-	  /*
-	   * If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
-	   */
-	    if (gpio_is_valid(sport->rts_gpio)) 
-	    {
-		if(sport->mode_two_lines_only)
+		/*
+		 * If we are in RS232 mode and we have a programmable phy, enable the TX if not yet done.
+		 */
+		if (gpio_is_valid(sport->rts_gpio))
 		{
-			gpio_set_value(sport->rts_gpio, 0);
-		} else {
-			gpio_set_value(sport->rts_gpio, 1);
+			if(sport->mode_two_lines_only)
+			{
+				gpio_set_value(sport->rts_gpio, 0);
+			} else {
+				gpio_set_value(sport->rts_gpio, 1);
+			}
 		}
-	    }
 	}
 
 	if (!sport->dma_is_enabled) {
@@ -1523,8 +1521,8 @@ static void imx_shutdown(struct uart_port *port)
 
 		/* We have to wait for the DMA to finish. */
 		ret = wait_event_interruptible_timeout(sport->dma_wait,
-			!sport->dma_is_rxing && !sport->dma_is_txing,
-			msecs_to_jiffies(1));
+						      !sport->dma_is_rxing && !sport->dma_is_txing,
+						       msecs_to_jiffies(1));
 		if (ret <= 0) {
 			sport->dma_is_rxing = 0;
 			sport->dma_is_txing = 0;
@@ -1572,7 +1570,7 @@ static void imx_shutdown(struct uart_port *port)
 		imx_config_rs485(port);
 	}
 #endif
-	
+
 	clk_disable_unprepare(sport->clk_per);
 	clk_disable_unprepare(sport->clk_ipg);
 }
@@ -1786,7 +1784,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (UART_ENABLE_MS(&sport->port, termios->c_cflag))
 		imx_enable_ms(&sport->port);
 	if (port->rs485.flags & SER_RS485_ENABLED)
-		   imx_config_rs485(port);
+		imx_config_rs485(port);
 
 	if (sport->dma_is_inited && !sport->dma_is_enabled) {
 		imx_enable_dma(sport);
@@ -2269,10 +2267,10 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 
 	if (of_property_read_bool(np, "mode-two-lines-only"))
 	{
-	    sport->mode_two_lines_only = 1;
-	    printk("Setting UART /dev/ttymxc%d with two wires serial mode \n", sport->port.line );
+		sport->mode_two_lines_only = 1;
+		printk("Setting UART /dev/ttymxc%d with two wires serial mode \n", sport->port.line );
 	} else {
-	    sport->mode_two_lines_only = 0;
+		sport->mode_two_lines_only = 0;
 	}
 	return 0;
 }
@@ -2462,24 +2460,21 @@ static int serial_imx_probe(struct platform_device *pdev)
 		ret = devm_request_irq(&pdev->dev, rxirq, imx_rxint, 0,
 				       dev_name(&pdev->dev), sport);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to request rx irq: %d\n",
-				ret);
+			dev_err(&pdev->dev, "failed to request rx irq: %d\n", ret);
 			return ret;
 		}
 
 		ret = devm_request_irq(&pdev->dev, txirq, imx_txint, 0,
 				       dev_name(&pdev->dev), sport);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to request tx irq: %d\n",
-				ret);
+			dev_err(&pdev->dev, "failed to request tx irq: %d\n", ret);
 			return ret;
 		}
 
 		ret = devm_request_irq(&pdev->dev, rtsirq, imx_rtsint, 0,
 				       dev_name(&pdev->dev), sport);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to request rts irq: %d\n",
-				ret);
+			dev_err(&pdev->dev, "failed to request rts irq: %d\n", ret);
 			return ret;
 		}
 	} else {
@@ -2507,7 +2502,6 @@ static int serial_imx_remove(struct platform_device *pdev)
 #if defined(CONFIG_LEDS_TRIGGER_PA18)
 	led_trigger_unregister(&sport->led_trigger_rx);
 #endif
-	
 	return uart_remove_one_port(&imx_reg, &sport->port);
 }
 

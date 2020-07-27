@@ -89,8 +89,9 @@
  *1.33			GP							09.01.2020	Changed pwm freq. and min brightness for code #69
  *1.34			SS							17.01.2020	Changed pwm freq. for code #57
  *1.35			SS							27.02.2020	Added display code #73: Multi-Inno MI0500AHT-5CP 800x480 for WE20-5inch.
+ *1.36			SS							27.07.2020	Added display code #74: Multi-Inno  MI1210RT-2 1280x800 for WE20-12inch.
  *
- * NEXT AVAILABLE DISPLAY CODE: 74
+ * NEXT AVAILABLE DISPLAY CODE: 75
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -1131,6 +1132,32 @@ static struct t_DisplayParams displayconfig[] = {
       .brightness_min = 1,
       .brightness_max = 50,
     },   
+    /* 74: Multiinno  MI1210RT-2 24 bit 1280x800 IMX.6 compatible */
+    {
+        .dispid    = 74,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 66600,         
+        .pclk_inv  = 1,					//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 12,            
+        .hs_bp     = 88,            
+        .hs_w      = 1,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 1,             
+        .vs_bp     = 23,            
+        .vs_w      = 1,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 1,
+        .brightness_max = 100,
+    },  
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

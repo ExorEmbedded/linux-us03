@@ -174,6 +174,7 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	usom_jsmartttl.dtb \
 	usom_wu16.dtb \
 	usom_ta19.dtb \
+	usom_ta19_dl.dtb \
 	usom_be15b.dtb \
 	imx6q-arm2.dtb \
 	imx6q-cubox-i.dtb \

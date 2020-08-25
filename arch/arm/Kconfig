@@ -646,6 +646,11 @@ config ARCH_OMAP1
 
 endchoice
 
+config X5_FIFO_KWORKER
+	bool "Exor X5 platform Enable FIFO sched for kworkers"
+	help
+	  Say Y to include support FIFO sched for kworkers.
+
 menu "Multiple platform selection"
 	depends on ARCH_MULTIPLATFORM
 

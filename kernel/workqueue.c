@@ -51,6 +51,7 @@
 #include <linux/nmi.h>
 #include <linux/locallock.h>
 #include <linux/delay.h>
+#include <uapi/linux/sched/types.h>
 
 #include "workqueue_internal.h"
 
@@ -1740,6 +1741,13 @@ static void worker_attach_to_pool(struct worker *worker,
 	 */
 	set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
 
+#ifdef CONFIG_X5_FIFO_KWORKER
+#warning "X5_FIFO_KWORKER is setted!"
+	{
+	struct sched_param param = { .sched_priority = 49 };
+	sched_setscheduler(worker->task, SCHED_FIFO, &param);
+	}
+#endif
 	/*
 	 * The pool->attach_mutex ensures %POOL_DISASSOCIATED remains
 	 * stable across this function.  See the comments above the

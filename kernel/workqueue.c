@@ -1742,7 +1742,7 @@ static void worker_attach_to_pool(struct worker *worker,
 	set_cpus_allowed_ptr(worker->task, pool->attrs->cpumask);
 
 #ifdef CONFIG_X5_FIFO_KWORKER
-#warning "X5_FIFO_KWORKER is setted!"
+#warning "X5_FIFO_KWORKER is set!"
 	{
 	struct sched_param param = { .sched_priority = 49 };
 	sched_setscheduler(worker->task, SCHED_FIFO, &param);

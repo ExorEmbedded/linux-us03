@@ -91,7 +91,7 @@ static void activate_col(const struct matrix_keypad_platform_data *pdata,
 	__activate_col(pdata, col, on);
 
 	if (on && pdata->col_scan_delay_ms)
-		msleep(pdata->col_scan_delay_ms);
+		usleep_range(pdata->col_scan_delay_ms, pdata->col_scan_delay_ms+2000);
 }
 
 static void activate_all_cols(const struct matrix_keypad_platform_data *pdata,
@@ -148,6 +148,8 @@ static void matrix_keypad_scan(struct work_struct *work)
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	uint32_t new_state[MATRIX_MAX_COLS];
 	int row, col, code;
+
+	usleep_range(keypad->pdata->debounce_ms, keypad->pdata->debounce_ms+2000);
 
 	/* de-activate all columns for scanning */
 	activate_all_cols(pdata, false);
@@ -251,8 +253,7 @@ static irqreturn_t matrix_keypad_interrupt(int irq, void *id)
 
 	disable_row_irqs(keypad);
 	keypad->scan_pending = true;
-	schedule_delayed_work(&keypad->work,
-		msecs_to_jiffies(keypad->pdata->debounce_ms));
+	schedule_delayed_work(&keypad->work, 0);
 
 out:
 	spin_unlock_irqrestore(&keypad->lock, flags);
@@ -503,6 +504,8 @@ matrix_keypad_parse_dt(struct device *dev)
 	of_property_read_u32(np, "debounce-delay-ms", &pdata->debounce_ms);
 	of_property_read_u32(np, "col-scan-delay-ms",
 						&pdata->col_scan_delay_ms);
+	pdata->debounce_ms*=1000;
+	pdata->col_scan_delay_ms*=1000;
 
 #ifdef CONFIG_KEYBOARD_MATRIX_SHUTDOWN
 	pdata->shutdown_keycode1 = 0;

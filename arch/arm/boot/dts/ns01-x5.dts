@@ -134,13 +134,13 @@
 		compatible = "gpio-matrix-keypad";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_keypad>;
-		debounce-delay-ms = <10>;
-		col-scan-delay-ms = <10>;
+		debounce-delay-ms = <20>;
+		col-scan-delay-ms = <8>;
 		gpio-activelow;
 		gpio-colactivehigh;
 		engpio = <&gpio1 18 0>;
 		shutdown-code=<0x003C003F>;	/* KEY_F2 (003C) + KEY_F5 (003F) */
-		shutdown-count=<25>;		/* 25 * 200mS = 5 secs */
+		shutdown-count=<70>;		/* 70 * 70mS = 5 secs */
 		status = "okay";
 
 		/* Output */

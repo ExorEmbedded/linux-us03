@@ -419,6 +419,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	ns01-evk.dtb \
 	ns01-keb01.dtb \
 	ns01-x5.dtb \
+	ns01-x5wired.dtb \
 	ns01-x5bs.dtb \
 	imx6dqscm-1gb-qwks-rev2-fix-ldo.dtb \
 	imx6dqscm-1gb-qwks-rev2-interleave-android-ldo.dtb \

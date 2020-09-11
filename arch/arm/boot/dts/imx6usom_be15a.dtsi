@@ -309,10 +309,10 @@
 	};
 
 	touch: touch@4b {
-	  compatible = "ti,tsc2004";
+	  compatible = "tsc2004-exor";
 	  reg = <0x4b>;
-	  ti,x-plate-ohms = <400>;
-	  interrupts-extended = <&gpio3 9 0>; /* GPIO3 9 as intr pin input */
+	  x-plate-ohms = <400>;
+	  intr-gpio = <&gpio3 9 0>; /* GPIO3 9 as intr pin input */
 	  reset-gpios = <&gpio2 3 0>; /* GPIO2 3 as HW reset output */
 	  
 	  touchscreen-fuzz-x = <4>;

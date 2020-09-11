@@ -473,6 +473,7 @@ struct tsc2004_platform_data* tsc2004_get_devtree_pdata(struct i2c_client *clien
 			dev_err(&client->dev, "Unable to set GPIO reset line as output ret=%d\n",ret);
 			return NULL;
 		}
+		dev_info(&client->dev, "Found reset-gpio %d\n", pdata->reset_gpio);
 	}
 
 	pdata->model = 2004;

@@ -451,7 +451,7 @@
         vio-supply = <&dummy_reg>;
 
         //MX6UL_PAD_UART2_CTS_B__GPIO1_IO22
-        //reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;
+        //reset-gpio = <&gpio4 8 GPIO_ACTIVE_HIGH>;
         intr-gpio = <&gpio1 22 IRQ_TYPE_EDGE_RISING>;
 
         touchscreen-fuzz-x = <4>;

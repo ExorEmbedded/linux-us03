@@ -313,7 +313,7 @@
 	  reg = <0x4b>;
 	  x-plate-ohms = <400>;
 	  intr-gpio = <&gpio3 9 0>; /* GPIO3 9 as intr pin input */
-	  reset-gpios = <&gpio2 3 0>; /* GPIO2 3 as HW reset output */
+	  reset-gpio = <&gpio2 3 0>; /* GPIO2 3 as HW reset output */
 	  
 	  touchscreen-fuzz-x = <4>;
 	  touchscreen-fuzz-y = <4>;

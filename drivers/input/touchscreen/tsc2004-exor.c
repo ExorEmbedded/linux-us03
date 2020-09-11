@@ -434,7 +434,7 @@ struct tsc2004_platform_data* tsc2004_get_devtree_pdata(struct i2c_client *clien
 		return NULL;
 	}
 	
-	pdata->gpio = of_get_named_gpio_flags(np, "intr-gpio", 0, &flags);
+	pdata->gpio = of_get_named_gpio_flags(np, "intr-gpio", 0, &pdata->irq_flags);
 
 	if (!gpio_is_valid(pdata->gpio))
 	{

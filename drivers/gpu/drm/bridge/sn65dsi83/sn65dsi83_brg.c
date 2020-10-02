@@ -127,7 +127,7 @@ static int sn65dsi83_write(struct i2c_client *client, u8 reg, u8 val)
     if (ret)
         dev_err(&client->dev, "failed to write at 0x%02x", reg);
 
-    dev_info(&client->dev, "%s: write reg 0x%02x data 0x%02x", __func__, reg, val);
+    dev_dbg(&client->dev, "%s: write reg 0x%02x data 0x%02x", __func__, reg, val);
 
     return ret;
 }
@@ -145,7 +145,7 @@ static int sn65dsi83_read(struct i2c_client *client, u8 reg)
         return ret;
     }
 
-    dev_info(&client->dev, "%s: read reg 0x%02x data 0x%02x", __func__, reg, ret);
+    dev_dbg(&client->dev, "%s: read reg 0x%02x data 0x%02x", __func__, reg, ret);
 
     return ret;
 }

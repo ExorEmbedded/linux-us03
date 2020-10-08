@@ -27,6 +27,8 @@
 		serial4 = &uart6;
 		can0 = &can2;
 		watchdog0 = &wdog1;
+		spi0 = &ecspi3;
+		spi2 = &ecspi1;
 	};
 
 	chosen {

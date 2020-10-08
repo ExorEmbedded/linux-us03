@@ -47,6 +47,7 @@
 #include <linux/busfreq-imx.h>
 #include <linux/platform_data/serial-imx.h>
 #include <linux/platform_data/dma-imx.h>
+#include <linux/plxx_manager.h>
 
 #if defined(CONFIG_LEDS_TRIGGER_PA18)
 #include <linux/leds.h>
@@ -251,6 +252,9 @@ struct imx_port {
 	int			rts_gpio;         /* GPIO used as tx_en line for RS485 operation */
 	int			mode_gpio;        /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
 	int			rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
+	unsigned int		is_plugin_module; /* If set, indicates the uart lines are routed to a plugin module slot, so control signals are handled accordingly */
+	struct platform_device* plugin1dev;
+	struct platform_device* plugin2dev;
 	int			mode_two_lines_only;
 	bool			context_saved;
 #if defined(CONFIG_LEDS_TRIGGER_PA18)	
@@ -274,6 +278,12 @@ static void imx_rs485_stop_tx(struct uart_port *port)
 		if ((port->rs485.flags & SER_RS485_RTS_AFTER_SEND) == 0)
 			gpio_set_value(sport->rts_gpio, 0);
 
+	if(sport->is_plugin_module == 1)
+		if ((sport->rts_gpio < 0) && (port->rs485.flags & SER_RS485_ENABLED) &&  !(port->rs485.flags & SER_RS485_RX_DURING_TX))
+		{
+			writel(readl(sport->port.membase + UCR2) & ~UCR2_CTS, sport->port.membase + UCR2);
+		};
+		
 	if ((port->rs485.flags & SER_RS485_ENABLED) && !(port->rs485.flags & SER_RS485_RX_DURING_TX))
 	{
 		//RX enable by using the prg phy dedicated gpio pin
@@ -294,6 +304,12 @@ static void imx_rs485_start_tx(struct uart_port *port)
 
 	if ((sport->rts_gpio >= 0) && (port->rs485.flags & SER_RS485_ENABLED))
 		gpio_set_value(sport->rts_gpio, 1);
+	
+	if(sport->is_plugin_module == 1)
+		if ((sport->rts_gpio < 0) && (port->rs485.flags & SER_RS485_ENABLED))
+		{
+			writel(readl(sport->port.membase + UCR2) | UCR2_CTS, sport->port.membase + UCR2);
+		};
 }
 
 void imx_config_rs485(struct uart_port *port)
@@ -355,6 +371,10 @@ void imx_config_rs485(struct uart_port *port)
 		printk("UART have RTS/CTS\n");
 		if (port->rs485.flags & SER_RS485_ENABLED)
 			writel(readl(sport->port.membase + UCR2) & ~UCR2_CTSC, sport->port.membase + UCR2);
+
+		if(sport->is_plugin_module == 1)
+			if ((sport->rts_gpio < 0) && (port->rs485.flags & SER_RS485_ENABLED))
+				writel(readl(sport->port.membase + UCR2) & ~UCR2_CTS, sport->port.membase + UCR2);
 	}
 	else
 	{
@@ -460,21 +480,6 @@ static void imx_port_ucrs_restore(struct uart_port *port,
 }
 #endif
 
-static void imx_port_rts_active(struct imx_port *sport, unsigned long *ucr2)
-{
-	*ucr2 &= ~(UCR2_CTSC | UCR2_CTS);
-
-	sport->port.mctrl |= TIOCM_RTS;
-}
-
-static void imx_port_rts_inactive(struct imx_port *sport, unsigned long *ucr2)
-{
-	*ucr2 &= ~UCR2_CTSC;
-	*ucr2 |= UCR2_CTS;
-
-	sport->port.mctrl &= ~TIOCM_RTS;
-}
-
 static void imx_port_rts_auto(struct imx_port *sport, unsigned long *ucr2)
 {
 	*ucr2 |= UCR2_CTSC;
@@ -501,13 +506,9 @@ static void imx_stop_tx(struct uart_port *port)
 	/* in rs485 mode disable transmitter if shifter is empty */
 	if (port->rs485.flags & SER_RS485_ENABLED &&
 	    readl(port->membase + USR2) & USR2_TXDC) {
-		temp = readl(port->membase + UCR2);
 		imx_rs485_stop_tx(port);
 		// Transmit complete interrupt disabled
-		if (port->rs485.flags & SER_RS485_RTS_AFTER_SEND)
-			imx_port_rts_active(sport, &temp);
-		else
-			imx_port_rts_inactive(sport, &temp);
+		temp = readl(port->membase + UCR2);
 		temp |= UCR2_RXEN;
 		writel(temp, port->membase + UCR2);
 
@@ -721,14 +722,6 @@ static void imx_start_tx(struct uart_port *port)
 
 	if (port->rs485.flags & SER_RS485_ENABLED) {
 		imx_rs485_start_tx(port);
-		temp = readl(port->membase + UCR2);
-		if (port->rs485.flags & SER_RS485_RTS_ON_SEND)
-			imx_port_rts_active(sport, &temp);
-		else
-			imx_port_rts_inactive(sport, &temp);
-		if (!(port->rs485.flags & SER_RS485_RX_DURING_TX))
-			temp &= ~UCR2_RXEN;
-		writel(temp, port->membase + UCR2);
 
 		/* enable transmitter and shifter empty irq */
 		temp = readl(port->membase + UCR4);
@@ -1659,23 +1652,12 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 				 * it under manual control and keep transmitter
 				 * disabled.
 				 */
-				if (port->rs485.flags &
-				    SER_RS485_RTS_AFTER_SEND)
-					imx_port_rts_active(sport, &ucr2);
-				else
-					imx_port_rts_inactive(sport, &ucr2);
 			} else {
 				imx_port_rts_auto(sport, &ucr2);
 			}
 		} else {
 			termios->c_cflag &= ~CRTSCTS;
 		}
-	} else if (port->rs485.flags & SER_RS485_ENABLED) {
-		/* disable transmitter */
-		if (port->rs485.flags & SER_RS485_RTS_AFTER_SEND)
-			imx_port_rts_active(sport, &ucr2);
-		else
-			imx_port_rts_inactive(sport, &ucr2);
 	}
 
 	if (termios->c_cflag & CSTOPB)
@@ -1911,9 +1893,29 @@ static void imx_poll_put_char(struct uart_port *port, unsigned char c)
 static int imx_rs485_config(struct uart_port *port,
 			    struct serial_rs485 *rs485conf)
 {
+	struct imx_port *sport = (struct imx_port *)port;
+	extern int plxx_manager_sendcmd(struct platform_device *pdev, unsigned int cmd);
+
 	port->rs485 = *rs485conf;
 	imx_config_rs485(port);
 
+	//Set duplex mode for RS485/422 plugin modules, according with RS485 or RS422 mode set
+	if(sport->is_plugin_module == 1)
+		if (port->rs485.flags & SER_RS485_ENABLED)
+			if (!gpio_is_valid(sport->rxen_gpio))
+			{
+				unsigned int cmd;
+				if(port->rs485.flags & SER_RS485_RX_DURING_TX)
+					cmd = RS422_485_IF_SETFD;
+				else
+					cmd = RS422_485_IF_SETHD;
+#if defined(CONFIG_PLXX_MANAGER) || defined(CONFIG_PLXX_MANAGER_MODULE)
+				if(sport->plugin1dev)
+					plxx_manager_sendcmd(sport->plugin1dev , cmd);
+				if(sport->plugin2dev)
+					plxx_manager_sendcmd(sport->plugin2dev , cmd);
+#endif	
+			}
 	return 0;
 }
 
@@ -2194,6 +2196,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 {
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
+	struct device_node *plxxnp;
 
 	sport->devdata = of_device_get_match_data(&pdev->dev);
 	if (!sport->devdata)
@@ -2210,6 +2213,10 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	if (of_get_property(np, "uart-has-rtscts", NULL) ||
 	    of_get_property(np, "fsl,uart-has-rtscts", NULL) /* deprecated */)
 		sport->have_rtscts = 1;
+
+	sport->is_plugin_module = 0;
+	if (of_get_property(np, "is-plugin-module", NULL))
+		sport->is_plugin_module = 1;
 
 	if (of_get_property(np, "fsl,dte-mode", NULL))
 		sport->dte_mode = 1;
@@ -2265,6 +2272,23 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 			return ret;
 	}
 
+	/* Get handle to plugin plxx manager drivers (if any) */
+	sport->plugin1dev = NULL;
+	sport->plugin2dev = NULL;
+
+	plxxnp = of_parse_phandle(np, "plugin1", 0);
+	if (plxxnp)
+	{
+		sport->plugin1dev = of_find_device_by_node(plxxnp);
+		of_node_put(plxxnp);
+	}
+
+	plxxnp = of_parse_phandle(np, "plugin2", 0);
+	if (plxxnp)
+	{
+		sport->plugin2dev = of_find_device_by_node(plxxnp);
+		of_node_put(plxxnp);
+	}
 	if (of_property_read_bool(np, "mode-two-lines-only"))
 	{
 		sport->mode_two_lines_only = 1;

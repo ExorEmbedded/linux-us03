@@ -55,18 +55,32 @@ struct plxx_data
   u32                      installed;               // Indicates if the plugin is physically installed
   u8                       eeprom[FULLEEPROMSIZE];  // Image of the I2C SEEPROM contents of the plugin
   bool                     f_updated;               // Flag indicating if datas for the current plugin were still taken
+  u8                       plcmversion;             // Flag indicating PCLM version (09,10,...)
 };
+
+/* -------------------------------------------------------------------------------------------------------------- *
+ *
+ * PLCMxx related stuff
+ * 
+ * -------------------------------------------------------------------------------------------------------------- */
+#define PLCMxx_INREG  (0x00)
+#define PLCMxx_OUTREG (0x01)
+#define PLCMxx_CFGREG (0x03)
+
+#define PLCMxx_VERSION_INVALID  0
+#define PLCMxx_VERSION_09  9
+#define PLCMxx_VERSION_10 10
+#define PLCMxx_VERSION_11 11 // PLCM10 ONLY 4G
+#define PLCMxx_VERSION_12 12 // PLCM10 ONLY WIFI
+
 
 /* -------------------------------------------------------------------------------------------------------------- *
  *
  * PLCM09 related stuff
  * 
  * -------------------------------------------------------------------------------------------------------------- */
-#define PLCM09_U3ADDR (0x22)
-#define PLCM09_U5ADDR (0x21)
-#define PLCM09_INREG  (0x00)
-#define PLCM09_OUTREG (0x01)
-#define PLCM09_CFGREG (0x03)
+#define PLCM09_U3ADDR (0x22) //Addr 0x74
+#define PLCM09_U5ADDR (0x21) //Addr 0x72
 
 #define PLCM09_LED1        PLCM09_U3ADDR,1
 #define PLCM09_LED2        PLCM09_U3ADDR,2
@@ -82,6 +96,57 @@ struct plxx_data
 #define PLCM09_RING        PLCM09_U5ADDR,5
 #define PLCM09_AP_READY    PLCM09_U5ADDR,7
 
+/* -------------------------------------------------------------------------------------------------------------- *
+ *
+ * PLCM10 related stuff
+ * 
+ * -------------------------------------------------------------------------------------------------------------- */
+/*
+#define PLCM10_U5ADDR  (0x22) //Addr 0x74
+#define PLCM10_U6ADDR  (0x21) //Addr 0x72
+#define PLCM10_U23ADDR (0x23) //Addr 0x76
+*/
+#define PLCM10_U5ADDR  (0x3A) //Addr 0x74
+#define PLCM10_U6ADDR  (0x39) //Addr 0x72
+#define PLCM10_U23ADDR (0x3B) //Addr 0x76
+
+#define PLCM10_RST_HUB    PLCM10_U5ADDR,0
+#define PLCM10_LED1       PLCM10_U5ADDR,1
+#define PLCM10_LED2       PLCM10_U5ADDR,2
+#define PLCM10_LED_POL    PLCM10_U5ADDR,3
+#define PLCM10_XO1        PLCM10_U5ADDR,4
+#define PLCM10_XO2        PLCM10_U5ADDR,5
+#define PLCM10_XI1        PLCM10_U5ADDR,6
+#define PLCM10_XI2        PLCM10_U5ADDR,7
+
+#define PLCM10_PWR_KEY     PLCM10_U6ADDR,0
+#define PLCM10_RESET       PLCM10_U6ADDR,1
+#define PLCM10_WAKEUP      PLCM10_U6ADDR,2
+#define PLCM10_W_DISABLE   PLCM10_U6ADDR,3
+#define PLCM10_AP_READY    PLCM10_U6ADDR,4
+#define PLCM10_EN_BUS      PLCM10_U6ADDR,5
+#define PLCM10_ENT_IN      PLCM10_U6ADDR,6
+#define PLCM10_STATUS_IN   PLCM10_U6ADDR,7
+
+#define PLCM10_WL_EN       PLCM10_U23ADDR,0
+#define PLCM10_WL_RST      PLCM10_U23ADDR,1
+
+#define shiftb(a,x) (0x01 << (x))
+#define b(...) shiftb(__VA_ARGS__)
+
+
+static char* plcm10_get_devName( int plcmversion )
+{
+  switch (plcmversion)
+  {
+    case PLCMxx_VERSION_09 : return "PLCM09";
+    case PLCMxx_VERSION_10 : return "PLCM10";
+    case PLCMxx_VERSION_11 : return "PLCM11";
+    case PLCMxx_VERSION_12 : return "PLCM12";
+    default : return "PLCM??";
+  }
+}
+
 /* Checks the PLCM09 presence and, if present, initializes the gpio expanders
  */
 static int plcm09_init(struct plxx_data *data)
@@ -96,13 +161,13 @@ static int plcm09_init(struct plxx_data *data)
   msg.len = 2;
   msg.buf = buf;
 
-  buf[0] = PLCM09_OUTREG;
+  buf[0] = PLCMxx_OUTREG;
   buf[1] = 0xF1; //All outs = 1 except LED_POL, LED1, LED2
   ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
   if(ret < 0)
     return ret;
   
-  buf[0] = PLCM09_CFGREG;
+  buf[0] = PLCMxx_CFGREG;
   buf[1] = 0xC0; //P6,7 = cfg input
   ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
   if(ret < 0)
@@ -114,13 +179,13 @@ static int plcm09_init(struct plxx_data *data)
   msg.len = 2;
   msg.buf = buf;
 
-  buf[0] = PLCM09_OUTREG;
+  buf[0] = PLCMxx_OUTREG;
   buf[1] = 0x00; //All outs = 0
   ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
   if(ret < 0)
     return ret;
   
-  buf[0] = PLCM09_CFGREG;
+  buf[0] = PLCMxx_CFGREG;
   buf[1] = 0xF0; //P3...7 = cfg input
   ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
   if(ret < 0)
@@ -129,9 +194,86 @@ static int plcm09_init(struct plxx_data *data)
   return 0;
 }
 
-/* Sets the level of the specified plcm09 output line
+/* Checks the PLCM10 presence and, if present, initializes the gpio expanders
  */
-static int plcm09_set_out(struct plxx_data *data, unsigned char sa, unsigned char pin, unsigned char val)
+static int plcm10_init(struct plxx_data *data)
+{
+  struct i2c_msg msg;
+  int ret = 0;
+  unsigned char buf[2];
+  
+  //Try to init U5 i2c gpio expander
+  msg.addr = PLCM10_U5ADDR;
+  msg.flags = 0;
+  msg.len = 2;
+  msg.buf = buf;
+
+  buf[0] = PLCMxx_OUTREG;
+  buf[1] = 0xFF - (b(PLCM10_LED_POL) | b(PLCM10_LED1) | b(PLCM10_LED2) | b(PLCM10_XO1) | b(PLCM10_XO2));  
+  ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
+  if(ret < 0)
+    return ret;
+  
+  buf[0] = PLCMxx_CFGREG;
+  buf[1] = 0xC0;//b(PLCM10_XI1) | b(PLCM10_XI2);
+  ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
+  if(ret < 0)
+    return ret;
+
+  //Try to init U6 i2c gpio expander
+  msg.addr = PLCM10_U6ADDR;
+  msg.flags = 0;
+  msg.len = 2;
+  msg.buf = buf;
+
+  buf[0] = PLCMxx_OUTREG;
+  buf[1] = 0x00; //All outs = 0
+  ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
+  if(ret < 0)
+    return ret;
+  
+  buf[0] = PLCMxx_CFGREG;
+  buf[1] = b(PLCM10_ENT_IN) | b(PLCM10_STATUS_IN);
+  ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
+  if(ret < 0)
+    return ret;
+
+  //Try to init U23 i2c gpio expander
+  msg.addr = PLCM10_U23ADDR;
+  msg.flags = 0;
+  msg.len = 2;
+  msg.buf = buf;
+
+  buf[0] = PLCMxx_OUTREG;
+  buf[1] = 0x00; //All outs = 0
+  ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
+  if(ret < 0)
+    return ret;
+
+  buf[0] = PLCMxx_CFGREG;
+  buf[1] = 0;
+  ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
+  if(ret < 0)
+    return ret;
+  
+  return 0;
+}
+
+static int plcmxx_init(struct plxx_data *data)
+{
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : return plcm09_init(data);
+    case PLCMxx_VERSION_10 :
+      case PLCMxx_VERSION_11 :
+      case PLCMxx_VERSION_12 : return plcm10_init(data);
+    default : return -1;
+  }
+}
+
+/* Sets the level of the specified plcmxx output line
+ */
+static int plcmxx_set_out(struct plxx_data *data, unsigned char sa, unsigned char pin, unsigned char val)
 {
   struct i2c_msg msg;
   int ret = 0;
@@ -144,7 +286,7 @@ static int plcm09_set_out(struct plxx_data *data, unsigned char sa, unsigned cha
   msg.len = 1;
   msg.buf = buf;
 
-  buf[0] = PLCM09_OUTREG;
+  buf[0] = PLCMxx_OUTREG;
   ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
   if(ret < 0)
     return ret;
@@ -168,16 +310,16 @@ static int plcm09_set_out(struct plxx_data *data, unsigned char sa, unsigned cha
   msg.len = 2;
   msg.buf = buf;
   
-  buf[0] = PLCM09_OUTREG;
+  buf[0] = PLCMxx_OUTREG;
   buf[1] = newval;
   ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
   
   return ret;
 }
 
-/* Return the level of the specified plcm09 line
+/* Return the level of the specified plcmxx line
  */
-static int plcm09_get_in(struct plxx_data *data, unsigned char sa, unsigned char pin)
+static int plcmxx_get_in(struct plxx_data *data, unsigned char sa, unsigned char pin)
 {
   struct i2c_msg msg;
   unsigned char regaddr;
@@ -189,7 +331,7 @@ static int plcm09_get_in(struct plxx_data *data, unsigned char sa, unsigned char
   msg.flags = 0;
   msg.len = 1;
   msg.buf = &regaddr;
-  regaddr = PLCM09_INREG;
+  regaddr = PLCMxx_INREG;
   ret = i2c_transfer(data->ioexp_client->adapter, &msg, 1);
   if(ret < 0)
     return ret;
@@ -209,21 +351,70 @@ static int plcm09_get_in(struct plxx_data *data, unsigned char sa, unsigned char
   return ret;
 }
 
-static ssize_t plcm09_led1_get(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t plcmxx_led1_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 1;  
+  
+  mutex_lock(&plxx_lock);
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_LED1)==0) tmp = 0; 
+                             break;
+    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_LED1)==0) tmp = 0; 
+                             break;
+  }
+  mutex_unlock(&plxx_lock);
+
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcmxx_led1_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  unsigned char tmp = 1;
+
+  mutex_lock(&plxx_lock);
+
+  if(buf[0] == '0')
+    tmp = 0;
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : plcmxx_set_out(data, PLCM09_LED1, tmp);
+                             break;
+    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_LED1, tmp); 
+                             break;
+  }
+  mutex_unlock(&plxx_lock);
+
+  return size;
+}
+
+static ssize_t plcmxx_led2_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   int tmp = 1;
   
   mutex_lock(&plxx_lock);
-
-  if(plcm09_get_in(data, PLCM09_LED1) == 0)
-    tmp = 0;
-
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_LED2)==0) tmp = 0; 
+                             break;
+    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_LED2)==0) tmp = 0; 
+                             break;
+  }
   mutex_unlock(&plxx_lock);
+
   return sprintf(buf, "%d\n",tmp);
 }
 
-static ssize_t plcm09_led1_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t plcmxx_led2_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   unsigned char tmp = 1;
@@ -233,57 +424,73 @@ static ssize_t plcm09_led1_set(struct device *dev, struct device_attribute *attr
   if(buf[0] == '0')
     tmp = 0;
   
-  plcm09_set_out(data, PLCM09_LED1, tmp);
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : plcmxx_set_out(data, PLCM09_LED2, tmp);
+                             break;
+    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_LED2, tmp); 
+                             break;
+  }
   
   mutex_unlock(&plxx_lock);
   return size;
 }
 
-static ssize_t plcm09_led2_get(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t plcm10_pol_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
-  int tmp = 1;
+  int tmp = 1;  
   
   mutex_lock(&plxx_lock);
 
-  if(plcm09_get_in(data, PLCM09_LED2) == 0)
+  if (plcmxx_get_in(data,PLCM10_LED_POL) == 0) 
     tmp = 0;
 
   mutex_unlock(&plxx_lock);
+
   return sprintf(buf, "%d\n",tmp);
 }
 
-static ssize_t plcm09_led2_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t plcm10_pol_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   unsigned char tmp = 1;
 
-  mutex_lock(&plxx_lock);
-
   if(buf[0] == '0')
     tmp = 0;
+
+  mutex_lock(&plxx_lock);
   
-  plcm09_set_out(data, PLCM09_LED2, tmp);
-  
+  plcmxx_set_out(data, PLCM10_LED_POL, tmp); 
+
   mutex_unlock(&plxx_lock);
+
   return size;
 }
 
-static ssize_t plcm09_xo1_get(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t plcmxx_xo1_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   int tmp = 0;
   
   mutex_lock(&plxx_lock);
-
-  if(plcm09_get_in(data, PLCM09_XO1) == 0)
-    tmp = 1;
-
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_XO1)==0) tmp = 1; 
+                             break;
+    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XO1)==0) tmp = 1; 
+                             break;
+  }
   mutex_unlock(&plxx_lock);
+
   return sprintf(buf, "%d\n",tmp);
 }
 
-static ssize_t plcm09_xo1_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t plcmxx_xo1_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   unsigned char tmp = 0;
@@ -293,27 +500,40 @@ static ssize_t plcm09_xo1_set(struct device *dev, struct device_attribute *attr,
   if(buf[0] == '0')
     tmp = 1;
   
-  plcm09_set_out(data, PLCM09_XO1, tmp);
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : plcmxx_set_out(data, PLCM09_XO1, tmp);
+                             break;
+    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_XO1, tmp); 
+                             break;
+  }
   
   mutex_unlock(&plxx_lock);
   return size;
 }
 
-static ssize_t plcm09_xo2_get(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t plcmxx_xo2_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   int tmp = 0;
   
   mutex_lock(&plxx_lock);
-
-  if(plcm09_get_in(data, PLCM09_XO2) == 0)
-    tmp = 1;
-
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_XO2)==0) tmp = 1; 
+                             break;
+    case PLCMxx_VERSION_10 :
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XO2)==0) tmp = 1; 
+                             break;
+  }
   mutex_unlock(&plxx_lock);
   return sprintf(buf, "%d\n",tmp);
 }
 
-static ssize_t plcm09_xo2_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t plcmxx_xo2_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   unsigned char tmp = 0;
@@ -322,51 +542,88 @@ static ssize_t plcm09_xo2_set(struct device *dev, struct device_attribute *attr,
 
   if(buf[0] == '0')
     tmp = 1;
-  
-  plcm09_set_out(data, PLCM09_XO2, tmp);
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : plcmxx_set_out(data, PLCM09_XO2, tmp);
+                             break;
+    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_XO2, tmp); 
+                             break;
+  }
   
   mutex_unlock(&plxx_lock);
   return size;
 }
 
-static ssize_t plcm09_xi1_get(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t plcmxx_xi1_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  int tmp = 0;
+  
+  mutex_lock(&plxx_lock);  
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_XI1)>0) tmp = 1; 
+                             break;
+    case PLCMxx_VERSION_10 :
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XI1)>0) tmp = 1; 
+                             break;
+  }
+  mutex_unlock(&plxx_lock);
+  return sprintf(buf, "%d\n",tmp);
+}
+
+static ssize_t plcmxx_xi2_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   int tmp = 0;
   
   mutex_lock(&plxx_lock);
 
-  if(plcm09_get_in(data, PLCM09_XI1) > 0)
-    tmp = 1;
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_XI2)>0) tmp = 1; 
+                             break;
+    case PLCMxx_VERSION_10 :
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XI2)>0) tmp = 1; 
+                             break;
+  }
 
   mutex_unlock(&plxx_lock);
   return sprintf(buf, "%d\n",tmp);
 }
 
-static ssize_t plcm09_xi2_get(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t plcmxx_ringing_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   int tmp = 0;
   
-  mutex_lock(&plxx_lock);
-
-  if(plcm09_get_in(data, PLCM09_XI2) > 0)
-    tmp = 1;
-
+  mutex_lock(&plxx_lock);  
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_RING)==0) tmp = 1; 
+                             break;
+  }
   mutex_unlock(&plxx_lock);
   return sprintf(buf, "%d\n",tmp);
 }
 
-static ssize_t plcm09_ringing_get(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t plcmxx_status_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
   struct plxx_data *data = dev_get_drvdata(dev);
   int tmp = 0;
   
-  mutex_lock(&plxx_lock);
-
-  if(plcm09_get_in(data, PLCM09_RING) == 0)
-    tmp = 1;
-
+  mutex_lock(&plxx_lock);  
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_11 : 
+    case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_STATUS_IN)==0) tmp = 1; 
+                             break;
+  }
   mutex_unlock(&plxx_lock);
   return sprintf(buf, "%d\n",tmp);
 }
@@ -380,30 +637,159 @@ static ssize_t plcm09_power_set(struct device *dev, struct device_attribute *att
   if(buf[0] == '1')
   {
     printk("PLCM09 power ON\n");
-    plcm09_set_out(data, PLCM09_PWR_KEY, 1);
+    plcmxx_set_out(data, PLCM09_PWR_KEY, 1);
     msleep(200);
-    plcm09_set_out(data, PLCM09_PWR_KEY, 0);
+    plcmxx_set_out(data, PLCM09_PWR_KEY, 0);
   }
   else
   {
     printk("PLCM09 power OFF\n");
-    plcm09_set_out(data, PLCM09_PWR_DW, 1);
+    plcmxx_set_out(data, PLCM09_PWR_DW, 1);
     msleep(200);
-    plcm09_set_out(data, PLCM09_PWR_DW, 0);
+    plcmxx_set_out(data, PLCM09_PWR_DW, 0);
   }
   
   mutex_unlock(&plxx_lock);
   return size;
 }
 
-static DEVICE_ATTR(plcm09_led1, S_IRUGO | S_IWUSR, plcm09_led1_get, plcm09_led1_set);
-static DEVICE_ATTR(plcm09_led2, S_IRUGO | S_IWUSR, plcm09_led2_get, plcm09_led2_set);
-static DEVICE_ATTR(plcm09_xo1, S_IRUGO | S_IWUSR, plcm09_xo1_get, plcm09_xo1_set);
-static DEVICE_ATTR(plcm09_xo2, S_IRUGO | S_IWUSR, plcm09_xo2_get, plcm09_xo2_set);
-static DEVICE_ATTR(plcm09_xi1, S_IRUGO, plcm09_xi1_get, NULL);
-static DEVICE_ATTR(plcm09_xi2, S_IRUGO, plcm09_xi2_get, NULL);
-static DEVICE_ATTR(plcm09_ringing, S_IRUGO, plcm09_ringing_get, NULL);
-static DEVICE_ATTR(plcm09_power, S_IWUSR, NULL, plcm09_power_set);
+static ssize_t plcm10_power_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size, const char* devName)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  u8 on = 0;
+
+  mutex_lock(&plxx_lock);
+
+  on = plcmxx_get_in(data,PLCM10_STATUS_IN);
+  //printk("%s power %s, status %d\n", devName, buf, on);
+
+  if((buf[0] == '1') && (on>0))
+  {
+    printk("%s power ON\n",devName);
+    plcmxx_set_out(data, PLCM10_PWR_KEY, 1);
+    msleep(500);
+    plcmxx_set_out(data, PLCM10_PWR_KEY, 0);
+  }
+  else
+  if ((buf[0] == '0') && (on == 0))
+  {
+    printk("%s power OFF\n",devName);
+    plcmxx_set_out(data, PLCM10_PWR_KEY, 1);
+    msleep(650);
+    plcmxx_set_out(data, PLCM10_PWR_KEY, 0);
+  }
+  
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+static ssize_t plcmxx_power_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+  switch (data->plcmversion)
+  {
+    case PLCMxx_VERSION_09 : return plcm09_power_set(dev,attr,buf,size);
+    case PLCMxx_VERSION_10 : 
+      case PLCMxx_VERSION_11 : 
+      case PLCMxx_VERSION_12 : return plcm10_power_set(dev,attr,buf,size,plcm10_get_devName(data->plcmversion));
+    default : return 0;
+  }
+}
+
+static ssize_t plcm10_reset_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+
+  mutex_lock(&plxx_lock);
+
+  if (buf[0] == '1')
+  {
+    printk("%s RESET\n",plcm10_get_devName(data->plcmversion));
+    plcmxx_set_out(data, PLCM10_RESET, 1);
+    msleep(500);
+    plcmxx_set_out(data, PLCM10_RESET, 0);
+  } 
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+static ssize_t plcm10_usb_reset_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+
+  mutex_lock(&plxx_lock);
+
+  if (buf[0] == '1')
+  {
+    printk("%s USB RESET\n",plcm10_get_devName(data->plcmversion));
+    plcmxx_set_out(data, PLCM10_RST_HUB, 0);
+    msleep(500);
+    plcmxx_set_out(data, PLCM10_RST_HUB, 1);
+  } 
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+static ssize_t plcm10_wlan_set(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+
+  mutex_lock(&plxx_lock);
+
+  if(buf[0] == '1')
+  {
+    printk("%s WLAN ON\n",plcm10_get_devName(data->plcmversion));
+    plcmxx_set_out(data, PLCM10_WL_EN, 1);
+    msleep(200);
+    plcmxx_set_out(data, PLCM10_WL_RST, 1);
+  }
+  else
+  {
+    printk("%s WLAN OFF\n",plcm10_get_devName(data->plcmversion));
+    plcmxx_set_out(data, PLCM10_WL_EN, 1);
+    msleep(200);
+    plcmxx_set_out(data, PLCM10_WL_RST, 1);
+  }
+  
+  mutex_unlock(&plxx_lock);
+  return size;
+}
+
+/*
+static DEVICE_ATTR(plcmxx_led1, S_IRUGO | S_IWUSR, plcmxx_led1_get, plcmxx_led1_set);
+static DEVICE_ATTR(plcmxx_led2, S_IRUGO | S_IWUSR, plcmxx_led2_get, plcmxx_led2_set);
+static DEVICE_ATTR(plcmxx_xo1, S_IRUGO | S_IWUSR, plcmxx_xo1_get, plcmxx_xo1_set);
+static DEVICE_ATTR(plcmxx_xo2, S_IRUGO | S_IWUSR, plcmxx_xo2_get, plcmxx_xo2_set);
+static DEVICE_ATTR(plcmxx_xi1, S_IRUGO, plcmxx_xi1_get, NULL);
+static DEVICE_ATTR(plcmxx_xi2, S_IRUGO, plcmxx_xi2_get, NULL);
+static DEVICE_ATTR(plcmxx_ringing, S_IRUGO, plcmxx_ringing_get, NULL);
+static DEVICE_ATTR(plcmxx_power, S_IWUSR, NULL, plcmxx_power_set);
+*/
+
+_Pragma("GCC diagnostic push");
+_Pragma("GCC diagnostic ignored \"-Wunused-variable\"")
+
+static DEVICE_ATTR(plcm09_led1, S_IRUGO | S_IWUSR, plcmxx_led1_get, plcmxx_led1_set);
+static DEVICE_ATTR(plcm09_led2, S_IRUGO | S_IWUSR, plcmxx_led2_get, plcmxx_led2_set);
+static DEVICE_ATTR(plcm09_xo1, S_IRUGO | S_IWUSR, plcmxx_xo1_get, plcmxx_xo1_set);
+static DEVICE_ATTR(plcm09_xo2, S_IRUGO | S_IWUSR, plcmxx_xo2_get, plcmxx_xo2_set);
+static DEVICE_ATTR(plcm09_xi1, S_IRUGO, plcmxx_xi1_get, NULL);
+static DEVICE_ATTR(plcm09_xi2, S_IRUGO, plcmxx_xi2_get, NULL);
+static DEVICE_ATTR(plcm09_ringing, S_IRUGO, plcmxx_ringing_get, NULL);
+static DEVICE_ATTR(plcm09_power, S_IWUSR, NULL, plcmxx_power_set);
+
+static DEVICE_ATTR(plcmxx_led1, S_IRUGO | S_IWUSR, plcmxx_led1_get, plcmxx_led1_set);
+static DEVICE_ATTR(plcmxx_led2, S_IRUGO | S_IWUSR, plcmxx_led2_get, plcmxx_led2_set);
+static DEVICE_ATTR(plcmxx_pol, S_IRUGO | S_IWUSR, plcm10_pol_get, plcm10_pol_set);
+static DEVICE_ATTR(plcmxx_xo1, S_IRUGO | S_IWUSR, plcmxx_xo1_get, plcmxx_xo1_set);
+static DEVICE_ATTR(plcmxx_xo2, S_IRUGO | S_IWUSR, plcmxx_xo2_get, plcmxx_xo2_set);
+static DEVICE_ATTR(plcmxx_xi1, S_IRUGO, plcmxx_xi1_get, NULL);
+static DEVICE_ATTR(plcmxx_xi2, S_IRUGO, plcmxx_xi2_get, NULL);
+static DEVICE_ATTR(plcmxx_status, S_IRUGO, plcmxx_status_get, NULL);
+static DEVICE_ATTR(plcmxx_power, S_IWUSR, NULL, plcmxx_power_set);
+static DEVICE_ATTR(plcmxx_wlan, S_IWUSR, NULL, plcm10_wlan_set);
+static DEVICE_ATTR(plcmxx_reset, S_IWUSR, NULL, plcm10_reset_set);
+static DEVICE_ATTR(plcmxx_usb_reset, S_IWUSR, NULL, plcm10_usb_reset_set);
 
 static struct attribute *plcm09_sysfs_attributes[] = {
   &dev_attr_plcm09_led1.attr,
@@ -417,9 +803,72 @@ static struct attribute *plcm09_sysfs_attributes[] = {
   NULL
 };
 
+static struct attribute *plcm10_sysfs_attributes[] = {
+  &dev_attr_plcmxx_led1.attr,
+  &dev_attr_plcmxx_led2.attr,
+  &dev_attr_plcmxx_pol.attr,
+  &dev_attr_plcmxx_xo1.attr,
+  &dev_attr_plcmxx_xo2.attr,
+  &dev_attr_plcmxx_xi1.attr,
+  &dev_attr_plcmxx_xi2.attr,
+  &dev_attr_plcmxx_status.attr,
+  &dev_attr_plcmxx_power.attr,
+  &dev_attr_plcmxx_wlan.attr,
+  &dev_attr_plcmxx_reset.attr,
+  &dev_attr_plcmxx_usb_reset.attr,
+  NULL
+};
+
+static struct attribute *plcm11_sysfs_attributes[] = {
+  &dev_attr_plcmxx_led1.attr,
+  &dev_attr_plcmxx_led2.attr,
+  &dev_attr_plcmxx_pol.attr,
+  &dev_attr_plcmxx_xo1.attr,
+  &dev_attr_plcmxx_xo2.attr,
+  &dev_attr_plcmxx_xi1.attr,
+  &dev_attr_plcmxx_xi2.attr,
+  &dev_attr_plcmxx_status.attr,
+  &dev_attr_plcmxx_power.attr,
+  &dev_attr_plcmxx_reset.attr,
+  &dev_attr_plcmxx_usb_reset.attr,
+  NULL
+};
+
+static struct attribute *plcm12_sysfs_attributes[] = {
+  &dev_attr_plcmxx_led1.attr,
+  &dev_attr_plcmxx_led2.attr,
+  &dev_attr_plcmxx_pol.attr,
+  &dev_attr_plcmxx_xo1.attr,
+  &dev_attr_plcmxx_xo2.attr,
+  &dev_attr_plcmxx_xi1.attr,
+  &dev_attr_plcmxx_xi2.attr,
+  &dev_attr_plcmxx_status.attr,
+  &dev_attr_plcmxx_power.attr,
+  &dev_attr_plcmxx_wlan.attr,
+  &dev_attr_plcmxx_reset.attr,
+  &dev_attr_plcmxx_usb_reset.attr,
+  NULL
+};
+
+
+_Pragma("GCC diagnostic pop")
+
 static const struct attribute_group plcm09_attr_group = {
   .attrs = plcm09_sysfs_attributes,    //sysfs single entries
 };
+
+static const struct attribute_group plcm10_attr_group = {
+  .attrs = plcm10_sysfs_attributes,    //sysfs single entries
+};
+
+static const struct attribute_group plcm11_attr_group = {
+  .attrs = plcm11_sysfs_attributes,    //sysfs single entries
+};
+
+static const struct attribute_group plcm12_attr_group = {
+  .attrs = plcm12_sysfs_attributes,    //sysfs single entries
+};
+
 
 /* -------------------------------------------------------------------------------------------------------------- *
  * 
@@ -463,9 +912,9 @@ int plxx_manager_sendcmd(struct platform_device *pdev, unsigned int cmd)
       ioexp_macc->write(ioexp_macc, &tmp, 3, sizeof(u8));
       msleep(1);
       if(cmd == RS422_485_IF_SETFD)
-	tmp = 0x00;
+	      tmp = 0x00;
       else
-	tmp = 0x01;
+        tmp = 0x01;
       
       printk("plxx_manager_sendcmd cmd=0x%x\n",cmd);
       ioexp_macc->write(ioexp_macc, &tmp, 1, sizeof(u8));
@@ -545,7 +994,7 @@ static int plxx_parse_dt(struct device *dev, struct plxx_data *data)
   data->ioexp_client = of_find_i2c_device_by_node(ioexp_node);
   if (data->ioexp_client == NULL) 
   {
-    dev_err(dev, "Failed to find i2c client\n");
+    dev_err(dev, "Failed to find i2c ioexp client\n");
     of_node_put(ioexp_node);
     return -EPROBE_DEFER;
   }
@@ -685,6 +1134,40 @@ static ssize_t show_name(struct device *dev, struct device_attribute *attr, char
   tmp[SEE_MODULENAMELEN]=0;
   mutex_unlock(&plxx_lock);
   return sprintf(buf, "%s\n",tmp);
+}
+
+u8 plcmxx_get_version(struct device* dev)
+{
+  int hwcode = 0;
+  int funcarea = 0;  
+  struct plxx_data *data = dev_get_drvdata(dev);
+
+  mutex_lock(&plxx_lock);
+  if(!data->f_updated)
+  {
+    UpdatePluginData(data);
+    data->f_updated = true;
+  }
+  hwcode = data->eeprom[SEE_CODE_OFF];
+  funcarea = data->eeprom[SEE_FUNCT_AREA_OFF] + (data->eeprom[SEE_FUNCT_AREA_OFF+1] << 8);
+  mutex_unlock(&plxx_lock);
+
+  if (hwcode == 13)
+    return PLCMxx_VERSION_09;
+  else //if (hwcode == 14)
+  {
+    if ( (funcarea & (0x01 << FFA_PLCM11)) && (funcarea & (0x01 << FFA_PLCM12)) )
+      return PLCMxx_VERSION_10;
+    else if (funcarea & (0x01 << FFA_PLCM11))
+      return PLCMxx_VERSION_11;
+    else if (funcarea & (0x01 << FFA_PLCM12))
+      return PLCMxx_VERSION_12;
+    else // bits are zero
+    {
+      printk("plxx invalid version: hwcode %d func %d",hwcode,funcarea);
+      return PLCMxx_VERSION_INVALID;
+    }
+  }  
 }
 
 /* The function bit area of the plugin is seen as a RO binary file, where the i-th byte represents the binary status (0|1) of the i-th bit of the 
@@ -936,7 +1419,7 @@ static int UpdatePluginData(struct plxx_data *data)
 static int plxx_probe(struct platform_device *pdev)
 {
   int res = 0;
-  struct plxx_data *data;
+  struct plxx_data *data;  
   
   data = kzalloc(sizeof(struct plxx_data), GFP_KERNEL);
   if (data == NULL) 
@@ -955,27 +1438,40 @@ static int plxx_probe(struct platform_device *pdev)
   }
 
   data->f_updated = false;
+
+  //retrieve plcmversion
+  data->plcmversion  = plcmxx_get_version(&pdev->dev);
   
   // Create sysfs entry
   res = sysfs_create_group(&pdev->dev.kobj, &plxx_attr_group);
   if (res) 
   {
-    dev_err(&pdev->dev, "device create file failed\n");
+    dev_err(&pdev->dev, "plxx failing to initialize generic device group\n");
     goto plxx_error1;
   }
   
-  //PLCM09 detection and init
-  if(plcm09_init(data) >= 0)
+  //PLCMxx detection and init
+  if(plcmxx_init(data) >= 0)
   {
-    //PLCM09 detected, add the corresponding sysfs group
-    printk("PLCM09 plugin module detected; index=%d\n",data->index);
-    res = sysfs_create_group(&pdev->dev.kobj, &plcm09_attr_group);
+    //PLCMxx detected, add the corresponding sysfs group
+    printk("plxx plugin module detected; index=%d; version=%d\n",data->index,data->plcmversion);
+    switch (data->plcmversion)
+    {
+      case PLCMxx_VERSION_09 : res = sysfs_create_group(&pdev->dev.kobj, &plcm09_attr_group);
+                               break;
+      case PLCMxx_VERSION_10 : res = sysfs_create_group(&pdev->dev.kobj, &plcm10_attr_group);
+                               break;
+      case PLCMxx_VERSION_11 : res = sysfs_create_group(&pdev->dev.kobj, &plcm11_attr_group);
+                               break;
+      case PLCMxx_VERSION_12 : res = sysfs_create_group(&pdev->dev.kobj, &plcm12_attr_group);
+                               break;
+    }
     if (res) 
     {
-      dev_err(&pdev->dev, "device create file failed\n");
+      dev_err(&pdev->dev, "plxx failing to initialize device group\n");
       goto plxx_error1;
     }
-  }
+  } 
  
   return res;
 plxx_error1:

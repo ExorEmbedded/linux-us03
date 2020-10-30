@@ -38,10 +38,16 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+#include <linux/spi/spi.h>
+#include <linux/spi/tja1145.h>
+#endif
 
 #ifdef CONFIG_ARCH_MXC_ARM64
 #include <soc/imx8/sc/sci.h>
@@ -373,6 +379,13 @@ struct flexcan_priv {
 
 	/* Selects the clock source to CAN Protocol Engine (PE), 1 by default*/
 	u32 clk_src;
+	u32 stb_gpio;
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	struct spi_device* transceiver_client;
+	struct tja1145_functions_accessor*  transceiver_fc;
+	struct work_struct work;
+#endif
 };
 
 static const struct flexcan_devtype_data fsl_p1010_devtype_data = {
@@ -412,6 +425,18 @@ static const struct can_bittiming_const flexcan_bittiming_const = {
 	.brp_max = 256,
 	.brp_inc = 1,
 };
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+static void flexcan_plat_work_func(struct work_struct *work)
+{
+	struct flexcan_priv *priv = container_of(work, struct flexcan_priv, work);
+
+	printk("%s %d\n", __func__, priv->can.bittiming.bitrate );
+
+	if(priv->transceiver_fc && priv->transceiver_fc->transceiver_change_bitrate)
+		priv->transceiver_fc->transceiver_change_bitrate(priv->transceiver_fc, priv->can.bittiming.bitrate );
+}
+#endif
 
 static const struct can_bittiming_const flexcan_fd_bittiming_const = {
 	.name = DRV_NAME,
@@ -647,6 +672,11 @@ static int flexcan_chip_enable(struct flexcan_priv *priv)
 	unsigned int timeout = FLEXCAN_TIMEOUT_US / 10;
 	u32 reg;
 
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	if( priv->transceiver_fc && priv->transceiver_fc->transceiver_stop )
+		priv->transceiver_fc->transceiver_start(priv->transceiver_fc);
+#endif
+
 	reg = flexcan_read(&regs->mcr);
 	reg &= ~FLEXCAN_MCR_MDIS;
 	flexcan_write(reg, &regs->mcr);
@@ -665,6 +695,11 @@ static int flexcan_chip_disable(struct flexcan_priv *priv)
 	struct flexcan_regs __iomem *regs = priv->regs;
 	unsigned int timeout = FLEXCAN_TIMEOUT_US / 10;
 	u32 reg;
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	if( priv->transceiver_fc && priv->transceiver_fc->transceiver_stop )
+		priv->transceiver_fc->transceiver_stop(priv->transceiver_fc);
+#endif
 
 	reg = flexcan_read(&regs->mcr);
 	reg |= FLEXCAN_MCR_MDIS;
@@ -1141,6 +1176,11 @@ static void flexcan_set_bittiming(struct net_device *dev)
 		reg |= FLEXCAN_CTRL_SMP;
 	flexcan_write(reg, &regs->ctrl);
 
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	if(priv->transceiver_fc)
+		schedule_work(&priv->work);
+#endif
+
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
 		reg = FLEXCAN_CBT_EPRESDIV(bt->brp - 1) |
 			FLEXCAN_CBT_EPSEG1(bt->phase_seg1 - 1) |
@@ -1496,6 +1536,21 @@ static int flexcan_close(struct net_device *dev)
 	return 0;
 }
 
+static int flexcan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct flexcan_priv *priv = netdev_priv(dev);
+	netdev_dbg(dev, "%s request for new ioctl\n", __func__);
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	if(cmd >= SIOCTJA1145SETWAKEUP )
+	{
+		netdev_dbg(dev, "%s request for new ioctl for can transceiver\n", __func__);
+		if(priv->transceiver_fc && priv->transceiver_fc->transceiver_ioctl)
+			priv->transceiver_fc->transceiver_ioctl(priv->transceiver_fc, ifr, cmd);
+	}
+#endif
+	return 0;
+}
+
 static int flexcan_set_mode(struct net_device *dev, enum can_mode mode)
 {
 	int err;
@@ -1520,6 +1575,7 @@ static const struct net_device_ops flexcan_netdev_ops = {
 	.ndo_open	= flexcan_open,
 	.ndo_stop	= flexcan_close,
 	.ndo_start_xmit	= flexcan_start_xmit,
+	.ndo_do_ioctl = flexcan_ioctl,
 	.ndo_change_mtu = can_change_mtu,
 };
 
@@ -1684,6 +1740,13 @@ static int flexcan_probe(struct platform_device *pdev)
 	int err, irq;
 	u32 clock_freq = 0;
 	u32 clk_src = 1;
+	enum of_gpio_flags flags;
+	int ret;
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	u32  transceiver_handle = 0;
+	struct device_node* transceiver_node;
+#endif
 
 	reg_xceiver = devm_regulator_get(&pdev->dev, "xceiver");
 	if (PTR_ERR(reg_xceiver) == -EPROBE_DEFER)
@@ -1732,7 +1795,20 @@ static int flexcan_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev = alloc_candev(sizeof(struct flexcan_priv), 1);
+	if (pdev->dev.of_node)
+	{
+		int id = of_alias_get_id(pdev->dev.of_node, "can");
+		if (id >= 0)
+		{
+			char name[IFNAMSIZ];
+			snprintf(name, sizeof(name), "can%d", id);
+            printk(KERN_INFO "CAN CAN CAN %d -- %s \n", id, name );
+			dev = alloc_candev_alias(sizeof(struct flexcan_priv), 1, name );
+		}
+	}
+
+	if (!dev)
+		dev = alloc_candev(sizeof(struct flexcan_priv), 1);
 	if (!dev)
 		return -ENOMEM;
 
@@ -1762,6 +1838,73 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->devtype_data = devtype_data;
 	priv->reg_xceiver = reg_xceiver;
 	priv->offload.is_canfd = false;
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	priv->transceiver_fc = NULL;
+	/*
+	 * TJA1145 transceiver
+	 */
+	ret = of_property_read_u32(pdev->dev.of_node, "transceiver", &transceiver_handle);
+	if (ret != 0)
+	{
+		dev_info(&pdev->dev, "No managed transceiver found\n");
+	}
+	else
+	{
+		dev_info(&pdev->dev, "Managed transceiver found\n");
+		transceiver_node = of_find_node_by_phandle(transceiver_handle);
+		if (transceiver_node == NULL)
+		{
+			dev_err(&pdev->dev, "Failed to find transceiver node\n");
+			return -ENODEV;
+		}
+
+		priv->transceiver_client = of_find_spi_device_by_node(transceiver_node);
+		if (priv->transceiver_client == NULL)
+		{
+			dev_err(&pdev->dev, "Failed to find spi client\n");
+			of_node_put(transceiver_node);
+			return -EPROBE_DEFER;
+		}
+
+		tja1145_driver_version(priv->transceiver_client);
+		/* release ref to the node and inc reference to the SPI client used */
+		of_node_put(transceiver_node);
+		transceiver_node = NULL;
+
+		/* And now get the TJA1145 function accessor */
+		priv->transceiver_fc = spi_tja1145_get_func_accessor(priv->transceiver_client);
+		if (IS_ERR_OR_NULL(priv->transceiver_fc))
+		{
+			dev_err(&pdev->dev, "Failed to get function accessor, defer.\n");
+			return -EPROBE_DEFER;
+		}
+		if( priv->transceiver_fc && priv->transceiver_fc->transceiver_start )
+			priv->transceiver_fc->transceiver_start(priv->transceiver_fc);
+
+		INIT_WORK(&priv->work, flexcan_plat_work_func);
+	}
+#endif
+
+	/*
+	 * Stand-By gpio
+	 */
+	priv->stb_gpio = of_get_named_gpio_flags(pdev->dev.of_node, "stb-gpio", 0,  &flags);
+	if (priv->stb_gpio == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if( (priv->stb_gpio >= 0) &&
+	    (gpio_is_valid(priv->stb_gpio))
+	  )
+	{
+		dev_info( &pdev->dev, "request GPIO (stb_gpio) = %d \n", priv->stb_gpio );
+		ret = gpio_request_one( priv->stb_gpio, flags, "stbgpio");
+		if (ret < 0) {
+			dev_err( &pdev->dev, "failed to request GPIO %d: %d\n", priv->stb_gpio, ret);
+			return -ENODEV;
+		}
+		gpio_set_value_cansleep(priv->stb_gpio, 1);
+	}
 
 	if (priv->devtype_data->quirks & FLEXCAN_QUIRK_USE_OFF_TIMESTAMP) {
 		if (priv->devtype_data->quirks & FLEXCAN_QUIRK_TIMESTAMP_SUPPORT_FD) {
@@ -1872,6 +2015,18 @@ static int flexcan_remove(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_MXC_ARM64
 	sc_ipc_close(priv->ipc_handle);
 #endif
+
+#if defined(CONFIG_CAN_TJA1145) || defined(CONFIG_CAN_TJA1145_MODULE)
+	if( priv->transceiver_fc && priv->transceiver_fc->transceiver_stop )
+		priv->transceiver_fc->transceiver_stop(priv->transceiver_fc);
+#endif
+
+	if( (priv->stb_gpio >= 0) && (gpio_is_valid(priv->stb_gpio)) )
+	{
+		gpio_set_value_cansleep(priv->stb_gpio, 0);
+		gpio_free(priv->stb_gpio);
+	}
+
 	unregister_flexcandev(dev);
 	pm_runtime_disable(&pdev->dev);
 	can_rx_offload_del(&priv->offload);

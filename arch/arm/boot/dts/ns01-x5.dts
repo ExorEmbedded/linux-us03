@@ -310,8 +310,11 @@
 
 &i2c4 {
     clock-frequency = <100000>;
-    pinctrl-names = "default";
-    pinctrl-0 = <&pinctrl_i2c4>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	pinctrl-1 = <&pinctrl_i2c4_gpio>;
+	scl-gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
     status = "okay";
 
     pmic: pfuze3000@08 {
@@ -645,6 +648,16 @@
 			>;
 		};
 
+		pinctrl_i2c4_gpio: i2c4grpgpio {
+			fsl,pins = <
+				MX6UL_PAD_UART2_TX_DATA__GPIO1_IO20 0x1b0b1
+				MX6UL_PAD_UART2_RX_DATA__GPIO1_IO21 0x1b0b1
+				MX6UL_PAD_GPIO1_IO03__GPIO1_IO03            0x17059 /* IO EXP PCA6408 IRQ pin */
+				MX6UL_PAD_UART2_CTS_B__GPIO1_IO22           0x17059 /* TOUCH CONTR TSC2004 IRQ pin */
+				MX6UL_PAD_NAND_CE0_B__GPIO4_IO13            0x17059 /* ADC ADS1000 MUX pin */
+			>;
+		};
+		
 		pinctrl_lcdif: lcdifdatgrp {
 			fsl,pins = <
 				MX6UL_PAD_LCD_CLK__LCDIF_CLK                0x00000028

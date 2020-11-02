@@ -235,8 +235,11 @@
 
 &i2c3 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	scl-gpios = <&gpio3 6 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio3 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	plxxseeprom:seeprom1@57 {
@@ -252,8 +255,11 @@
 
 &i2c4 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c4>;
+	pinctrl-1 = <&pinctrl_i2c4_gpio>;
+	scl-gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	pmic: pfuze3000@08 {
@@ -440,10 +446,25 @@
 			>;
 		};
 
+		pinctrl_i2c4_gpio: i2c4grpgpio {
+			fsl,pins = <
+				MX6UL_PAD_UART2_TX_DATA__GPIO1_IO20 0x1b0b1
+				MX6UL_PAD_UART2_RX_DATA__GPIO1_IO21 0x1b0b1
+				MX6UL_PAD_GPIO1_IO03__GPIO1_IO03  0x17059
+			>;
+		};
+		
 		pinctrl_i2c3: i2c3grp {
 			fsl,pins = <
 				MX6UL_PAD_LCD_DATA00__I2C3_SDA    0x4001b8b0
 				MX6UL_PAD_LCD_DATA01__I2C3_SCL    0x4001b8b0
+			>;
+		};
+
+		pinctrl_i2c3_gpio: i2c3grpgpio {
+			fsl,pins = <
+				MX6UL_PAD_LCD_DATA00__GPIO3_IO05  0x1b0b1
+				MX6UL_PAD_LCD_DATA01__GPIO3_IO06  0x1b0b1
 			>;
 		};
 		

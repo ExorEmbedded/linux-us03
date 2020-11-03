@@ -219,10 +219,13 @@
 
 &i2c3 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	sda-gpios = <&gpio1 6 0>;
+	scl-gpios = <&gpio1 3 0>;
 	status = "okay";
-
+	
 	pmic: pfuze100@08 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
@@ -491,7 +494,14 @@
 				MX6QDL_PAD_GPIO_6__I2C3_SDA		0x4001b8b1
 			>;
 		};
-
+		
+		pinctrl_i2c3_gpio: i2c3gpiogrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_3__GPIO1_IO03	0x1b0b0
+				MX6QDL_PAD_GPIO_6__GPIO1_IO06	0x1b0b0
+			>;
+		};
+		
 		pinctrl_ipu1: ipu1grp {
 			fsl,pins = <
 				MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK 0x1b0b0

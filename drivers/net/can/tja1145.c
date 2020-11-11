@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/if.h>
+#include <linux/uaccess.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/tja1145.h>
 
@@ -89,6 +90,7 @@ static u8 regs_list[] = {
 	REG_IDENTIFICATION
 };
 
+static void tja1145_set_working_normal_mode( struct spi_device *spi );
 /*
  * tja1145_driver_version --> guard function
  */
@@ -278,6 +280,7 @@ static void tja1145_set_sleep_WUP_CAN(struct spi_device *spi)
 static void tja1145_configure_wake_can_disable( struct spi_device *spi )
 {
 	dev_dbg(&spi->dev, "%s \n", __func__ );
+	dev_info(&spi->dev, "Setup WakeUp over CAN Disable\n" );
 
 	tja1145_write_single_reg(spi, REG_IDENTIFIER_0,				0x00 );
 	tja1145_write_single_reg(spi, REG_IDENTIFIER_1,				0x00 );
@@ -350,6 +353,8 @@ static void tja1145_configure_wake_can( struct spi_device *spi, struct can_filte
 			 (wu_settings->can_id & CAN_EFF_FLAG) ? "Extended" : "Standard", \
 			 (wu_settings->can_id & CAN_EFF_MASK), wu_settings->can_mask );
 
+	tja1145_set_working_normal_mode(spi);
+
 	if(wu_settings->can_id &  CAN_EFF_FLAG)
 		tja1145_configure_wake_can_extendedId(spi, wu_settings);
 	else
@@ -387,25 +392,32 @@ static void tja1145_ioctl( struct tja1145_functions_accessor *facc, struct ifreq
 {
 	struct tja1145_data* data = container_of(facc, struct tja1145_data, func_acc);
 	struct spi_device*   spi  = data->spi;
-	dev_dbg(&spi->dev, "%s \n", __func__ );
+	//struct can_filter __user *cf = ifr->ifr_ifru.ifru_data;
+	struct can_filter __user *cf = ifr->ifr_data;
+	struct can_filter wu_settings;
 
 	switch (cmd) {
-	case SIOCTJA1145SETWAKEUP:
-		tja1145_configure_wake_can(spi, (struct can_filter*)ifr->ifr_ifru.ifru_data);
-		break;
-	case SIOCTJA1145DISWAKEUP:
-		tja1145_configure_wake_can_disable(spi);
-		break;
-	case SIOCTJA1145NORMALMODE:
-		tja1145_set_working_normal_mode(spi);
-		break;
-	case SIOCTJA1145DUMPREGS:
-		tja1145_dump_all_regs(spi);
-		break;
+		case SIOCTJA1145SETWAKEUP:
+			dev_dbg(&spi->dev, "%s SIOCTJA1145SETWAKEUP\n", __func__ );
+			if( !copy_from_user(&wu_settings, cf, sizeof(wu_settings)) )
+				tja1145_configure_wake_can(spi, &wu_settings);
+			break;
+		case SIOCTJA1145DISWAKEUP:
+			dev_dbg(&spi->dev, "%s SIOCTJA1145DISWAKEUP\n", __func__ );
+			tja1145_configure_wake_can_disable(spi);
+			break;
+		case SIOCTJA1145NORMALMODE:
+			dev_dbg(&spi->dev, "%s SIOCTJA1145NORMALMODE\n", __func__ );
+			tja1145_set_working_normal_mode(spi);
+			break;
+		case SIOCTJA1145DUMPREGS:
+			dev_dbg(&spi->dev, "%s SIOCTJA1145DUMPREGS\n", __func__ );
+			tja1145_dump_all_regs(spi);
+			break;
 
-	default:
-		dev_err(&spi->dev, "%s Unrecognzed ioctl request\n", __func__ );
-		break;
+		default:
+			dev_err(&spi->dev, "%s Unrecognzed ioctl request\n", __func__ );
+			break;
 	}
 }
 
@@ -580,3 +592,4 @@ module_spi_driver(tja1145_spi_driver);
 MODULE_AUTHOR("Luigi Scagnet <luigi.scagnet@exorint.it>, ");
 MODULE_DESCRIPTION("NXP TJA1145 CAN transceiver driver");
 MODULE_LICENSE("GPL");
+/* vim: set noexpandtab tabstop=4 shiftwidth=4: */

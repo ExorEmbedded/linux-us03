@@ -831,8 +831,8 @@ static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
 			usb_clear_port_feature(hub->hdev, port1,
 						USB_PORT_FEAT_POWER);
 
-	/* Wait at least 100 msec for power to become stable */
-	delay = max(pgood_delay, (unsigned) 100);
+	/* Wait at least 200 msec for power to become stable */
+	delay = max(pgood_delay, (unsigned) 200);
 	if (do_delay)
 		msleep(delay);
 	return delay;

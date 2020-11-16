@@ -744,10 +744,19 @@ static ssize_t plcm10_wlan_set(struct device *dev, struct device_attribute *attr
     plcmxx_set_out(data, PLCM10_WL_RST, 1);
   }
   else
+  if(buf[0] == '0')
   {
     printk("%s WLAN OFF\n",plcm10_get_devName(data->plcmversion));
-    plcmxx_set_out(data, PLCM10_WL_EN, 1);
+    plcmxx_set_out(data, PLCM10_WL_RST, 0);
     msleep(200);
+    plcmxx_set_out(data, PLCM10_WL_EN, 0);    
+  }
+  else
+  if(buf[0] == '2')
+  {
+    printk("%s WLAN RESET\n",plcm10_get_devName(data->plcmversion));
+    plcmxx_set_out(data, PLCM10_WL_RST, 0);
+    msleep(20);
     plcmxx_set_out(data, PLCM10_WL_RST, 1);
   }
   
@@ -1406,8 +1415,7 @@ static int UpdatePluginData(struct plxx_data *data)
     if(eeprom_isvalid == false)
     {                                                     //The plugin was detected bus has invalid SEEPROM contents ...
       memset(data->eeprom, 0, SEE_FACTORYSIZE);
-    }
-    
+    }    
   }
   gpio_set_value(data->sel_gpio, 0);                      //Deselect the plugin I2C bus
   return ret;

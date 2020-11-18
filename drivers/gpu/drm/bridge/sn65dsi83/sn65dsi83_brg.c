@@ -101,10 +101,10 @@ static int sn65dsi83_brg_power_on(struct sn65dsi83_brg *brg)
 {
     dev_info(&brg->client->dev,"%s\n",__func__);
     gpiod_set_value_cansleep(brg->gpio_envdd, 1);
-    msleep(1);
+    msleep(20);
     gpiod_set_value_cansleep(brg->gpio_enable, 1);
-    /* Wait for 1ms for the internal voltage regulator to stabilize */
-    msleep(1);
+    /* Wait for the internal voltage regulator to stabilize */
+    msleep(20);
 
     return 0;
 }
@@ -121,11 +121,38 @@ static void sn65dsi83_brg_power_off(struct sn65dsi83_brg *brg)
 static int sn65dsi83_write(struct i2c_client *client, u8 reg, u8 val)
 {
     int ret;
+    int attempts = 0;
 
-    ret = i2c_smbus_write_byte_data(client, reg, val);
+    while (attempts < 3)
+    {
+        ret = i2c_smbus_write_byte_data(client, reg, val);
 
-    if (ret)
-        dev_err(&client->dev, "failed to write at 0x%02x", reg);
+        if (ret)
+        {
+            attempts ++;
+            dev_err(&client->dev, "failed to write at 0x%02x (ret %d)", reg, ret);
+            continue;
+        }
+
+        if (reg != SN65DSI83_SOFT_RESET)
+        {
+            ret = i2c_smbus_read_byte_data(client, reg);
+
+            if (ret < 0) {
+                attempts ++;
+                dev_err(&client->dev, "failed reading back at 0x%02x", reg);
+                continue;
+            }
+
+            if (ret != val) {
+                attempts ++;
+                dev_err(&client->dev, "failed comparing at 0x%02x (0x%02x / 0x%02x)", reg, ret, val);
+                continue;
+            }
+        }
+
+        break;
+    }
 
     dev_dbg(&client->dev, "%s: write reg 0x%02x data 0x%02x", __func__, reg, val);
 

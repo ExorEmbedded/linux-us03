@@ -65,33 +65,33 @@
 		};
 		button@6 {
 		    label = "L6";
-		    linux,code = <64>; /* KEY_F6 */
+		    linux,code = <87>; /* KEY_F11 */
 		    gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
 		};
 		
 		button@7 {
 		    label = "R1";
-		    linux,code = <65>; /* KEY_F7 */
+		    linux,code = <64>; /* KEY_F6 */
 		    gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;
 		};
 		button@8 {
 		    label = "R2";
-		    linux,code = <66>; /* KEY_F8 */
+		    linux,code = <65>; /* KEY_F7 */
 		    gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;
 		};
 		button@9 {
 		    label = "R3";
-		    linux,code = <67>; /* KEY_F9 */
+		    linux,code = <66>; /* KEY_F8 */
 		    gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
 		};
 		button@10 {
 		    label = "R4";
-		    linux,code = <68>; /* KEY_F10 */
+		    linux,code = <67>; /* KEY_F9 */
 		    gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
 		};
 		button@11 {
 		    label = "R5";
-		    linux,code = <87>; /* KEY_F11 */
+		    linux,code = <68>; /* KEY_F10 */
 		    gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;
 		};
 		button@12 {

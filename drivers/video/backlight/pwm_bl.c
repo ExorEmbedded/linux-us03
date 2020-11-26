@@ -35,6 +35,7 @@ struct pwm_bl_data {
 	unsigned int		lth_brightness;
 	unsigned int		*levels;
 	bool			enabled;
+	bool            inverted;
 	int			enable_gpio;
 	unsigned long		enable_gpio_flags;
 	unsigned int		scale;
@@ -74,6 +75,7 @@ int dispid_get_backlight(struct pwm_bl_data* pb, int dispid, int maxlevels)
   int j;
   int step = 0;
   extern int f_zerodimm;
+  unsigned short brightness_max;
   
   // Scan the display array to search for the required dispid
   if(dispid == NODISPLAY)
@@ -95,20 +97,27 @@ int dispid_get_backlight(struct pwm_bl_data* pb, int dispid, int maxlevels)
     
   pb->period = 1000000000l / displayconfig[i].pwmfreq;
   
-  //Now override the levels based on linear interpolation between brightness_min and brightness_max
-  if(displayconfig[i].brightness_max > 100)
-    displayconfig[i].brightness_max = 100;
+  //Set the inverted flag accordingly
+  if(displayconfig[i].brightness_max & 0x100)
+	  pb->inverted = true;
+  else
+	  pb->inverted = false;
   
-  if((displayconfig[i].brightness_min & 0xff) > displayconfig[i].brightness_max)
-    displayconfig[i].brightness_min = displayconfig[i].brightness_max;
+  //Now override the levels based on linear interpolation between brightness_min and brightness_max
+  brightness_max = displayconfig[i].brightness_max & 0xff;
+  if(brightness_max > 100)
+    brightness_max = 100;
+  
+  if((displayconfig[i].brightness_min & 0xff) > brightness_max)
+    displayconfig[i].brightness_min = brightness_max;
     
   if(maxlevels > 1) 
-    step = 100 * (displayconfig[i].brightness_max - (displayconfig[i].brightness_min & 0xff)) / (maxlevels-1);
+    step = 100 * (brightness_max - (displayconfig[i].brightness_min & 0xff)) / (maxlevels-1);
   for(j=1; j<maxlevels; j++)
     pb->levels[j] = (displayconfig[i].brightness_min & 0xff) + (step *(j-1))/100;
   
   pb->levels[1] = displayconfig[i].brightness_min;
-  pb->levels[maxlevels] = displayconfig[i].brightness_max;
+  pb->levels[maxlevels] = brightness_max;
   
   /* BSP-1559: Create brightness curve for zero dimming feature (3 segments envelope) */
   if((displayconfig[i].brightness_min & 0xff00) && (maxlevels > 16)) 
@@ -136,11 +145,11 @@ int dispid_get_backlight(struct pwm_bl_data* pb, int dispid, int maxlevels)
     pb->levels[j] = lev;
     
     /* 3rd segment: interpolation till brightness_max */
-    step = 100 * (displayconfig[i].brightness_max - lev) / (maxlevels-j);
+    step = 100 * (brightness_max - lev) / (maxlevels-j);
     for(j=11;j<maxlevels; j++)
       pb->levels[j] = lev + (step *(j-10))/100;
     
-    pb->levels[maxlevels] = displayconfig[i].brightness_max;
+    pb->levels[maxlevels] = brightness_max;
   }
   
   for(j=1; j<(maxlevels+1); j++)
@@ -209,7 +218,16 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = bl->props.brightness;
 	int duty_cycle;
-
+	
+	/* Invert pwm output if required */
+	if(pb->inverted)
+	{
+		struct pwm_state state;
+		pwm_get_state(pb->pwm, &state);
+		state.polarity = PWM_POLARITY_INVERSED;
+		pwm_apply_state(pb->pwm, &state);
+	}
+	
 	if (bl->props.power != FB_BLANK_UNBLANK ||
 	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
 	    bl->props.state & BL_CORE_FBBLANK)

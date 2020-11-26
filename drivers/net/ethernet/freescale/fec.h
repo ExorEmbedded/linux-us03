@@ -22,7 +22,7 @@
 
 #define HAVE_AG_RING
 
-#if defined(CONFIG_SOC_IMX6ULL) || defined(CONFIG_SOC_IMX6UL)
+#if defined(CONFIG_SOC_IMX6ULL) || defined(CONFIG_SOC_IMX6UL) || defined(CONFIG_HAVE_IMX8_SOC)
 #undef HAVE_AG_RING
 #endif
 

@@ -405,6 +405,7 @@ static const struct dsim_pll_pms pll_pms_table[] = {
 	{ DSIM_PLL_PMS(306000, 3, 136, 2), },
 	{ DSIM_PLL_PMS(402000, 9, 536, 2), },
 	{ DSIM_PLL_PMS(162000, 2,  96, 3), },
+	{ DSIM_PLL_PMS(375600, 3, 166, 2), },
 };
 
 static const struct dsim_pll_pms* calculate_best_pms(uint64_t bit_clk)

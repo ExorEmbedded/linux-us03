@@ -90,6 +90,8 @@
  *1.34			SS							17.01.2020	Changed pwm freq. for code #57
  *1.35			SS							27.02.2020	Added display code #73: Multi-Inno MI0500AHT-5CP 800x480 for WE20-5inch.
  *1.36			SS							27.07.2020	Added display code #74: Multi-Inno  MI1210RT-2 1280x800 for WE20-12inch.
+ *1.37			SS							27.11.2020	Added display code #75: Futurelabs  FLC-101HML0000SA2-V1 1280x800 for WE20-10inch.
+ *														Added display code #76: Innolux  G121ICE-L01 1280x800 for WE20-12 ONLY.
  *
  * NEXT AVAILABLE DISPLAY CODE: 75
  */
@@ -1157,7 +1159,59 @@ static struct t_DisplayParams displayconfig[] = {
         .pwmfreq        = 200,
         .brightness_min = 1,
         .brightness_max = 100,
-    },  
+    },
+        /* 75: Futurelabs  FLC-101HML0000SA2-V1 1280x800 for WE20-10inch */
+    {
+        .dispid    = 75,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 62600,         //US04 supporta un numero limitato di freq (fare sempre check con tabella PLL)
+        .pclk_inv  = 1,							//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 15,            
+        .hs_bp     = 5,            
+        .hs_w      = 1,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 3,             
+        .vs_bp     = 2,            
+        .vs_w      = 1,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 10,
+        .brightness_max = 45,
+    },    
+     /* 76: Innolux  G121ICE-L01 1280x800 for WE20-12 ONLY */
+    {
+        .dispid    = 76,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 71000,     //US04 supporta un numero limitato di freq (fare sempre check con tabella PLL)   
+        .pclk_inv  = 1,					//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 70,            
+        .hs_bp     = 70,            
+        .hs_w      = 20,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 10,             
+        .vs_bp     = 10,            
+        .vs_w      = 3,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 5,
+        .brightness_max = 0x0146, 	//gestione inversione polarità PWM dimming (segno): 0x01nn=segno; 0x46= 70% (MAX dimm)
+    },
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

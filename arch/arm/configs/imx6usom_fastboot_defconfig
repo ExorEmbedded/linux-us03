@@ -4113,7 +4113,7 @@ CONFIG_MMC_CQHCI=y
 #
 # MXC Vivante GPU support
 #
-CONFIG_MXC_GPU_VIV=y
+# CONFIG_MXC_GPU_VIV is not set
 
 #
 # MXC Media Local Bus Driver

@@ -1182,7 +1182,7 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 200,
+        .pwmfreq        = 10000,
         .brightness_min = 10,
         .brightness_max = 45,
     },    

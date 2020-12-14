@@ -214,7 +214,7 @@
 		compatible = "exor,gpio_initializer";
 		pinctrl-names = "default";
 
-		gpios = <&gpio3 3  0x21>, <&gpio3 27 0x21>, <&gpio2 27 0x21>, <&gpio2 25 0x21>, <&gpio2 24 0x21>, <&gpio3 0 0x21>,
+		gpios = <&gpio3 3  0x21>, <&gpio5 27 0x21>, <&gpio2 27 0x21>, <&gpio2 25 0x21>, <&gpio2 24 0x21>, <&gpio3 0 0x21>,
 		        <&gpio2 23 0x20>, <&gpio5 26 0x20>, <&gpio3 25 0x20>, <&gpio3 31 0x20>, <&gpio3 23 0x20>, <&gpio3 24 0x20>;
 
 		gpio-names = "flt12", "flt34", "in1",  "in2",  "in3",  "in4",

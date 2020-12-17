@@ -1078,6 +1078,9 @@ static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 		rx_fifo_trig = RXTL;
 	else
 		rx_fifo_trig = RXTL_UART;
+	
+	if(!sport->dma_chan_rx)
+		rx_fifo_trig = RXTL;
 
 	/* set receiver / transmitter trigger level */
 	val = readl(sport->port.membase + UFCR) & (UFCR_RFDIV | UFCR_DCEDTE);

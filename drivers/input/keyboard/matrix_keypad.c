@@ -148,6 +148,7 @@ static void matrix_keypad_scan(struct work_struct *work)
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	uint32_t new_state[MATRIX_MAX_COLS];
 	int row, col, code;
+	int npressed = 0;
 
 	usleep_range(keypad->pdata->debounce_ms, keypad->pdata->debounce_ms+2000);
 
@@ -162,10 +163,19 @@ static void matrix_keypad_scan(struct work_struct *work)
 		activate_col(pdata, col, true);
 
 		for (row = 0; row < pdata->num_row_gpios; row++)
-			new_state[col] |=
-				row_asserted(pdata, row) ? (1 << row) : 0;
+		{
+			int tmp = row_asserted(pdata, row);
+			new_state[col] |= tmp ? (1 << row) : 0;
+			if (tmp) npressed++;
+		}
 
 		activate_col(pdata, col, false);
+	}
+	
+	if(npressed > 2)
+	{ /* Too many keys pressed ... reset the new status  */
+		for (col = 0; col < pdata->num_col_gpios; col++)
+			new_state[col] = 0;
 	}
 
 	for (col = 0; col < pdata->num_col_gpios; col++) {

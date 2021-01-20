@@ -253,6 +253,7 @@ struct imx_port {
 	int			mode_gpio;        /* If a valid gpio is mapped here, it means we have a programmable RS485/RS232 phy */
 	int			rxen_gpio;        /* If a valid gpio is mapped here, we will use it for disabling the RX echo while in RS485 mode */
 	unsigned int		is_plugin_module; /* If set, indicates the uart lines are routed to a plugin module slot, so control signals are handled accordingly */
+	unsigned int		f_dma; /* If set, indicates the channel is configured in dts to use the DMA */ 
 	struct platform_device* plugin1dev;
 	struct platform_device* plugin2dev;
 	int			mode_two_lines_only;
@@ -1079,9 +1080,9 @@ static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 	else
 		rx_fifo_trig = RXTL_UART;
 	
-	if(!sport->dma_chan_rx)
+	if(!sport->f_dma)
 		rx_fifo_trig = RXTL;
-
+	
 	/* set receiver / transmitter trigger level */
 	val = readl(sport->port.membase + UFCR) & (UFCR_RFDIV | UFCR_DCEDTE);
 	val |= TXTL << UFCR_TXTL_SHF | rx_fifo_trig;
@@ -2220,6 +2221,10 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	sport->is_plugin_module = 0;
 	if (of_get_property(np, "is-plugin-module", NULL))
 		sport->is_plugin_module = 1;
+	
+	sport->f_dma = 0;
+	if (of_get_property(np, "dmas", NULL))
+		sport->f_dma = 1;
 
 	if (of_get_property(np, "fsl,dte-mode", NULL))
 		sport->dte_mode = 1;

@@ -34,6 +34,7 @@
 #include <linux/property.h>
 
 #define DRV_NAME "dual-rotary-encoder"
+#define DUAL_ROTARY_ENCODER_PERIOD 30
 
 enum dual_rotary_encoder_encoding {
 	ROTENC_GRAY,
@@ -62,6 +63,10 @@ struct dual_rotary_encoder {
 	signed char dir;	/* 1 - clockwise, -1 - CCW */
 
 	unsigned int last_stable;
+
+	struct delayed_work work;
+	int status;
+	int delta;
 };
 
 
@@ -105,6 +110,46 @@ static unsigned int dual_rotary_encoder_get_state(struct dual_rotary_encoder *en
 	return ret & 3;
 }
 
+/*
+ * Delayed work function to generate and mitigate mouse wheel events
+ */
+static void dual_rotary_encoder_work(struct work_struct *work)
+{
+	unsigned int pos;
+	int delta;
+	int status;
+	struct dual_rotary_encoder *encoder = container_of(work, struct dual_rotary_encoder, work.work);
+	
+	mutex_lock(&encoder->access_mutex);
+	pos=encoder->pos;
+	delta=encoder->delta;
+	encoder->delta=0;
+	if(encoder->status) encoder->status--;
+	status=encoder->status;
+	mutex_unlock(&encoder->access_mutex);
+	
+	if(delta != 0)
+	{ /* The wheel was moved since last time, so send events */
+		input_report_abs(encoder->input_abs, encoder->axis, pos);
+		input_sync(encoder->input_abs);
+		
+		/* Mitigate the max speed of the REL scroll wheel events
+		 * in order not to overload the CPU
+		 */
+		if(delta > 0)
+			delta = 1;
+		else
+			delta = -1;
+		
+		input_report_rel(encoder->input_rel, encoder->axis, delta);
+		input_sync(encoder->input_rel);
+	}
+	
+	if(status)
+		schedule_delayed_work(&encoder->work, msecs_to_jiffies(DUAL_ROTARY_ENCODER_PERIOD));
+}
+
+
 static void dual_rotary_encoder_report_event(struct dual_rotary_encoder *encoder)
 {
 
@@ -126,11 +171,12 @@ static void dual_rotary_encoder_report_event(struct dual_rotary_encoder *encoder
 		pos %= encoder->steps;
 
 	encoder->pos = pos;
-	input_report_abs(encoder->input_abs, encoder->axis, encoder->pos);
-	input_sync(encoder->input_abs);
-
-	input_report_rel(encoder->input_rel, encoder->axis, encoder->dir);
-	input_sync(encoder->input_rel);
+	encoder->delta += (int)encoder->dir;
+	
+	if(encoder->status == 0)
+		schedule_delayed_work(&encoder->work, msecs_to_jiffies(DUAL_ROTARY_ENCODER_PERIOD));
+	
+	encoder->status=2;
 }
 
 static irqreturn_t dual_rotary_encoder_irq(int irq, void *dev_id)
@@ -283,6 +329,8 @@ static int dual_rotary_encoder_probe(struct platform_device *pdev)
 	input_rel = devm_input_allocate_device(dev);
 	if (!input_abs || !input_rel)
 		return -ENOMEM;
+	
+	INIT_DELAYED_WORK(&encoder->work, dual_rotary_encoder_work);
 
 	encoder->input_abs = input_abs;
 	input_abs->name = "input_abs";

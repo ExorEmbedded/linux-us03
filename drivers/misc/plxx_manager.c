@@ -201,7 +201,7 @@ static int plcm10_init(struct plxx_data *data)
   struct i2c_msg msg;
   int ret = 0;
   unsigned char buf[2];
-  
+
   //Try to init U5 i2c gpio expander
   msg.addr = PLCM10_U5ADDR;
   msg.flags = 0;
@@ -259,17 +259,18 @@ static int plcm10_init(struct plxx_data *data)
   return 0;
 }
 
+/*
 static int plcmxx_init(struct plxx_data *data)
 {
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : return plcm09_init(data);
     case PLCMxx_VERSION_10 :
       case PLCMxx_VERSION_11 :
       case PLCMxx_VERSION_12 : return plcm10_init(data);
-    default : return -1;
+    default : return plcm09_init(data);
   }
 }
+*/
 
 /* Sets the level of the specified plcmxx output line
  */
@@ -359,11 +360,11 @@ static ssize_t plcmxx_led1_get(struct device *dev, struct device_attribute *attr
   mutex_lock(&plxx_lock);
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_LED1)==0) tmp = 0; 
-                             break;
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_LED1)==0) tmp = 0; 
+                             break;
+    default: if (plcmxx_get_in(data,PLCM09_LED1)==0) tmp = 0; 
                              break;
   }
   mutex_unlock(&plxx_lock);
@@ -382,12 +383,12 @@ static ssize_t plcmxx_led1_set(struct device *dev, struct device_attribute *attr
     tmp = 0;
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : plcmxx_set_out(data, PLCM09_LED1, tmp);
-                             break;
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_LED1, tmp); 
                              break;
+    default : plcmxx_set_out(data, PLCM09_LED1, tmp);
+                             break;                           
   }
   mutex_unlock(&plxx_lock);
 
@@ -402,12 +403,12 @@ static ssize_t plcmxx_led2_get(struct device *dev, struct device_attribute *attr
   mutex_lock(&plxx_lock);
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_LED2)==0) tmp = 0; 
-                             break;
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_LED2)==0) tmp = 0; 
                              break;
+    default : if (plcmxx_get_in(data,PLCM09_LED2)==0) tmp = 0; 
+                             break;                            
   }
   mutex_unlock(&plxx_lock);
 
@@ -426,12 +427,12 @@ static ssize_t plcmxx_led2_set(struct device *dev, struct device_attribute *attr
   
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : plcmxx_set_out(data, PLCM09_LED2, tmp);
-                             break;
-    case PLCMxx_VERSION_10 : 
+    case PLCMxx_VERSION_10 :
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_LED2, tmp); 
                              break;
+    default : plcmxx_set_out(data, PLCM09_LED2, tmp);
+                             break;                        
   }
   
   mutex_unlock(&plxx_lock);
@@ -478,11 +479,11 @@ static ssize_t plcmxx_xo1_get(struct device *dev, struct device_attribute *attr,
   mutex_lock(&plxx_lock);
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_XO1)==0) tmp = 1; 
-                             break;
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XO1)==0) tmp = 1; 
+                             break;
+    default : if (plcmxx_get_in(data,PLCM09_XO1)==0) tmp = 1; 
                              break;
   }
   mutex_unlock(&plxx_lock);
@@ -502,11 +503,11 @@ static ssize_t plcmxx_xo1_set(struct device *dev, struct device_attribute *attr,
   
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : plcmxx_set_out(data, PLCM09_XO1, tmp);
-                             break;
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_XO1, tmp); 
+                             break;
+    default : plcmxx_set_out(data, PLCM09_XO1, tmp);
                              break;
   }
   
@@ -522,11 +523,11 @@ static ssize_t plcmxx_xo2_get(struct device *dev, struct device_attribute *attr,
   mutex_lock(&plxx_lock);
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_XO2)==0) tmp = 1; 
-                             break;
     case PLCMxx_VERSION_10 :
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XO2)==0) tmp = 1; 
+                             break;
+    default : if (plcmxx_get_in(data,PLCM09_XO2)==0) tmp = 1; 
                              break;
   }
   mutex_unlock(&plxx_lock);
@@ -544,12 +545,13 @@ static ssize_t plcmxx_xo2_set(struct device *dev, struct device_attribute *attr,
     tmp = 1;
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : plcmxx_set_out(data, PLCM09_XO2, tmp);
-                             break;
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_XO2, tmp); 
                              break;
+    default : plcmxx_set_out(data, PLCM09_XO2, tmp);
+                             break;
+                            
   }
   
   mutex_unlock(&plxx_lock);
@@ -564,11 +566,11 @@ static ssize_t plcmxx_xi1_get(struct device *dev, struct device_attribute *attr,
   mutex_lock(&plxx_lock);  
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_XI1)>0) tmp = 1; 
-                             break;
     case PLCMxx_VERSION_10 :
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XI1)>0) tmp = 1; 
+                             break;
+    default : if (plcmxx_get_in(data,PLCM09_XI1)>0) tmp = 1; 
                              break;
   }
   mutex_unlock(&plxx_lock);
@@ -584,11 +586,11 @@ static ssize_t plcmxx_xi2_get(struct device *dev, struct device_attribute *attr,
 
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_XI2)>0) tmp = 1; 
-                             break;
     case PLCMxx_VERSION_10 :
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XI2)>0) tmp = 1; 
+                             break;
+    default : if (plcmxx_get_in(data,PLCM09_XI2)>0) tmp = 1; 
                              break;
   }
 
@@ -602,11 +604,7 @@ static ssize_t plcmxx_ringing_get(struct device *dev, struct device_attribute *a
   int tmp = 0;
   
   mutex_lock(&plxx_lock);  
-  switch (data->plcmversion)
-  {
-    case PLCMxx_VERSION_09 : if (plcmxx_get_in(data,PLCM09_RING)==0) tmp = 1; 
-                             break;
-  }
+  if (plcmxx_get_in(data,PLCM09_RING)==0) tmp = 1; 
   mutex_unlock(&plxx_lock);
   return sprintf(buf, "%d\n",tmp);
 }
@@ -688,11 +686,10 @@ static ssize_t plcmxx_power_set(struct device *dev, struct device_attribute *att
   struct plxx_data *data = dev_get_drvdata(dev);
   switch (data->plcmversion)
   {
-    case PLCMxx_VERSION_09 : return plcm09_power_set(dev,attr,buf,size);
     case PLCMxx_VERSION_10 : 
       case PLCMxx_VERSION_11 : 
       case PLCMxx_VERSION_12 : return plcm10_power_set(dev,attr,buf,size,plcm10_get_devName(data->plcmversion));
-    default : return 0;
+    default : return plcm09_power_set(dev,attr,buf,size);
   }
 }
 
@@ -1058,6 +1055,7 @@ static ssize_t show_installed(struct device *dev, struct device_attribute *attr,
 {
   u8 tmp;
   struct plxx_data *data = dev_get_drvdata(dev);
+
   mutex_lock(&plxx_lock);
   if(!data->f_updated)
   {
@@ -1145,38 +1143,37 @@ static ssize_t show_name(struct device *dev, struct device_attribute *attr, char
   return sprintf(buf, "%s\n",tmp);
 }
 
-u8 plcmxx_get_version(struct device* dev)
+void AssignPlcmVersion(struct plxx_data* data)
 {
   int hwcode = 0;
-  int funcarea = 0;  
-  struct plxx_data *data = dev_get_drvdata(dev);
+  int funcarea = 0;
 
-  mutex_lock(&plxx_lock);
-  if(!data->f_updated)
-  {
-    UpdatePluginData(data);
-    data->f_updated = true;
-  }
+  data->plcmversion = PLCMxx_VERSION_INVALID;
+
+  if (data==NULL)
+    return;
+
   hwcode = data->eeprom[SEE_CODE_OFF];
   funcarea = data->eeprom[SEE_FUNCT_AREA_OFF] + (data->eeprom[SEE_FUNCT_AREA_OFF+1] << 8);
-  mutex_unlock(&plxx_lock);
 
   if (hwcode == 13)
-    return PLCMxx_VERSION_09;
-  else //if (hwcode == 14)
+    data->plcmversion = PLCMxx_VERSION_09;
+  else if (hwcode == 14)
   {
     if ( (funcarea & (0x01 << FFA_PLCM11)) && (funcarea & (0x01 << FFA_PLCM12)) )
-      return PLCMxx_VERSION_10;
+      data->plcmversion =  PLCMxx_VERSION_10;
     else if (funcarea & (0x01 << FFA_PLCM11))
-      return PLCMxx_VERSION_11;
+      data->plcmversion =  PLCMxx_VERSION_11;
     else if (funcarea & (0x01 << FFA_PLCM12))
-      return PLCMxx_VERSION_12;
+      data->plcmversion =  PLCMxx_VERSION_12;
     else // bits are zero
     {
-      printk("plxx invalid version: hwcode %d func %d",hwcode,funcarea);
-      return PLCMxx_VERSION_INVALID;
+      printk("plxx invalid version: hwcode %d func %d\n",hwcode,funcarea);
+      data->plcmversion =  PLCMxx_VERSION_INVALID;
     }
   }  
+  else
+    data->plcmversion =  PLCMxx_VERSION_09;
 }
 
 /* The function bit area of the plugin is seen as a RO binary file, where the i-th byte represents the binary status (0|1) of the i-th bit of the 
@@ -1411,11 +1408,13 @@ static int UpdatePluginData(struct plxx_data *data)
      
     if(data->eeprom[2] != 0x03)                           //Header check
       eeprom_isvalid = false;
-    
+
+    AssignPlcmVersion(data);
+
     if(eeprom_isvalid == false)
     {                                                     //The plugin was detected bus has invalid SEEPROM contents ...
       memset(data->eeprom, 0, SEE_FACTORYSIZE);
-    }    
+    }
   }
   gpio_set_value(data->sel_gpio, 0);                      //Deselect the plugin I2C bus
   return ret;
@@ -1427,8 +1426,8 @@ static int UpdatePluginData(struct plxx_data *data)
 static int plxx_probe(struct platform_device *pdev)
 {
   int res = 0;
+  int version;
   struct plxx_data *data;  
-  
   data = kzalloc(sizeof(struct plxx_data), GFP_KERNEL);
   if (data == NULL) 
   {
@@ -1447,39 +1446,43 @@ static int plxx_probe(struct platform_device *pdev)
 
   data->f_updated = false;
 
-  //retrieve plcmversion
-  data->plcmversion  = plcmxx_get_version(&pdev->dev);
-  
   // Create sysfs entry
   res = sysfs_create_group(&pdev->dev.kobj, &plxx_attr_group);
   if (res) 
   {
-    dev_err(&pdev->dev, "plxx failing to initialize generic device group\n");
+    dev_err(&pdev->dev, "plxx device create file failed\n");
     goto plxx_error1;
   }
   
   //PLCMxx detection and init
-  if(plcmxx_init(data) >= 0)
+  data->plcmversion = PLCMxx_VERSION_INVALID;
+  version = PLCMxx_VERSION_INVALID;
+  if(plcm09_init(data) >= 0)
+    version = PLCMxx_VERSION_09;
+  else if (plcm10_init(data)>=0)
+    version = PLCMxx_VERSION_10;
+
+  if (version!=PLCMxx_VERSION_INVALID)
   {
     //PLCMxx detected, add the corresponding sysfs group
-    printk("plxx plugin module detected; index=%d; version=%d\n",data->index,data->plcmversion);
-    switch (data->plcmversion)
+    printk("plxx plugin module detected; index=%d; version=%d\n",data->index,version);
+    switch (version)
     {
-      case PLCMxx_VERSION_09 : res = sysfs_create_group(&pdev->dev.kobj, &plcm09_attr_group);
-                               break;
       case PLCMxx_VERSION_10 : res = sysfs_create_group(&pdev->dev.kobj, &plcm10_attr_group);
                                break;
       case PLCMxx_VERSION_11 : res = sysfs_create_group(&pdev->dev.kobj, &plcm11_attr_group);
                                break;
       case PLCMxx_VERSION_12 : res = sysfs_create_group(&pdev->dev.kobj, &plcm12_attr_group);
                                break;
+      default : res = sysfs_create_group(&pdev->dev.kobj, &plcm09_attr_group);
+                 break;
     }
     if (res) 
     {
-      dev_err(&pdev->dev, "plxx failing to initialize device group\n");
+      dev_err(&pdev->dev, "plxx device create file failed\n");
       goto plxx_error1;
     }
-  } 
+  }
  
   return res;
 plxx_error1:

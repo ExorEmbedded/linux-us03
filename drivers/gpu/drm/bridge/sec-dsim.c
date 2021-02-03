@@ -263,6 +263,8 @@
 #define ERRCONTROL1		25
 #define ERRCONTROL0		26
 
+#define MIPI_BITCLK_TH (200000l)
+
 #define MIPI_FIFO_TIMEOUT	msecs_to_jiffies(250)
 
 #define to_sec_mipi_dsim(dsi) container_of(dsi, struct sec_mipi_dsim, dsi_host)
@@ -404,8 +406,8 @@ static const struct dsim_pll_pms pll_pms_table[] = {
 	{ DSIM_PLL_PMS(180000, 3, 160, 3), },
 	{ DSIM_PLL_PMS(306000, 3, 136, 2), },
 	{ DSIM_PLL_PMS(402000, 9, 536, 2), },
-	{ DSIM_PLL_PMS(162000, 2,  96, 3), },
 	{ DSIM_PLL_PMS(375600, 3, 166, 2), },
+	{ DSIM_PLL_PMS(531000, 9, 354, 1), }, 
 };
 
 static const struct dsim_pll_pms* calculate_best_pms(uint64_t bit_clk)
@@ -920,11 +922,17 @@ static void sec_mipi_dsim_set_main_mode(struct sec_mipi_dsim *dsim)
 	dsim_write(dsim, mvporch, DSIM_MVPORCH);
 
 	bpp = mipi_dsi_pixel_format_to_bpp(dsim->format);
-
+	
 	/* calculate hfp & hbp word counts */
 	if (!dsim->hpar) {
 		hfp_wc = 1;
 		hbp_wc = 1;
+		
+		if(dsim->bit_clk < MIPI_BITCLK_TH)
+		{
+			hfp_wc = 8;
+			hbp_wc = 8;
+		}
 	} else {
 		hfp_wc = dsim->hpar->hfp_wc;
 		hbp_wc = dsim->hpar->hbp_wc;
@@ -936,7 +944,14 @@ static void sec_mipi_dsim_set_main_mode(struct sec_mipi_dsim *dsim)
 
 	/* calculate hsa word counts */
 	if (!dsim->hpar)
+	{
 		hsa_wc = 1;
+
+		if(dsim->bit_clk < MIPI_BITCLK_TH)
+		{
+			hsa_wc = 8;
+		}
+	}
 	else
 		hsa_wc = dsim->hpar->hsa_wc;
 

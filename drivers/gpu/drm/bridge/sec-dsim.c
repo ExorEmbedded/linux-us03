@@ -402,7 +402,7 @@ static const struct dsim_pll_pms pll_pms_table[] = {
 	{ DSIM_PLL_PMS(870000, 9, 580, 1), }, 
 	{ DSIM_PLL_PMS(430000, 9, 600, 2), },
 	{ DSIM_PLL_PMS(456000, 9, 608, 2), },
-	{ DSIM_PLL_PMS(199200, 2, 118, 3), },
+	{ DSIM_PLL_PMS(199200, 3, 178, 3), },
 	{ DSIM_PLL_PMS(180000, 3, 160, 3), },
 	{ DSIM_PLL_PMS(306000, 3, 136, 2), },
 	{ DSIM_PLL_PMS(402000, 9, 536, 2), },

@@ -437,6 +437,12 @@ static void tja1145_change_bitrate( struct tja1145_functions_accessor *facc, __u
 	struct spi_device*   spi  = data->spi;
 	dev_dbg(&spi->dev, "%s %d \n", __func__, bitrate );
 
+    if (data->put_to_sleep)
+    {
+        dev_err(&spi->dev, "Refusing to change bitrate: the transceiver was put to sleep.");
+        return;
+    }
+
 	switch (bitrate) {
 	case 50000:
 		tja1145_write_single_reg(spi, REG_DATA_RATE, CANSPEED_50KHZ );

@@ -49,17 +49,17 @@ enum imx_gpc_pm_domain_state {
 
 #define to_imx_gpc_pm_domain(_genpd) container_of(_genpd, struct imx_gpc_pm_domain, pd)
 
-static DEFINE_SPINLOCK(gpc_psci_lock);
+static DEFINE_RAW_SPINLOCK(gpc_psci_lock);
 static DEFINE_MUTEX(gpc_pd_mutex);
 
 static void imx_gpc_psci_irq_unmask(struct irq_data *d)
 {
 	struct arm_smccc_res res;
 
-	spin_lock(&gpc_psci_lock);
+	raw_spin_lock(&gpc_psci_lock);
 	arm_smccc_smc(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_UNMASK, d->hwirq,
 		      0, 0, 0, 0, 0, &res);
-	spin_unlock(&gpc_psci_lock);
+	raw_spin_unlock(&gpc_psci_lock);
 
 	irq_chip_unmask_parent(d);
 }
@@ -68,10 +68,10 @@ static void imx_gpc_psci_irq_mask(struct irq_data *d)
 {
 	struct arm_smccc_res res;
 
-	spin_lock(&gpc_psci_lock);
+	raw_spin_lock(&gpc_psci_lock);
 	arm_smccc_smc(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_MASK, d->hwirq,
 		      0, 0, 0, 0, 0, &res);
-	spin_unlock(&gpc_psci_lock);
+	raw_spin_unlock(&gpc_psci_lock);
 
 	irq_chip_mask_parent(d);
 }
@@ -79,10 +79,10 @@ static int imx_gpc_psci_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct arm_smccc_res res;
 
-	spin_lock(&gpc_psci_lock);
+	raw_spin_lock(&gpc_psci_lock);
 	arm_smccc_smc(FSL_SIP_GPC, FSL_SIP_CONFIG_GPC_SET_WAKE, d->hwirq,
 		      on, 0, 0, 0, 0, &res);
-	spin_unlock(&gpc_psci_lock);
+	raw_spin_unlock(&gpc_psci_lock);
 
 	return 0;
 }
@@ -96,10 +96,10 @@ static int imx_gpc_psci_irq_set_affinity(struct irq_data *d,
 
 	irq_chip_set_affinity_parent(d, dest, force);
 
-	spin_lock(&gpc_psci_lock);
+	raw_spin_lock(&gpc_psci_lock);
 	arm_smccc_smc(FSL_SIP_GPC, 0x4, d->hwirq,
 		      cpu, 0, 0, 0, 0, &res);
-	spin_unlock(&gpc_psci_lock);
+	raw_spin_unlock(&gpc_psci_lock);
 
 	return 0;
 }

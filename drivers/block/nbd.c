@@ -920,6 +920,12 @@ static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
 	if (!sock)
 		return err;
 
+	/*
+	 * We need to make sure we don't get any errant requests while we're
+	 * reallocating the ->socks array.
+	 */
+	blk_mq_freeze_queue(nbd->disk->queue);
+
 	if (!netlink && !nbd->task_setup &&
 	    !test_bit(NBD_BOUND, &config->runtime_flags))
 		nbd->task_setup = current;
@@ -929,6 +935,7 @@ static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
 	     test_bit(NBD_BOUND, &config->runtime_flags))) {
 		dev_err(disk_to_dev(nbd->disk),
 			"Device being setup by another task");
+		blk_mq_unfreeze_queue(nbd->disk->queue);
 		sockfd_put(sock);
 		return -EBUSY;
 	}
@@ -936,11 +943,13 @@ static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
 	socks = krealloc(config->socks, (config->num_connections + 1) *
 			 sizeof(struct nbd_sock *), GFP_KERNEL);
 	if (!socks) {
+		blk_mq_unfreeze_queue(nbd->disk->queue);
 		sockfd_put(sock);
 		return -ENOMEM;
 	}
 	nsock = kzalloc(sizeof(struct nbd_sock), GFP_KERNEL);
 	if (!nsock) {
+		blk_mq_unfreeze_queue(nbd->disk->queue);
 		sockfd_put(sock);
 		return -ENOMEM;
 	}
@@ -956,6 +965,7 @@ static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
 	nsock->cookie = 0;
 	socks[config->num_connections++] = nsock;
 	atomic_inc(&config->live_connections);
+	blk_mq_unfreeze_queue(nbd->disk->queue);
 
 	return 0;
 }

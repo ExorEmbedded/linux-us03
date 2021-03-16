@@ -70,27 +70,27 @@
 
 		button@1 {
 		    label = "L1";
-		    linux,code = <59>; /* KEY_F1 */
+		    linux,code = <68>; /* KEY_F10 */
 		    gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 		};
 		button@2 {
 		    label = "L2";
-		    linux,code = <60>; /* KEY_F2 */
+		    linux,code = <67>; /* KEY_F9 */
 		    gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 		};
 		button@3 {
 		    label = "L3";
-		    linux,code = <61>; /* KEY_F3 */
+		    linux,code = <66>; /* KEY_F8 */
 		    gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 		button@4 {
 		    label = "L4";
-		    linux,code = <62>; /* KEY_F4 */
+		    linux,code = <65>; /* KEY_F7 */
 		    gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 		button@5 {
 		    label = "L5";
-		    linux,code = <63>; /* KEY_F5 */
+		    linux,code = <64>; /* KEY_F6 */
 		    gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 		};
 		button@6 {
@@ -101,27 +101,27 @@
 		
 		button@7 {
 		    label = "R1";
-		    linux,code = <64>; /* KEY_F6 */
+		    linux,code = <63>; /* KEY_F5 */
 		    gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;
 		};
 		button@8 {
 		    label = "R2";
-		    linux,code = <65>; /* KEY_F7 */
+		    linux,code = <62>; /* KEY_F4 */
 		    gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;
 		};
 		button@9 {
 		    label = "R3";
-		    linux,code = <66>; /* KEY_F8 */
+		    linux,code = <61>; /* KEY_F3 */
 		    gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
 		};
 		button@10 {
 		    label = "R4";
-		    linux,code = <67>; /* KEY_F9 */
+		    linux,code = <60>; /* KEY_F2 */
 		    gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
 		};
 		button@11 {
 		    label = "R5";
-		    linux,code = <68>; /* KEY_F10 */
+		    linux,code = <59>; /* KEY_F1 */
 		    gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;
 		};
 		button@12 {

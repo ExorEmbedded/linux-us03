@@ -158,6 +158,17 @@
             gpio = <&gpio4 13 0>;
             enable-active-high;
         };
+
+	/* 25 MHz crystal oscillator for TC358748 */
+	clocks {
+		osc_ext_25m: clock@6 {
+			compatible = "fixed-clock";
+			reg = <6>;
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+			clock-output-names = "osc_ext_25m";
+		};
+	};
 };
 
 &backlight0 {
@@ -238,6 +249,60 @@
 			linux,default-trigger = "none";
 		};
 	};	
+	adv7280@20 {
+		status = "okay";
+		compatible = "adi,adv7280";
+		reg = <0x20>;
+		csi_id =<0>; /* ?? */
+		cvbs = <1>; /* Analogue channel: input 8 */
+		clocks = <&osc_ext_25m>;
+		clock-names = "refclk";
+	};
+	tc358746@e {
+		compatible = "toshiba,tc358746";
+		reg = <0xe>;
+		clocks = <&osc_ext_25m>;
+		clock-names = "refclk";
+		port {
+			tc358746_out: endpoint {
+				remote-endpoint = <&mipi1_sensor_ep>;
+//				data-lanes = <1 2 3 4>;
+				data-lanes = <1>;
+				clock-lanes = <0>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <200000000>;
+			};
+		};
+	};
+};
+
+&csi1_bridge {
+	fsl,mipi-mode;
+	status = "okay";
+	port {
+		csi1_ep: endpoint {
+			remote-endpoint = <&csi1_mipi_ep>;
+		};
+	};
+};
+
+&mipi_csi_1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	port {
+		mipi1_sensor_ep: endpoint1 {
+			remote-endpoint = <&tc358746_out>;
+			data-lanes = <1>;
+			csis-hs-settle = <11>;
+			csis-clk-settle = <2>;
+			csis-wclk;
+		};
+
+		csi1_mipi_ep: endpoint2 {
+			remote-endpoint = <&csi1_ep>;
+		};
+	};
 };
 
 &fec1 {

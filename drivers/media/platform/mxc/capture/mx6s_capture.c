@@ -262,6 +262,18 @@ static struct mx6s_fmt formats[] = {
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp		= 2,
 	}, {
+		.name = "UYVY-16",
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.pixelformat = V4L2_PIX_FMT_UYVY,
+		.mbus_code = MEDIA_BUS_FMT_UYVY8_2X8,
+		.bpp = 2,
+	}, {
+		.name = "VYUY-16",
+		.fourcc = V4L2_PIX_FMT_VYUY,
+		.pixelformat = V4L2_PIX_FMT_VYUY,
+		.mbus_code = MEDIA_BUS_FMT_VYUY8_2X8,
+		.bpp = 2,
+	}, {
 		.name		= "YUV32 (X-Y-U-V)",
 		.fourcc		= V4L2_PIX_FMT_YUV32,
 		.pixelformat	= V4L2_PIX_FMT_YUV32,
@@ -1011,6 +1023,16 @@ static void mx6s_csi_frame_done(struct mx6s_csi_dev *csi_dev,
 	unsigned long phys;
 	unsigned int phys_fb1;
 	unsigned int phys_fb2;
+	// dvm debug stuff
+#if 0
+	unsigned char* p_virt;
+	int i, j;
+#define N_BYTES 80*2
+#define N_COLUMNS   8
+	char str_buf[2 + N_BYTES*3 + 1 + 1];
+
+	dev_err(csi_dev->dev, "+++ frame done\n");
+#endif
 
 	ibuf = list_first_entry(&csi_dev->active_bufs, struct mx6s_buf_internal,
 			       queue);
@@ -1026,6 +1048,24 @@ static void mx6s_csi_frame_done(struct mx6s_csi_dev *csi_dev,
 
 		vb = &buf->vb.vb2_buf;
 		phys = vb2_dma_contig_plane_dma_addr(vb, 0);
+
+		// enable this to print first row of pixels
+#if 0
+		p_virt = (unsigned char*)phys_to_virt(phys);
+		for (j = 0; j < N_COLUMNS; ++j)
+		{
+			sprintf(str_buf, "%1d:", j);
+			for (i = 0; i < N_BYTES; ++i)
+			{
+				sprintf(&str_buf[2 + i * 3], " %02x", p_virt[j * N_BYTES + i]);
+			}
+
+			str_buf[2 + N_BYTES * 3 + 0] = '\n';
+			str_buf[2 + N_BYTES * 3 + 1] = '\0';
+			printk(str_buf);
+		}
+#endif
+
 		if (bufnum == 1) {
 			phys_fb2 = csi_read(csi_dev, CSI_CSIDMASA_FB2);
 			if (phys_fb2 != (u32)phys) {
@@ -1962,6 +2002,7 @@ static int mx6s_csi_probe(struct platform_device *pdev)
 		goto err_irq;
 
 	pm_runtime_enable(csi_dev->dev);
+
 	return 0;
 
 err_irq:

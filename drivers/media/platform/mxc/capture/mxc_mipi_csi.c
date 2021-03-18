@@ -324,6 +324,10 @@ static const struct csis_pix_format mipi_csis_formats[] = {
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
 		.data_alignment = 16,
 	}, {
+		.code = MEDIA_BUS_FMT_UYVY8_2X8,
+		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
+		.data_alignment = 16,
+	}, {
 		.code = MEDIA_BUS_FMT_VYUY8_2X8,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
 		.data_alignment = 16,
@@ -364,9 +368,14 @@ static void mipi_csis_enable_interrupts(struct csi_state *state, bool on)
 {
 	u32 val = mipi_csis_read(state, MIPI_CSIS_INTMSK);
 	if (on)
+	{
 		val |= 0xf00fffff;
+// dvm all irqs		val |= 0xffffffff;
+	}
 	else
+	{
 		val &= ~0xf00fffff;
+	}
 	mipi_csis_write(state, MIPI_CSIS_INTMSK, val);
 }
 
@@ -744,7 +753,7 @@ static int mipi_csis_enum_mbus_code(struct v4l2_subdev *mipi_sd,
 
 	csis_fmt = find_csis_format(code->code);
 	if (csis_fmt == NULL) {
-		dev_err(state->dev, "format not match\n");
+		dev_err(state->dev, "format not match %x avail %x %x %x\n", code->code, mipi_csis_formats[0].code, mipi_csis_formats[1].code, mipi_csis_formats[2].code);
 		return -EINVAL;
 	}
 
@@ -1078,6 +1087,10 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	mipi_csis_phy_reset_t phy_reset_fn;
 	int ret = -ENOMEM;
+
+	// enable additional debug printouts, if desired
+	// dvm
+	//debug = 2;
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)

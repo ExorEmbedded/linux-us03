@@ -1513,7 +1513,7 @@ static int tc358746_probe(struct i2c_client *client,
 	if (err)
 	{
 		v4l_err(client, "Error %d writing fpga i2c\n", err);
-		return -EIO;
+		//return -EIO;
 	}
 
 	return 0;

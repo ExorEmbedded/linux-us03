@@ -27,6 +27,56 @@
 
 #include "tc358746_regs.h"
 
+enum tc358746_mode_id
+{
+	TC358746_MODE_1280_800,
+	TC358746_MODE_720_400,
+	TC358746_MODE_640_480,
+	TC358746_MODE_480_480,
+	TC358746_MODE_320_480,
+	TC358746_NUM_MODES,
+};
+
+enum tc358746_frame_rate
+{
+	TC358746_FIRST_FPS = 0,
+	TC358746_5_FPS = 0,
+	TC358746_10_FPS,
+	TC358746_15_FPS,
+	TC358746_20_FPS,
+	TC358746_25_FPS,
+	TC358746_30_FPS,
+	TC358746_NUM_FRAMERATES,
+	TC358746_LAST_FPS = TC358746_NUM_FRAMERATES-1
+};
+
+static const int tc358746_framerates[] =
+{
+	[TC358746_5_FPS] = 5,
+	[TC358746_10_FPS] = 10,
+	[TC358746_15_FPS] = 15,
+	[TC358746_20_FPS] = 20,
+	[TC358746_25_FPS] = 25,
+	[TC358746_30_FPS] = 30,
+};
+
+struct tc358746_mode_info
+{
+	enum tc358746_mode_id id;
+	u32 hact;
+	u32 vact;
+};
+
+static const struct tc358746_mode_info
+tc358746_mode_data[TC358746_NUM_MODES] =
+{
+	{TC358746_MODE_1280_800, 1280, 800},
+	{TC358746_MODE_720_400, 720, 400},
+	{TC358746_MODE_640_480, 640, 480},
+	{TC358746_MODE_480_480, 480, 480},
+	{TC358746_MODE_320_480, 320, 480}
+};
+
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-3)");
@@ -72,6 +122,14 @@ struct tc358746_state {
 
 	bool controls_initialized;
 	struct device* dev_folder;
+
+	u32 i_fpga_control_register;
+	u32 i_fpga_width;
+	u32 i_fpga_height;
+	u32 i_fpga_rotation;
+	u32 i_fpga_mirror_horizontal;
+	u32 i_fpga_mirror_vertical;
+
 };
 
 static inline struct tc358746_state *to_state(struct v4l2_subdev *sd)
@@ -82,6 +140,31 @@ static inline struct tc358746_state *to_state(struct v4l2_subdev *sd)
 #define WU10CAM_GPIO_IN_REG	0x00
 #define WU10CAM_VIDEO_SELECT_REG	0x00
 #define WU10CAM_GPIO_OUT_REG	0x01
+#define FPGA_ROTATION_CONTROL_REG	0x80
+#define FPGA_SCALER_CONTROL_REG	0x200
+#define FPGA_SCALER_WIDTH_REG	0x20C
+#define FPGA_SCALER_HEIGHT_REG	0x210
+#define FPGA_CLOCKED_VIDEO_OUTPUT_CONTROL_REG	0x800
+#define FPGA_CLIPPER_CONTROL_REG	0x4000
+#define FPGA_CLIPPER_WIDTH_REG	0x4004
+#define FPGA_CLIPPER_HEIGHT_REG	0x4008
+#define FPGA_CLIPPER_BLANKING_WIDTH_REG	0x400C
+#define FPGA_CLIPPER_BLANKING_HEIGHT_REG	0x4010
+
+#define DEFAULT_WIDTH	1280
+#define DEFAULT_HEIGHT	800
+
+#define FPGA_ROTATION_ENABLE	0x1
+#define FPGA_ROTATION_ANGLE_MASK	( (1<<2) | (1<<1) )
+#define FPGA_SCALER_DISABLE	0x0
+#define FPGA_SCALER_ENABLE	0x1
+#define FPGA_MIRROR_HORIZONTAL_ENABLE	(1 << 3)
+#define FPGA_MIRROR_VERTICAL_ENABLE	(1 << 4)
+#define FPGA_CLIPPER_DISABLE	0x0
+#define FPGA_CLIPPER_ENABLE	0x1
+#define FPGA_CLIPPER_PASS_THROUGH	0x2
+#define FPGA_CVO_DISABLE	0x0
+#define FPGA_CVO_ENABLE	0x1
 
 #define to_tc358746_sd(_ctrl) (&container_of(_ctrl->handler,		\
 					    struct tc358746_state,	\
@@ -319,20 +402,19 @@ retry:
 	switch (n) {
 	case 1:
 		v4l2_info(sd, "I2C write 0x%04x = 0x%02x",
-				reg, data[2]);
+			reg, data[2]);
 		break;
 	case 2:
 		v4l2_info(sd, "I2C write 0x%04x = 0x%02x%02x",
-//				reg, data[3], data[2]);
-		reg, data[2], data[3]);
+			reg, data[2], data[3]);
 		break;
 	case 4:
 		v4l2_info(sd, "I2C write 0x%04x = 0x%02x%02x%02x%02x",
-				reg, data[5], data[4], data[3], data[2]);
+			reg, data[5], data[4], data[3], data[2]);
 		break;
 	default:
 		v4l2_info(sd, "I2C write %d bytes from address 0x%04x\n",
-				n, reg);
+			n, reg);
 	}
 }
 
@@ -730,12 +812,186 @@ static const struct v4l2_subdev_video_ops tc358746_video_ops = {
 	.s_stream = tc358746_s_stream,
 };
 
+const void*
+__v4l2_find_nearest_size(const void* array, size_t array_size,
+	size_t entry_size, size_t width_offset,
+	size_t height_offset, s32 width, s32 height)
+{
+	u32 error, min_error = U32_MAX;
+	const void* best = NULL;
+	unsigned int i;
+
+	if (!array)
+		return NULL;
+
+	for (i = 0; i < array_size; i++, array += entry_size) {
+		const u32* entry_width = array + width_offset;
+		const u32* entry_height = array + height_offset;
+
+		error = abs(*entry_width - width) + abs(*entry_height - height);
+		if (error > min_error)
+			continue;
+
+		min_error = error;
+		best = array;
+		if (!error)
+			break;
+	}
+
+	return best;
+}
+
+#define v4l2_find_nearest_size(array, array_size, width_field, height_field, \
+			       width, height)				\
+	({								\
+		BUILD_BUG_ON(sizeof((array)->width_field) != sizeof(u32) || \
+			     sizeof((array)->height_field) != sizeof(u32)); \
+		(typeof(&(array)[0]))__v4l2_find_nearest_size(		\
+			(array), array_size, sizeof(*(array)),		\
+			offsetof(typeof(*(array)), width_field),	\
+			offsetof(typeof(*(array)), height_field),	\
+			width, height);					\
+	})
+
+static const struct tc358746_mode_info*
+tc358746_find_mode(struct tc358746_state* sensor, enum tc358746_frame_rate fr,
+	int width, int height, bool nearest)
+{
+	const struct tc358746_mode_info* mode;
+
+	mode = v4l2_find_nearest_size(tc358746_mode_data,
+		ARRAY_SIZE(tc358746_mode_data),
+		hact, vact,
+		width, height);
+
+	if (!mode ||
+		(!nearest && (mode->hact != width || mode->vact != height)))
+	{
+		return NULL;
+	}
+
+	return mode;
+}
+
+static int tc358746_try_frame_interval(struct tc358746_state* sensor,
+	struct v4l2_fract* fi,
+	u32 width, u32 height)
+{
+	const struct tc358746_mode_info* mode;
+	u32 minfps, maxfps, fps;
+	int ret;
+
+	minfps = tc358746_framerates[TC358746_FIRST_FPS];
+	maxfps = tc358746_framerates[TC358746_LAST_FPS];
+
+	printk("dbg %s:%d %d/%d\n", __FUNCTION__, __LINE__, fi->denominator, fi->numerator);
+
+	if (fi->numerator == 0) {
+		fi->denominator = maxfps;
+		fi->numerator = 1;
+		printk("dbg %s:%d\n", __FUNCTION__, __LINE__);
+		return TC358746_LAST_FPS;
+	}
+
+	fps = DIV_ROUND_CLOSEST(fi->denominator, fi->numerator);
+	printk("dbg %s:%d fps=%d\n", __FUNCTION__, __LINE__, fps);
+
+	fi->numerator = 1;
+	if (fps > maxfps)
+	{
+		fi->denominator = maxfps;
+		ret = TC358746_LAST_FPS;
+		printk("dbg %s:%d\n", __FUNCTION__, __LINE__);
+	}
+	else if (fps < minfps)
+	{
+		fi->denominator = minfps;
+		ret = TC358746_FIRST_FPS;
+		printk("dbg %s:%d\n", __FUNCTION__, __LINE__);
+	}
+//	else if (2 * fps >= 2 * minfps + (maxfps - minfps))
+//	{
+//		fi->denominator = maxfps;
+//		printk("dbg %s:%d\n", __FUNCTION__, __LINE__);
+//	}
+	else
+	{
+//		fi->denominator = minfps;
+		for (ret = 0; ret < TC358746_NUM_FRAMERATES; ++ret)
+		{
+			if (tc358746_framerates[ret] == fps)
+			{
+				break;
+			}
+		}
+	}
+
+	// not found?
+	if (ret >= TC358746_NUM_FRAMERATES)
+	{	// assume max is reasonable default
+		ret = TC358746_LAST_FPS;
+	}
+//	ret = (fi->denominator == minfps) ? TC358746_5_FPS : TC358746_30_FPS;
+	printk("dbg %s:%d ret=%d\n", __FUNCTION__, __LINE__, ret);
+
+	mode = tc358746_find_mode(sensor, ret, width, height, false);
+	return mode ? ret : -EINVAL;
+}
+
+static int tc358746_enum_frame_size(struct v4l2_subdev* sd,
+	struct v4l2_subdev_pad_config* cfg,
+	struct v4l2_subdev_frame_size_enum* fse)
+{
+	if (fse->pad != 0)
+		return -EINVAL;
+	if (fse->index >= TC358746_NUM_MODES)
+		return -EINVAL;
+
+	fse->min_width =
+		tc358746_mode_data[fse->index].hact;
+	fse->max_width = fse->min_width;
+	fse->min_height =
+		tc358746_mode_data[fse->index].vact;
+	fse->max_height = fse->min_height;
+
+	return 0;
+}
+
+static int tc358746_enum_frame_interval(
+	struct v4l2_subdev* sd,
+	struct v4l2_subdev_pad_config* cfg,
+	struct v4l2_subdev_frame_interval_enum* fie)
+{
+	struct tc358746_state* sensor = to_state(sd);
+	struct v4l2_fract tpf;
+	int ret;
+
+	if (fie->pad != 0)
+		return -EINVAL;
+	if (fie->index >= TC358746_NUM_FRAMERATES)
+		return -EINVAL;
+
+	tpf.numerator = 1;
+	tpf.denominator = tc358746_framerates[fie->index];
+
+	ret = tc358746_try_frame_interval(sensor, &tpf,
+		fie->width, fie->height);
+	if (ret < 0)
+		return -EINVAL;
+
+	fie->interval = tpf;
+	return 0;
+}
+
+
 static const struct v4l2_subdev_pad_ops tc358746_pad_ops = {
 	.enum_mbus_code = tc358746_enum_mbus_code,
 	.set_fmt = tc358746_set_fmt,
 	.get_fmt = tc358746_get_fmt,
 	.enum_dv_timings = tc358746_enum_dv_timings,
 	.dv_timings_cap = tc358746_dv_timings_cap,
+	.enum_frame_size = tc358746_enum_frame_size,
+	.enum_frame_interval = tc358746_enum_frame_interval,
 };
 
 static const struct v4l2_subdev_ops tc358746_ops = {
@@ -873,6 +1129,7 @@ void Waitx1us(int us)
 
 void tc358746_initialize_registers(void)
 {
+#if 0 // 640x480
 	// *********************************************
 	// Start up sequence
 	// *********************************************
@@ -949,6 +1206,90 @@ void tc358746_initialize_registers(void)
 	i2c1_cplb_write16(0x0500, 0x8081); // CSI2 lane setting, CSI2 mode=HS
 	i2c1_cplb_write16(0x0502, 0xA300); // bit set
 	i2c1_cplb_write16(0x0004, 0x0040); // Configuration Control Register
+
+	// *********************************************
+
+#else
+	// 1280 x 800
+	// 
+
+// *********************************************
+// Start up sequence
+// *********************************************
+// **************************************************
+// TC358746(A)XBG Software Reset
+// **************************************************
+	i2c1_cplb_write16(0x0002, 0x0001); // SYSctl, S/W Reset
+	Waitx1us(10);
+	i2c1_cplb_write16(0x0002, 0x0000); // SYSctl, S/W Reset release
+	// **************************************************
+	// TC358746(A)XBG PLL,Clock Setting
+	// **************************************************
+	i2c1_cplb_write16(0x0016, 0x0020); // PLL Control Register 0 (PLL_PRD,PLL_FBD)
+	i2c1_cplb_write16(0x0018, 0x0603); // PLL_FRS,PLL_LBWS, PLL oscillation enable
+	Waitx1us(1000);
+	i2c1_cplb_write16(0x0018, 0x0613); // PLL_FRS,PLL_LBWS, PLL clock out enable
+	// **************************************************
+	// TC358746(A)XBG DPI Input Control
+	// **************************************************
+	i2c1_cplb_write16(0x0006, 0x0032); // FIFO Control Register
+	i2c1_cplb_write16(0x0008, 0x0060); // Data Format setting
+	i2c1_cplb_write16(0x0022, 0x0A00); // Word Count
+	// **************************************************
+	// TC358746XBG MCLK Output
+	// **************************************************
+	// **************************************************
+	// TC358746(A)XBG GPIO2,1 Control (Example)
+	// **************************************************
+	// **************************************************
+	// TC358746(A)XBG D-PHY Setting
+	// **************************************************
+	i2c1_cplb_write16(0x0140, 0x0000); // D-PHY Clock lane enable
+	i2c1_cplb_write16(0x0142, 0x0000); // 
+	i2c1_cplb_write16(0x0144, 0x0000); // D-PHY Data lane0 enable
+	i2c1_cplb_write16(0x0146, 0x0000); // 
+	i2c1_cplb_write16(0x0148, 0x0001); // D-PHY Data lane1 enable
+	i2c1_cplb_write16(0x014A, 0x0000); // 
+	i2c1_cplb_write16(0x014C, 0x0001); // D-PHY Data lane2 enable
+	i2c1_cplb_write16(0x014E, 0x0000); // 
+	i2c1_cplb_write16(0x0150, 0x0001); // D-PHY Data lane3 enable
+	i2c1_cplb_write16(0x0152, 0x0000); // 
+	// **************************************************
+	// TC358746(A)XBG CSI2-TX PPI Control
+	// **************************************************
+	i2c1_cplb_write16(0x0210, 0x0BB8); // LINEINITCNT
+	i2c1_cplb_write16(0x0212, 0x0000); // 
+	i2c1_cplb_write16(0x0214, 0x0002); // LPTXTIMECNT
+	i2c1_cplb_write16(0x0216, 0x0000); // 
+	i2c1_cplb_write16(0x0218, 0x0F02); // TCLK_HEADERCNT
+	i2c1_cplb_write16(0x021A, 0x0000); // 
+	i2c1_cplb_write16(0x021C, 0x0000); // TCLK_TRAILCNT
+	i2c1_cplb_write16(0x021E, 0x0000); // 
+	i2c1_cplb_write16(0x0220, 0x0003); // THS_HEADERCNT
+	i2c1_cplb_write16(0x0222, 0x0000); // 
+	i2c1_cplb_write16(0x0224, 0x4650); // TWAKEUPCNT
+	i2c1_cplb_write16(0x0226, 0x0000); // 
+	i2c1_cplb_write16(0x0228, 0x0007); // TCLK_POSTCNT
+	i2c1_cplb_write16(0x022A, 0x0000); // 
+	i2c1_cplb_write16(0x022C, 0x0001); // THS_TRAILCNT
+	i2c1_cplb_write16(0x022E, 0x0000); // 
+	i2c1_cplb_write16(0x0230, 0x0005); // HSTXVREGCNT
+	i2c1_cplb_write16(0x0232, 0x0000); // 
+	i2c1_cplb_write16(0x0234, 0x0003); // HSTXVREGEN enable
+	i2c1_cplb_write16(0x0236, 0x0000); // 
+	i2c1_cplb_write16(0x0238, 0x0000); // DSI clock Enable/Disable during LP
+	i2c1_cplb_write16(0x023A, 0x0000); // 
+	i2c1_cplb_write16(0x0204, 0x0001); // STARTCNTRL
+	i2c1_cplb_write16(0x0206, 0x0000); // 
+	i2c1_cplb_write16(0x0518, 0x0001); // CSI Start
+	i2c1_cplb_write16(0x051A, 0x0000); // 
+	// **************************************************
+	// Set to HS mode
+	// **************************************************
+	i2c1_cplb_write16(0x0500, 0x8081); // CSI2 lane setting, CSI2 mode=HS
+	i2c1_cplb_write16(0x0502, 0xA300); // bit set
+	i2c1_cplb_write16(0x0004, 0x0040); // Configuration Control Register
+#endif
 }
 
 const struct reg_data
@@ -1141,7 +1482,7 @@ end_loop:
 
  /* 4 inputs */
 
-static ssize_t wu10cam_gpio_in_show(
+static ssize_t exor_camera_gpio_in_show(
 	struct device* dev,
 	struct device_attribute* attr,
 	char* buf)
@@ -1172,11 +1513,11 @@ static ssize_t wu10cam_gpio_in_show(
 
 	return len;
 }
-static DEVICE_ATTR(gpio_in, S_IRUGO, wu10cam_gpio_in_show, NULL);
+static DEVICE_ATTR(gpio_in, S_IRUGO, exor_camera_gpio_in_show, NULL);
 
 /* 4 outputs **********************************************************/
 
-static ssize_t wu10cam_gpio_out_show(
+static ssize_t exor_camera_gpio_out_show(
 	struct device* dev,
 	struct device_attribute* attr,
 	char* buf)
@@ -1207,7 +1548,7 @@ static ssize_t wu10cam_gpio_out_show(
 	return len;
 }
 
-static ssize_t wu10cam_gpio_out_store(
+static ssize_t exor_camera_gpio_out_store(
 	struct device* dev,
 	struct device_attribute* attr,
 	const char* buf,
@@ -1242,13 +1583,13 @@ static ssize_t wu10cam_gpio_out_store(
 /* cannot assign arbitrary permissions here, if these are not
  * appropriate, 'chmod' them afterwards.
  * */
-static DEVICE_ATTR(gpio_out, S_IRUGO | S_IWUSR, wu10cam_gpio_out_show, wu10cam_gpio_out_store);
+static DEVICE_ATTR(gpio_out, S_IRUGO | S_IWUSR, exor_camera_gpio_out_show, exor_camera_gpio_out_store);
 
 /* register **********************************************************/
 
 unsigned int gi_reg = 0;
 
-static ssize_t wu10cam_reg_show(
+static ssize_t exor_camera_reg_show(
 	struct device* dev,
 	struct device_attribute* attr,
 	char* buf)
@@ -1265,7 +1606,7 @@ static ssize_t wu10cam_reg_show(
 	return len;
 }
 
-static ssize_t wu10cam_reg_store(
+static ssize_t exor_camera_reg_store(
 	struct device* dev,
 	struct device_attribute* attr,
 	const char* buf,
@@ -1283,13 +1624,13 @@ static ssize_t wu10cam_reg_store(
 	return count;
 }
 
-static DEVICE_ATTR(reg, S_IRUGO | S_IWUSR, wu10cam_reg_show, wu10cam_reg_store);
+static DEVICE_ATTR(reg, S_IRUGO | S_IWUSR, exor_camera_reg_show, exor_camera_reg_store);
 
 /* value **********************************************************/
 
 unsigned int gi_val = 0;
 
-static ssize_t wu10cam_val_show(
+static ssize_t exor_camera_val_show(
 	struct device* dev,
 	struct device_attribute* attr,
 	char* buf)
@@ -1320,7 +1661,7 @@ static ssize_t wu10cam_val_show(
 	return len;
 }
 
-static ssize_t wu10cam_val_store(
+static ssize_t exor_camera_val_store(
 	struct device* dev,
 	struct device_attribute* attr,
 	const char* buf,
@@ -1354,15 +1695,328 @@ static ssize_t wu10cam_val_store(
 /* cannot assign arbitrary permissions here, if these are not
  * appropriate, 'chmod' them afterwards.
  * */
-static DEVICE_ATTR(val, S_IRUGO | S_IWUSR, wu10cam_val_show, wu10cam_val_store);
+static DEVICE_ATTR(val, S_IRUGO | S_IWUSR, exor_camera_val_show, exor_camera_val_store);
 
+/* width, height, rotation, mirroring *****************************/
+
+static void fpga_enable_all(struct tc358746_state* state, const bool b_enable)
+{
+	int ret = 0;
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_SCALER_CONTROL_REG,
+		b_enable ? FPGA_SCALER_ENABLE : FPGA_SCALER_DISABLE);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_CONTROL_REG,
+		b_enable ? FPGA_SCALER_ENABLE : FPGA_SCALER_DISABLE);
+
+	if (b_enable)
+		state->i_fpga_control_register |= FPGA_ROTATION_ENABLE;
+	else
+		state->i_fpga_control_register &= ~FPGA_ROTATION_ENABLE;
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_ROTATION_CONTROL_REG,
+		state->i_fpga_control_register);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLOCKED_VIDEO_OUTPUT_CONTROL_REG,
+		b_enable ? FPGA_CVO_ENABLE : FPGA_CVO_DISABLE);
+
+}
+
+static ssize_t exor_camera_width_show(
+	struct device* dev,
+	struct device_attribute* attr,
+	char* buf)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int len = 0;
+
+	len = sprintf(buf, "%d\n", state->i_fpga_width);
+	if (len <= 0)
+	{
+		dev_err(dev, "Invalid sprintf len: %d\n", len);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t exor_camera_width_store(
+	struct device* dev,
+	struct device_attribute* attr,
+	const char* buf,
+	size_t count)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = kstrtouint(buf, 0, &state->i_fpga_width);
+	if (ret)
+	{
+		dev_err(dev, "Error %d at %s:%d\n", ret, __FUNCTION__, __LINE__);
+		return -EINVAL;
+	}
+
+	fpga_enable_all(state, false);
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_SCALER_WIDTH_REG,
+		state->i_fpga_width);
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_WIDTH_REG,
+		state->i_fpga_width);
+	usleep_range(10 * 1000, 20 * 1000);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_BLANKING_WIDTH_REG,
+		DEFAULT_WIDTH - state->i_fpga_width);
+	usleep_range(10 * 1000, 20 * 1000);
+
+//	fpga_enable_all(state, true);
+
+	return count;
+}
+
+static ssize_t exor_camera_height_show(
+	struct device* dev,
+	struct device_attribute* attr,
+	char* buf)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int len = 0;
+
+	len = sprintf(buf, "%d\n", state->i_fpga_height);
+	if (len <= 0)
+	{
+		dev_err(dev, "Invalid sprintf len: %d\n", len);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t exor_camera_height_store(
+	struct device* dev,
+	struct device_attribute* attr,
+	const char* buf,
+	size_t count)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = kstrtouint(buf, 0, &state->i_fpga_height);
+	if (ret)
+	{
+		dev_err(dev, "Error %d at %s:%d\n", ret, __FUNCTION__, __LINE__);
+		return -EINVAL;
+	}
+
+//	fpga_enable_all(state, false);
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_SCALER_HEIGHT_REG,
+		state->i_fpga_height);
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_HEIGHT_REG,
+		state->i_fpga_height);
+	usleep_range(10 * 1000, 20 * 1000);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_BLANKING_HEIGHT_REG,
+		DEFAULT_HEIGHT - state->i_fpga_height);
+	usleep_range(10 * 1000, 20 * 1000);
+
+	fpga_enable_all(state, true);
+
+	return count;
+}
+
+static ssize_t exor_camera_rotation_show(
+	struct device* dev,
+	struct device_attribute* attr,
+	char* buf)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int len = 0;
+
+	len = sprintf(buf, "%d\n", state->i_fpga_rotation);
+	if (len <= 0)
+	{
+		dev_err(dev, "Invalid sprintf len: %d\n", len);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t exor_camera_rotation_store(
+	struct device* dev,
+	struct device_attribute* attr,
+	const char* buf,
+	size_t count)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = kstrtouint(buf, 0, &state->i_fpga_rotation);
+	if (ret)
+	{
+		dev_err(dev, "Error %d at %s:%d\n", ret, __FUNCTION__, __LINE__);
+		return -EINVAL;
+	}
+
+	fpga_enable_all(state, false);
+
+	state->i_fpga_control_register &= ~FPGA_ROTATION_ANGLE_MASK;
+	switch (state->i_fpga_rotation)
+	{
+	case 0: state->i_fpga_control_register |= (0x0 << 1); break;
+	case 90: state->i_fpga_control_register |= (0x1 << 1); break;
+	case 180: state->i_fpga_control_register |= (0x2 << 1); break;
+	case 270: state->i_fpga_control_register |= (0x3 << 1); break;
+	default: state->i_fpga_control_register |= (0x0 << 1); break;
+	}
+	
+	fpga_enable_all(state, true);
+
+	return count;
+}
+
+static ssize_t exor_camera_mirror_horizontal_show(
+	struct device* dev,
+	struct device_attribute* attr,
+	char* buf)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int len = 0;
+
+	len = sprintf(buf, "%d\n", state->i_fpga_mirror_horizontal);
+	if (len <= 0)
+	{
+		dev_err(dev, "Invalid sprintf len: %d\n", len);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t exor_camera_mirror_horizontal_store(
+	struct device* dev,
+	struct device_attribute* attr,
+	const char* buf,
+	size_t count)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = kstrtouint(buf, 0, &state->i_fpga_mirror_horizontal);
+	if (ret)
+	{
+		dev_err(dev, "Error %d at %s:%d\n", ret, __FUNCTION__, __LINE__);
+		return -EINVAL;
+	}
+
+	fpga_enable_all(state, false);
+
+	if (state->i_fpga_mirror_horizontal)
+	{
+		state->i_fpga_control_register |= FPGA_MIRROR_HORIZONTAL_ENABLE;
+	}
+	else
+	{
+		state->i_fpga_control_register &= ~FPGA_MIRROR_HORIZONTAL_ENABLE;
+	}
+	fpga_enable_all(state, true);
+
+	return count;
+}
+
+static ssize_t exor_camera_mirror_vertical_show(
+	struct device* dev,
+	struct device_attribute* attr,
+	char* buf)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int len = 0;
+
+	len = sprintf(buf, "%d\n", state->i_fpga_mirror_vertical);
+	if (len <= 0)
+	{
+		dev_err(dev, "Invalid sprintf len: %d\n", len);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t exor_camera_mirror_vertical_store(
+	struct device* dev,
+	struct device_attribute* attr,
+	const char* buf,
+	size_t count)
+{
+	struct tc358746_state* state = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = kstrtouint(buf, 0, &state->i_fpga_mirror_vertical);
+	if (ret)
+	{
+		dev_err(dev, "Error %d at %s:%d\n", ret, __FUNCTION__, __LINE__);
+		return -EINVAL;
+	}
+
+	fpga_enable_all(state, false);
+
+	if (state->i_fpga_mirror_vertical)
+	{
+		state->i_fpga_control_register |= FPGA_MIRROR_VERTICAL_ENABLE;
+	}
+	else
+	{
+		state->i_fpga_control_register &= ~FPGA_MIRROR_VERTICAL_ENABLE;
+	}
+	fpga_enable_all(state, true);
+
+	return count;
+}
+
+static DEVICE_ATTR(width, S_IRUGO | S_IWUSR, exor_camera_width_show, exor_camera_width_store);
+static DEVICE_ATTR(height, S_IRUGO | S_IWUSR, exor_camera_height_show, exor_camera_height_store);
+static DEVICE_ATTR(rotation, S_IRUGO | S_IWUSR, exor_camera_rotation_show, exor_camera_rotation_store);
+static DEVICE_ATTR(mirror_horizontal, S_IRUGO | S_IWUSR, exor_camera_mirror_horizontal_show, exor_camera_mirror_horizontal_store);
+static DEVICE_ATTR(mirror_vertical, S_IRUGO | S_IWUSR, exor_camera_mirror_vertical_show, exor_camera_mirror_vertical_store);
 
 static struct attribute* wu10cam_attrs[] =
 {
-	&dev_attr_gpio_in.attr,
-	&dev_attr_gpio_out.attr,
-	&dev_attr_reg.attr,
-	&dev_attr_val.attr,
+	& dev_attr_gpio_in.attr,
+	& dev_attr_gpio_out.attr,
+	& dev_attr_reg.attr,
+	& dev_attr_val.attr,
+	& dev_attr_width.attr,
+	& dev_attr_height.attr,
+	& dev_attr_rotation.attr,
+	& dev_attr_mirror_horizontal.attr,
+	& dev_attr_mirror_vertical.attr,
 	NULL
 };
 
@@ -1381,8 +2035,8 @@ static int tc358746_probe(struct i2c_client *client,
 	{
 		.type = V4L2_DV_BT_656_1120,
 		.reserved = { 0 },
-		.bt.width = 640,
-		.bt.height = 480,
+		.bt.width = 1280,
+		.bt.height = 800,
 		.bt.interlaced = V4L2_DV_PROGRESSIVE,
 		.bt.pixelclock = 25000000,
 		.bt.hfrontporch = 16,
@@ -1441,7 +2095,7 @@ static int tc358746_probe(struct i2c_client *client,
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &tc358746_ops);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE /*| V4L2_SUBDEV_FL_HAS_EVENTS*/;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	val16 = i2c_rd16(sd, CHIPID);
@@ -1490,7 +2144,7 @@ static int tc358746_probe(struct i2c_client *client,
 	dump_regs();
 #endif
 
-	state->dev_folder = root_device_register("wu10cam");
+	state->dev_folder = root_device_register("exor_camera");
 	if (IS_ERR(state->dev_folder)) {
 		v4l_err(client, "sysfs folder creation failed\n");
 		goto err_work_queues;
@@ -1505,6 +2159,41 @@ static int tc358746_probe(struct i2c_client *client,
 
 	state->controls_initialized = true;
 
+	err = wu10cam_read_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_ROTATION_CONTROL_REG,
+		&state->i_fpga_control_register);
+	if (err)
+	{
+		// failed to read from fpga, fpga not connected?
+	}
+	else
+	{
+		switch ((state->i_fpga_control_register >> 1) & 0x3)
+		{
+		case 0: state->i_fpga_rotation = 0; break;
+		case 1: state->i_fpga_rotation = 90; break;
+		case 2: state->i_fpga_rotation = 180; break;
+		case 3: state->i_fpga_rotation = 270; break;
+		default: state->i_fpga_rotation = 0; break;
+		}
+
+		state->i_fpga_mirror_horizontal = (state->i_fpga_control_register & (0x1 << 3)) ? 1 : 0;
+		state->i_fpga_mirror_vertical = (state->i_fpga_control_register & (0x1 << 4)) ? 1 : 0;
+
+		err = wu10cam_read_reg32_device(
+			state,
+			state->i2c_client_fpga->addr,
+			FPGA_SCALER_WIDTH_REG,
+			&state->i_fpga_width);
+		err = wu10cam_read_reg32_device(
+			state,
+			state->i2c_client_fpga->addr,
+			FPGA_SCALER_HEIGHT_REG,
+			&state->i_fpga_height);
+	}
+
 	err = wu10cam_write_reg32_device(
 		state,
 		state->i2c_client_fpga->addr,
@@ -1513,7 +2202,7 @@ static int tc358746_probe(struct i2c_client *client,
 	if (err)
 	{
 		v4l_err(client, "Error %d writing fpga i2c\n", err);
-		//return -EIO;
+		// not a fatal error - there are devices without FPGA module
 	}
 
 	return 0;

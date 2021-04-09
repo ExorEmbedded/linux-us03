@@ -55,8 +55,10 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 #define CSIS0_MAX_LANES		4
 #define CSIS1_MAX_LANES		2
 
-#define MIPI_CSIS_DEF_PIX_WIDTH	640
-#define MIPI_CSIS_DEF_PIX_HEIGHT	480
+#define MIPI_CSIS_DEF_PIX_WIDTH	1280
+#define MIPI_CSIS_DEF_PIX_HEIGHT	800
+//#define MIPI_CSIS_DEF_PIX_WIDTH	640
+//#define MIPI_CSIS_DEF_PIX_HEIGHT	480
 
 /* Register map definition */
 

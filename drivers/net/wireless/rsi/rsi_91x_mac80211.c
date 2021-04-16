@@ -1404,7 +1404,7 @@ static int rsi_mac80211_set_antenna(struct ieee80211_hw *hw,
 		if (rsi_set_antenna(common, antenna))
 			goto fail_set_antenna;
 
-	rsi_dbg(INFO_ZONE, "(%s) Antenna path configured successfully\n",
+	rsi_dbg(INIT_ZONE, "(%s) Antenna path configured successfully\n",
 		tx_ant ? "UFL" : "INT");
 
 	common->ant_in_use = antenna;

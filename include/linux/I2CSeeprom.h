@@ -160,5 +160,9 @@
 #define PLIO07_IO_BRD_FLAG   9
 #define DUAL_CAN_PHYSICAL_IF_FLAG 10
 #define PLIO04_IO_BRD_FLAG   11
+#define FFA_PLCM07           12
+#define FFA_PLCM09           13
+#define FFA_PLCM11           14 //PLCM10 ONLY 4G
+#define FFA_PLCM12           15 //PLCM10 ONLY WIFI
 
 #endif /* _I2CSEEPROMFACTORY */

@@ -1,3 +1,4 @@
+#error CVE-2017-9986
 /*********************************************************************
  *
  * Turtle Beach MultiSound Sound Card Driver for Linux

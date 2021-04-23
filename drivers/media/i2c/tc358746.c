@@ -104,6 +104,7 @@ struct tc358746_state {
 	struct v4l2_fwnode_bus_mipi_csi2 bus;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
+	struct v4l2_fwnode_endpoint ep; /* the parsed DT endpoint info */
 	struct v4l2_ctrl_handler ctrl_hdl;
 	struct i2c_client *i2c_client;
 	struct i2c_client* i2c_client_fpga;
@@ -258,6 +259,7 @@ static int wu10cam_write_reg32_device(
 		msg.buf = buf;
 		msg.len = sizeof(buf);
 
+//printk("dbgw32 %x=%x\n", reg, val);
 		/* must use i2c_transfer() here,
 		 * i2c_smbus_write_byte_data() doesn't work
 		 * */
@@ -683,7 +685,7 @@ static int tc358746_set_fmt(struct v4l2_subdev *sd,
 
 extern int adv7180_wu10_command(int command, int param1, int param2);
 
-static int tc358746_s_ctrl(struct v4l2_ctrl* ctrl)
+int tc358746_s_ctrl(struct v4l2_ctrl* ctrl)
 {
 	struct v4l2_subdev* sd = to_tc358746_sd(ctrl);
 	struct tc358746_state* state = to_state(sd);
@@ -732,7 +734,11 @@ static const struct v4l2_ctrl_config tc358746_ctrl_set_pattern = {
 	.min = 0,
 	.max = 15,
 	.step = 1,
-	.def = 0,
+#if 0
+	.def = 0,	// blue solid color
+#else
+	.def = 5,	// black with white frame
+#endif
 	.flags = V4L2_CTRL_FLAG_VOLATILE | V4L2_CTRL_FLAG_EXECUTE_ON_WRITE,
 };
 
@@ -884,39 +890,27 @@ static int tc358746_try_frame_interval(struct tc358746_state* sensor,
 	minfps = tc358746_framerates[TC358746_FIRST_FPS];
 	maxfps = tc358746_framerates[TC358746_LAST_FPS];
 
-	printk("dbg %s:%d %d/%d\n", __FUNCTION__, __LINE__, fi->denominator, fi->numerator);
-
 	if (fi->numerator == 0) {
 		fi->denominator = maxfps;
 		fi->numerator = 1;
-		printk("dbg %s:%d\n", __FUNCTION__, __LINE__);
 		return TC358746_LAST_FPS;
 	}
 
 	fps = DIV_ROUND_CLOSEST(fi->denominator, fi->numerator);
-	printk("dbg %s:%d fps=%d\n", __FUNCTION__, __LINE__, fps);
 
 	fi->numerator = 1;
 	if (fps > maxfps)
 	{
 		fi->denominator = maxfps;
 		ret = TC358746_LAST_FPS;
-		printk("dbg %s:%d\n", __FUNCTION__, __LINE__);
 	}
 	else if (fps < minfps)
 	{
 		fi->denominator = minfps;
 		ret = TC358746_FIRST_FPS;
-		printk("dbg %s:%d\n", __FUNCTION__, __LINE__);
 	}
-//	else if (2 * fps >= 2 * minfps + (maxfps - minfps))
-//	{
-//		fi->denominator = maxfps;
-//		printk("dbg %s:%d\n", __FUNCTION__, __LINE__);
-//	}
 	else
 	{
-//		fi->denominator = minfps;
 		for (ret = 0; ret < TC358746_NUM_FRAMERATES; ++ret)
 		{
 			if (tc358746_framerates[ret] == fps)
@@ -931,8 +925,6 @@ static int tc358746_try_frame_interval(struct tc358746_state* sensor,
 	{	// assume max is reasonable default
 		ret = TC358746_LAST_FPS;
 	}
-//	ret = (fi->denominator == minfps) ? TC358746_5_FPS : TC358746_30_FPS;
-	printk("dbg %s:%d ret=%d\n", __FUNCTION__, __LINE__, ret);
 
 	mode = tc358746_find_mode(sensor, ret, width, height, false);
 	return mode ? ret : -EINVAL;
@@ -1703,6 +1695,24 @@ static void fpga_enable_all(struct tc358746_state* state, const bool b_enable)
 {
 	int ret = 0;
 
+#if 0
+	if (b_enable)
+	{	// deassert reset
+		u32 i_value = 0;
+		ret = wu10cam_read_reg32_device(
+			state,
+			state->i2c_client_fpga->addr,
+			WU10CAM_VIDEO_SELECT_REG,
+			&i_value);
+		i_value &= ~(1 << 6);
+		ret = wu10cam_write_reg32_device(
+			state,
+			state->i2c_client_fpga->addr,
+			WU10CAM_VIDEO_SELECT_REG,
+			i_value);
+	}
+#endif
+
 	ret = wu10cam_write_reg32_device(
 		state,
 		state->i2c_client_fpga->addr,
@@ -1729,6 +1739,33 @@ static void fpga_enable_all(struct tc358746_state* state, const bool b_enable)
 		FPGA_CLOCKED_VIDEO_OUTPUT_CONTROL_REG,
 		b_enable ? FPGA_CVO_ENABLE : FPGA_CVO_DISABLE);
 
+#if 1
+	if (!b_enable)
+	{	// assert reset
+		u32 i_value = 0;
+		ret = wu10cam_read_reg32_device(
+			state,
+			state->i2c_client_fpga->addr,
+			WU10CAM_VIDEO_SELECT_REG,
+			&i_value);
+		i_value |= (1 << 6);	// reset on
+		i_value |= (1 << 7);	// usom hardware
+		ret = wu10cam_write_reg32_device(
+			state,
+			state->i2c_client_fpga->addr,
+			WU10CAM_VIDEO_SELECT_REG,
+			i_value);
+
+		usleep_range(100 * 1000, 200 * 1000);
+
+		i_value &= ~(1 << 6);	// reset off
+		ret = wu10cam_write_reg32_device(
+			state,
+			state->i2c_client_fpga->addr,
+			WU10CAM_VIDEO_SELECT_REG,
+			i_value);
+	}
+#endif
 }
 
 static ssize_t exor_camera_width_show(
@@ -1885,7 +1922,7 @@ static ssize_t exor_camera_rotation_store(
 		return -EINVAL;
 	}
 
-	fpga_enable_all(state, false);
+//	fpga_enable_all(state, false);
 
 	state->i_fpga_control_register &= ~FPGA_ROTATION_ANGLE_MASK;
 	switch (state->i_fpga_rotation)
@@ -1897,7 +1934,12 @@ static ssize_t exor_camera_rotation_store(
 	default: state->i_fpga_control_register |= (0x0 << 1); break;
 	}
 	
-	fpga_enable_all(state, true);
+//	fpga_enable_all(state, true);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_ROTATION_CONTROL_REG,
+		state->i_fpga_control_register);
 
 	return count;
 }
@@ -1936,7 +1978,7 @@ static ssize_t exor_camera_mirror_horizontal_store(
 		return -EINVAL;
 	}
 
-	fpga_enable_all(state, false);
+//	fpga_enable_all(state, false);
 
 	if (state->i_fpga_mirror_horizontal)
 	{
@@ -1946,7 +1988,12 @@ static ssize_t exor_camera_mirror_horizontal_store(
 	{
 		state->i_fpga_control_register &= ~FPGA_MIRROR_HORIZONTAL_ENABLE;
 	}
-	fpga_enable_all(state, true);
+//	fpga_enable_all(state, true);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_ROTATION_CONTROL_REG,
+		state->i_fpga_control_register);
 
 	return count;
 }
@@ -1985,7 +2032,7 @@ static ssize_t exor_camera_mirror_vertical_store(
 		return -EINVAL;
 	}
 
-	fpga_enable_all(state, false);
+//	fpga_enable_all(state, false);
 
 	if (state->i_fpga_mirror_vertical)
 	{
@@ -1995,7 +2042,12 @@ static ssize_t exor_camera_mirror_vertical_store(
 	{
 		state->i_fpga_control_register &= ~FPGA_MIRROR_VERTICAL_ENABLE;
 	}
-	fpga_enable_all(state, true);
+	//fpga_enable_all(state, true);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_ROTATION_CONTROL_REG,
+		state->i_fpga_control_register);
 
 	return count;
 }
@@ -2026,6 +2078,10 @@ static struct attribute_group wu10cam_group =
 	.attrs = wu10cam_attrs,
 };
 
+// needed to make our controls accessible through /dev/video0
+extern struct v4l2_ctrl_handler* g_mx6s_ctrl_hdl;
+extern int (*g_mx6s_s_ctrl)(struct v4l2_ctrl* ctrl);
+
 static int tc358746_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
@@ -2052,6 +2108,7 @@ static int tc358746_probe(struct i2c_client *client,
 	struct tc358746_state *state;
 	struct tc358746_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_subdev *sd;
+	struct fwnode_handle* endpoint;
 	int err;
 	u16 val16;
 
@@ -2093,7 +2150,24 @@ static int tc358746_probe(struct i2c_client *client,
 			return err;
 	}
 
+#if 1
+	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev),
+		NULL);
+	if (!endpoint) {
+		v4l_err(client, "endpoint node not found\n");
+		return -EINVAL;
+	}
+
+	err = v4l2_fwnode_endpoint_parse(endpoint, &state->ep);
+	fwnode_handle_put(endpoint);
+	if (err) {
+		v4l_err(client, "Could not parse endpoint\n");
+		return err;
+	}
+#endif
+
 	sd = &state->sd;
+#if 1
 	v4l2_i2c_subdev_init(sd, client, &tc358746_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -2110,29 +2184,13 @@ static int tc358746_probe(struct i2c_client *client,
 	if (err < 0)
 		goto err_hdl;
 
-	state->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;	// dvm
-
-	/* control handlers */
-	tc358746_init_controls(state);
-
-	sd->ctrl_handler = &state->ctrl_hdl;
-	if (state->ctrl_hdl.error) {
-		err = state->ctrl_hdl.error;
-		goto err_hdl;
-	}
+	state->mbus_fmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	sd->dev = &client->dev;
-	err = v4l2_async_register_subdev(sd);
-	if (err < 0)
-		goto err_hdl;
 
 	mutex_init(&state->confctl_mutex);
 
 	tc358746_s_dv_timings(sd, &default_timing);
-
-	err = v4l2_ctrl_handler_setup(sd->ctrl_handler);
-	if (err)
-		goto err_work_queues;
 
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 		  client->addr << 1, client->adapter->name);
@@ -2143,6 +2201,15 @@ static int tc358746_probe(struct i2c_client *client,
 	usleep_range(1000 * 1000, 2000 * 1000);
 	dump_regs();
 #endif
+
+	state->controls_initialized = true;
+	tc358746_init_controls(state);
+	g_mx6s_ctrl_hdl = &state->ctrl_hdl;
+	g_mx6s_s_ctrl = tc358746_s_ctrl;
+
+	err = v4l2_async_register_subdev(sd);
+	if (err < 0)
+		goto err_hdl;
 
 	state->dev_folder = root_device_register("exor_camera");
 	if (IS_ERR(state->dev_folder)) {
@@ -2157,8 +2224,9 @@ static int tc358746_probe(struct i2c_client *client,
 		goto err_work_queues;
 	}
 
-	state->controls_initialized = true;
+#endif
 
+#if 1
 	err = wu10cam_read_reg32_device(
 		state,
 		state->i2c_client_fpga->addr,
@@ -2204,6 +2272,7 @@ static int tc358746_probe(struct i2c_client *client,
 		v4l_err(client, "Error %d writing fpga i2c\n", err);
 		// not a fatal error - there are devices without FPGA module
 	}
+#endif
 
 	return 0;
 

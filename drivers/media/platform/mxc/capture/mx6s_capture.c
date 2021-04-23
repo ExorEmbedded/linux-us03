@@ -1731,6 +1731,56 @@ static int mx6s_vidioc_enum_frameintervals(struct file *file, void *priv,
 	return 0;
 }
 
+/* Support for V4L2 controls.
+* 
+* Originally this driver/device didn't support them at all, that's why we've had to add this.
+* This device is (at least on Exor microSOM 04) /dev/video0, or csi1_bridge in device tree,
+* or this mx6s_capture.c driver for the CSI bridge.
+* 
+* In Video4Linux, devices inherit controls from subdevices, but that wouldn't help us,
+* because subdevice of this device is mipi_csi_1 DT node or mxc_mipi_csi.c driver, which
+* doesn't support controls either. Plus, at least in this initial use case, our controls are actually
+* in Toshiba tc358746.c driver, which doesn't have a direct connection to any of the already mentioned
+* drivers.
+* 
+* So... global variables.
+* 
+* Extend this as needed: add functions, and/or replace Toshiba driver with driver for another camera.
+*/
+
+// control handler, handles all the controls for a device
+struct v4l2_ctrl_handler* g_mx6s_ctrl_hdl = NULL;
+// pointer to "set variable" function
+int (*g_mx6s_s_ctrl)(struct v4l2_ctrl* ctrl) = NULL;
+
+// "query" function enumerates available controls; default implementation is usually fine
+static int mx6s_vidioc_query_ctrl(struct file* file, void* priv, struct v4l2_queryctrl* query)
+{
+	return v4l2_queryctrl(g_mx6s_ctrl_hdl, query);
+}
+
+// "get" function gets the value of a control; default implementation currently good enough
+static int mx6s_vidioc_g_ctrl(struct file* file, void* priv, struct v4l2_control* vc)
+{
+	if (g_mx6s_ctrl_hdl)
+		return v4l2_g_ctrl(g_mx6s_ctrl_hdl, vc);
+	else
+		return -ENODEV;
+}
+
+// "set" function sets value of a control
+static int mx6s_vidioc_s_ctrl(struct file* file, void* priv, struct v4l2_control* vc)
+{
+	struct v4l2_ctrl* ctrl = v4l2_ctrl_find(g_mx6s_ctrl_hdl, vc->id);
+	if (ctrl && g_mx6s_s_ctrl)
+	{
+		ctrl->val = vc->value;
+		return (*g_mx6s_s_ctrl)(ctrl);
+	}
+	else
+		return -ENODEV;
+}
+
 static const struct v4l2_ioctl_ops mx6s_csi_ioctl_ops = {
 	.vidioc_querycap          = mx6s_vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = mx6s_vidioc_enum_fmt_vid_cap,
@@ -1757,6 +1807,10 @@ static const struct v4l2_ioctl_ops mx6s_csi_ioctl_ops = {
 	.vidioc_s_parm        = mx6s_vidioc_s_parm,
 	.vidioc_enum_framesizes = mx6s_vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = mx6s_vidioc_enum_frameintervals,
+	// dvm
+	.vidioc_queryctrl =	mx6s_vidioc_query_ctrl,
+	.vidioc_g_ctrl =	mx6s_vidioc_g_ctrl,
+	.vidioc_s_ctrl =	mx6s_vidioc_s_ctrl,
 };
 
 static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
@@ -1880,6 +1934,9 @@ static int mx6sx_register_subdevs(struct mx6s_csi_dev *csi_dev)
 	return ret;
 }
 
+struct video_device* g_vdev = NULL;
+struct v4l2_ctrl_handler	*g_ctrl_handler = NULL;
+
 static int mx6s_csi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1975,6 +2032,9 @@ static int mx6s_csi_probe(struct platform_device *pdev)
 	vdev->queue = &csi_dev->vb2_vidq;
 
 	csi_dev->vdev = vdev;
+	// dvm
+	g_vdev = vdev;
+	g_ctrl_handler = &csi_dev->ctrl_handler;
 
 	video_set_drvdata(csi_dev->vdev, csi_dev);
 	mutex_lock(&csi_dev->lock);

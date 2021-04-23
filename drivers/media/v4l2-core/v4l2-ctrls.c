@@ -2260,25 +2260,37 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 
 	/* Do nothing if either handler is NULL or if they are the same */
 	if (!hdl || !add || hdl == add)
+	{
 		return 0;
+	}
 	if (hdl->error)
+	{
 		return hdl->error;
+	}
 	mutex_lock(add->lock);
 	list_for_each_entry(ref, &add->ctrl_refs, node) {
-		struct v4l2_ctrl *ctrl = ref->ctrl;
+		struct v4l2_ctrl* ctrl = ref->ctrl;
 
 		/* Skip handler-private controls. */
 		if (ctrl->is_private)
+		{
 			continue;
+		}
 		/* And control classes */
 		if (ctrl->type == V4L2_CTRL_TYPE_CTRL_CLASS)
+		{
 			continue;
+		}
 		/* Filter any unwanted controls */
 		if (filter && !filter(ctrl))
+		{
 			continue;
+		}
 		ret = handler_new_ref(hdl, ctrl);
 		if (ret)
+		{
 			break;
+		}
 	}
 	mutex_unlock(add->lock);
 	return ret;

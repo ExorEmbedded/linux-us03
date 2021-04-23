@@ -224,7 +224,6 @@ struct adv7180_state {
 	const struct adv7180_chip_info *chip_info;
 	enum v4l2_field		field;
 };
-// dvm
 struct adv7180_state* gp_state = NULL;
 
 #define to_adv7180_sd(_ctrl) (&container_of(_ctrl->handler,		\
@@ -250,8 +249,8 @@ static int adv7180_write(struct adv7180_state *state, unsigned int reg,
 	int ret;
 	lockdep_assert_held(&state->mutex);
 	adv7180_select_page(state, reg >> 8);
+//printk("%s %x=%x\n", __FUNCTION__, reg, value);
 	ret = i2c_smbus_write_byte_data(state->client, reg & 0xff, value);
-	printk("advw %x=%x %d\n", reg, value, ret);
 	return ret;
 }
 
@@ -267,7 +266,6 @@ static int adv7180_csi_write(struct adv7180_state *state, unsigned int reg,
 {
 	int ret;
 	ret = i2c_smbus_write_byte_data(state->csi_client, reg, value);
-	printk("advcw %x=%x\n", reg, value);
 	return ret;
 }
 
@@ -545,6 +543,7 @@ static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		return ret;
 	val = ctrl->val;
+
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
 		ret = adv7180_write(state, ADV7180_REG_BRI, val);
@@ -656,6 +655,7 @@ static const struct v4l2_ctrl_config adv7180_ctrl_set_pattern = {
 	.def = 0,
 };
 
+#if 0	// not needed, we call s_ctrl handler directly
 static int adv7180_init_controls(struct adv7180_state *state)
 {
 	v4l2_ctrl_handler_init(&state->ctrl_hdl, 4);
@@ -673,7 +673,6 @@ static int adv7180_init_controls(struct adv7180_state *state)
 			  V4L2_CID_HUE, ADV7180_HUE_MIN,
 			  ADV7180_HUE_MAX, 1, ADV7180_HUE_DEF);
 	v4l2_ctrl_new_custom(&state->ctrl_hdl, &adv7180_ctrl_fast_switch, NULL);
-	// dvm
 	v4l2_ctrl_new_custom(&state->ctrl_hdl, &adv7180_ctrl_set_input, NULL);
 	v4l2_ctrl_new_custom(&state->ctrl_hdl, &adv7180_ctrl_set_pattern, NULL);
 
@@ -692,6 +691,7 @@ static void adv7180_exit_controls(struct adv7180_state *state)
 {
 	v4l2_ctrl_handler_free(&state->ctrl_hdl);
 }
+#endif
 
 static int adv7180_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
@@ -1348,7 +1348,7 @@ static int adv7180_probe(struct i2c_client *client,
 {
 	struct adv7180_state *state;
 	struct v4l2_subdev *sd;
-	int ret;
+	int ret = 0;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -1399,10 +1399,10 @@ static int adv7180_probe(struct i2c_client *client,
 		state->powered = false;
 	state->input = 0;
 	sd = &state->sd;
-	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
+//	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
 	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
-	ret = adv7180_init_controls(state);
+//	ret = adv7180_init_controls(state);
 	if (ret)
 		goto err_unregister_vpp_client;
 
@@ -1410,7 +1410,7 @@ static int adv7180_probe(struct i2c_client *client,
 	sd->entity.flags |= MEDIA_ENT_F_ATV_DECODER;
 	ret = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (ret)
-		goto err_free_ctrl;
+		goto err_media_entity_cleanup;
 
 	// first reset then initialize the chip
 	v4l_info(client, "resetting ADV7280, i2c bus error expected\n");
@@ -1430,7 +1430,7 @@ static int adv7180_probe(struct i2c_client *client,
 			goto err_media_entity_cleanup;
 	}
 
-	ret = v4l2_async_register_subdev(sd);
+//	ret = v4l2_async_register_subdev(sd);
 	if (ret)
 		goto err_free_irq;
 
@@ -1472,7 +1472,7 @@ static int adv7180_probe(struct i2c_client *client,
 
 #if 0	// test pattern
 	adv7180_write(state, 0x000C, 0x37);	// force free run
-	adv7180_write(state, 0x0014, 0x01);	// select pattern
+	adv7180_write(state, 0x0014, 0x10);	// select pattern
 #endif
 
 	state->controls_initialized = true;
@@ -1484,8 +1484,6 @@ err_free_irq:
 		free_irq(client->irq, state);
 err_media_entity_cleanup:
 	media_entity_cleanup(&sd->entity);
-err_free_ctrl:
-	adv7180_exit_controls(state);
 err_unregister_vpp_client:
 	if (state->chip_info->flags & ADV7180_FLAG_I2P)
 		i2c_unregister_device(state->vpp_client);
@@ -1507,7 +1505,6 @@ static int adv7180_remove(struct i2c_client *client)
 		free_irq(client->irq, state);
 
 	media_entity_cleanup(&sd->entity);
-	adv7180_exit_controls(state);
 
 	if (state->chip_info->flags & ADV7180_FLAG_I2P)
 		i2c_unregister_device(state->vpp_client);

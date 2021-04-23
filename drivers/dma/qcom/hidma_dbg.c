@@ -1,4 +1,3 @@
-#error CVE-2018-20449
 /*
  * Qualcomm Technologies HIDMA debug file
  *

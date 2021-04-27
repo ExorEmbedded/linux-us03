@@ -36,7 +36,7 @@
 #include "v4l2-int-device.h"
 #include "mxc_v4l2_capture.h"
 
- #define TOSHIBA	1
+// #define TOSHIBA	1
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-3)");

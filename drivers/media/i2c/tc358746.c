@@ -2150,7 +2150,6 @@ static int tc358746_probe(struct i2c_client *client,
 			return err;
 	}
 
-#if 1
 	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev),
 		NULL);
 	if (!endpoint) {
@@ -2164,10 +2163,8 @@ static int tc358746_probe(struct i2c_client *client,
 		v4l_err(client, "Could not parse endpoint\n");
 		return err;
 	}
-#endif
 
 	sd = &state->sd;
-#if 1
 	v4l2_i2c_subdev_init(sd, client, &tc358746_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -2224,9 +2221,6 @@ static int tc358746_probe(struct i2c_client *client,
 		goto err_work_queues;
 	}
 
-#endif
-
-#if 1
 	err = wu10cam_read_reg32_device(
 		state,
 		state->i2c_client_fpga->addr,
@@ -2272,7 +2266,6 @@ static int tc358746_probe(struct i2c_client *client,
 		v4l_err(client, "Error %d writing fpga i2c\n", err);
 		// not a fatal error - there are devices without FPGA module
 	}
-#endif
 
 	return 0;
 

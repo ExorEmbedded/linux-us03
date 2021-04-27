@@ -1360,7 +1360,6 @@ static int adv7180_probe(struct i2c_client *client,
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
-	gp_state = state;
 
 	state->client = client;
 	state->field = V4L2_FIELD_INTERLACED;
@@ -1408,9 +1407,9 @@ static int adv7180_probe(struct i2c_client *client,
 
 	state->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.flags |= MEDIA_ENT_F_ATV_DECODER;
-	ret = media_entity_pads_init(&sd->entity, 1, &state->pad);
-	if (ret)
-		goto err_media_entity_cleanup;
+//	ret = media_entity_pads_init(&sd->entity, 1, &state->pad);
+//	if (ret)
+//		goto err_media_entity_cleanup;
 
 	// first reset then initialize the chip
 	v4l_info(client, "resetting ADV7280, i2c bus error expected\n");
@@ -1476,6 +1475,7 @@ static int adv7180_probe(struct i2c_client *client,
 #endif
 
 	state->controls_initialized = true;
+	gp_state = state;
 
 	return 0;
 
@@ -1499,12 +1499,12 @@ static int adv7180_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
 
-	v4l2_async_unregister_subdev(sd);
+//	v4l2_async_unregister_subdev(sd);
 
 	if (state->irq > 0)
 		free_irq(client->irq, state);
 
-	media_entity_cleanup(&sd->entity);
+//	media_entity_cleanup(&sd->entity);
 
 	if (state->chip_info->flags & ADV7180_FLAG_I2P)
 		i2c_unregister_device(state->vpp_client);

@@ -36,16 +36,6 @@
 #include "v4l2-int-device.h"
 #include "mxc_v4l2_capture.h"
 
-// #define TOSHIBA	1
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-3)");
-
-#define I2C_MAX_XFER_SIZE  (128 + 2)
-
-static volatile int allow_wr = 0;
-static volatile int force_wr = 0;
-
 #define OV5640_VOLTAGE_ANALOG               2800000
 #define OV5640_VOLTAGE_DIGITAL_CORE         1500000
 #define OV5640_VOLTAGE_DIGITAL_IO           1800000
@@ -790,14 +780,11 @@ static s32 ov5640_write_reg(u16 reg, u8 val)
 	au8Buf[1] = reg & 0xff;
 	au8Buf[2] = val;
 
-#ifdef TOSHIBA
-#else
 	if (i2c_master_send(ov5640_data.i2c_client, au8Buf, 3) < 0) {
 		pr_err("%s:write reg error:reg=%x,val=%x\n",
 			__func__, reg, val);
 		return -1;
 	}
-#endif
 
 	return 0;
 }
@@ -810,21 +797,6 @@ static s32 ov5640_read_reg(u16 reg, u8 *val)
 	au8RegBuf[0] = reg >> 8;
 	au8RegBuf[1] = reg & 0xff;
 
-#ifdef TOSHIBA
-	switch (reg)
-	{
-	case OV5640_CHIP_ID_HIGH_BYTE:
-		u8RdVal = 0x56;
-		break;
-
-	case OV5640_CHIP_ID_LOW_BYTE:
-		u8RdVal = 0x40;
-		break;
-
-	default:
-		break;
-	}
-#else
 	if (2 != i2c_master_send(ov5640_data.i2c_client, au8RegBuf, 2)) {
 		pr_err("%s:write reg error:reg=%x\n",
 				__func__, reg);
@@ -836,227 +808,11 @@ static s32 ov5640_read_reg(u16 reg, u8 *val)
 				__func__, reg, u8RdVal);
 		return -1;
 	}
-#endif
 
 	*val = u8RdVal;
 
 	return u8RdVal;
 }
-
-#ifdef TOSHIBA
-static void i2c_wr(struct v4l2_subdev* sd, struct i2c_client* client, u16 reg, u8* values, u32 n)
-{
-	//	struct tc358746_state* state = to_state(sd);
-	//	struct i2c_client* client = state->i2c_client;
-	int err, i;
-	struct i2c_msg msg;
-	u8 data[I2C_MAX_XFER_SIZE];
-	int n_retries = 0;
-
-	if (!allow_wr /*&& !force_wr*/)
-		return;
-
-	if ((2 + n) > I2C_MAX_XFER_SIZE) {
-		n = I2C_MAX_XFER_SIZE - 2;
-		v4l2_warn(sd, "i2c wr reg=%04x: len=%d is too big!\n",
-			reg, 2 + n);
-	}
-
-	msg.addr = client->addr;
-	msg.buf = data;
-	msg.len = 2 + n;
-	msg.flags = 0;
-
-	data[0] = reg >> 8;
-	data[1] = reg & 0xff;
-
-	for (i = 0; i < n; i++)
-		data[2 + i] = values[i];
-
-retry:
-	usleep_range(10000, 20000);
-	err = i2c_transfer(client->adapter, &msg, 1);
-	if (err != 1) {
-		v4l2_err(sd, "%s: writing register 0x%x from 0x%x failed\n",
-			__func__, reg, client->addr);
-		if (n_retries < 5)
-		{
-			++n_retries;
-			v4l2_err(sd, "%s: retry\n",
-				__func__);
-			goto retry;
-		}
-		return;
-	}
-
-	if (debug < 3)
-		return;
-
-	switch (n) {
-	case 1:
-		v4l2_info(sd, "I2C write 0x%04x = 0x%02x",
-			reg, data[2]);
-		break;
-	case 2:
-		v4l2_info(sd, "I2C write 0x%04x = 0x%02x%02x",
-			//				reg, data[3], data[2]);
-			reg, data[2], data[3]);
-		break;
-	case 4:
-		v4l2_info(sd, "I2C write 0x%04x = 0x%02x%02x%02x%02x",
-			reg, data[5], data[4], data[3], data[2]);
-		break;
-	default:
-		v4l2_info(sd, "I2C write %d bytes from address 0x%04x\n",
-			n, reg);
-	}
-}
-
-static struct v4l2_subdev* g_sd = NULL;
-static struct i2c_client* g_client = NULL;
-
-static u16 myswab16(u16 x)
-{
-	return ((x >> 8) & 0xFF) | ((x << 8) & 0xFF00);
-}
-
-static noinline void i2c_wrreg(struct v4l2_subdev* sd, u16 reg, u32 val, u32 n)
-{
-	__le32 raw = cpu_to_le32(val);
-
-	i2c_wr(sd, g_client, reg, (u8 __force*) & raw, n);
-}
-
-static void i2c_wr16(struct v4l2_subdev* sd, u16 reg, u16 val)
-{
-	val = myswab16(val);	// dvm
-	i2c_wrreg(sd, reg, val, 2);
-}
-
-static void i2c1_cplb_write16(u16 reg, u16 val)
-{
-	i2c_wr16(g_sd, reg, val);
-}
-
-static void Waitx1us(int us)
-{
-	usleep_range(us, us << 1);
-}
-
-static void excel_init(void)
-{
-	int i;
-
-	// *********************************************
-	// Start up sequence
-	// *********************************************
-	i2c1_cplb_write16(0x00E0, 0x0000); // Reset Color Bar Counter
-	// **************************************************
-	// TC358746XBG Software Reset
-	// **************************************************
-	i2c1_cplb_write16(0x0002, 0x0001); // SYSctl, S/W Reset
-	Waitx1us(10);
-	i2c1_cplb_write16(0x0002, 0x0000); // SYSctl, S/W Reset release
-	// **************************************************
-	// TC358746XBG PLL,Clock Setting
-	// **************************************************
-	i2c1_cplb_write16(0x0016, 0x2054); // PLL Control Register 0 (PLL_PRD,PLL_FBD)
-	i2c1_cplb_write16(0x0018, 0x0A03); // PLL_FRS,PLL_LBWS, PLL oscillation enable
-	Waitx1us(1000);
-	i2c1_cplb_write16(0x0018, 0x0A13); // PLL_FRS,PLL_LBWS, PLL clock out enable
-	// **************************************************
-	// TC358746XBG DPI Input Control
-	// **************************************************
-	i2c1_cplb_write16(0x0008, 0x0001); // Set Data ID by CSI_TX DT register
-	i2c1_cplb_write16(0x0022, 0x0500); // Word Count for Total 1line
-	i2c1_cplb_write16(0x0050, 0x001E); // DSI-TX Pixel stream packet Data Type setting
-	// **************************************************
-	// TC358746XBG D-PHY Setting
-	// **************************************************
-	i2c1_cplb_write16(0x0140, 0x0000); // D-PHY Clock lane enable
-	i2c1_cplb_write16(0x0142, 0x0000); // 
-	i2c1_cplb_write16(0x0144, 0x0000); // D-PHY Data lane0 enable
-	i2c1_cplb_write16(0x0146, 0x0000); // 
-	i2c1_cplb_write16(0x0148, 0x0001); // D-PHY Data lane1 enable
-	i2c1_cplb_write16(0x014A, 0x0000); // 
-	i2c1_cplb_write16(0x014C, 0x0001); // D-PHY Data lane2 enable
-	i2c1_cplb_write16(0x014E, 0x0000); // 
-	i2c1_cplb_write16(0x0150, 0x0001); // D-PHY Data lane3 enable
-	i2c1_cplb_write16(0x0152, 0x0000); // 
-	// **************************************************
-	// TC358746XBG CSI2-TX PPI Control
-	// **************************************************
-	i2c1_cplb_write16(0x0210, 0x0A28); // LINEINITCNT
-	i2c1_cplb_write16(0x0212, 0x0000); // 
-	i2c1_cplb_write16(0x0214, 0x0002); // LPTXTIMECNT
-	i2c1_cplb_write16(0x0216, 0x0000); // 
-	i2c1_cplb_write16(0x0218, 0x1400); // TCLK_HEADERCNT
-	i2c1_cplb_write16(0x021A, 0x0000); // 
-	i2c1_cplb_write16(0x0220, 0x0001); // THS_HEADERCNT
-	i2c1_cplb_write16(0x0222, 0x0000); // 
-	i2c1_cplb_write16(0x0224, 0x6590); // TWAKEUPCNT
-	i2c1_cplb_write16(0x0226, 0x0000); // 
-	i2c1_cplb_write16(0x022C, 0x0000); // THS_TRAILCNT
-	i2c1_cplb_write16(0x022E, 0x0000); // 
-	i2c1_cplb_write16(0x0230, 0x0005); // HSTXVREGCNT
-	i2c1_cplb_write16(0x0232, 0x0000); // 
-	i2c1_cplb_write16(0x0234, 0x0003); // HSTXVREGEN enable
-	i2c1_cplb_write16(0x0236, 0x0000); // 
-	i2c1_cplb_write16(0x0238, 0x0001); // DSI clock Enable/Disable during LP
-	i2c1_cplb_write16(0x023A, 0x0000); // 
-	i2c1_cplb_write16(0x0204, 0x0001); // STARTCNTRL
-	i2c1_cplb_write16(0x0206, 0x0000); // 
-	i2c1_cplb_write16(0x0518, 0x0001); // CSI Start
-	i2c1_cplb_write16(0x051A, 0x0000); // 
-	// **************************************************
-	// Set Debug Registers
-	// **************************************************
-	i2c1_cplb_write16(0x00E0, 0x8000); // DB G_LCCNT
-	i2c1_cplb_write16(0x00E2, 0x063F); // DBG_Width: Word Count and H blanking
-	i2c1_cplb_write16(0x00E4, 0x0006); // DBG_V blanking
-	// **************************************************
-	// Set Color Bar data
-	// **************************************************
-	for (i = 1; i <= 80; i++) {
-		i2c1_cplb_write16(0x00E8, 0xFF7F);
-	}
-	for (i = 1; i <= 40; i++) {
-		i2c1_cplb_write16(0x00E8, 0xFF00);
-		i2c1_cplb_write16(0x00E8, 0xFFFF);
-	}
-	for (i = 1; i <= 40; i++) {
-		i2c1_cplb_write16(0x00E8, 0xC0FF);
-		i2c1_cplb_write16(0x00E8, 0xC000);
-	}
-	for (i = 1; i <= 80; i++) {
-		i2c1_cplb_write16(0x00E8, 0x7F00);
-	}
-	for (i = 1; i <= 80; i++) {
-		i2c1_cplb_write16(0x00E8, 0x7FFF);
-	}
-	for (i = 1; i <= 40; i++) {
-		i2c1_cplb_write16(0x00E8, 0x0000);
-		i2c1_cplb_write16(0x00E8, 0x00FF);
-	}
-	for (i = 1; i <= 40; i++) {
-		i2c1_cplb_write16(0x00E8, 0x00FF);
-		i2c1_cplb_write16(0x00E8, 0x0000);
-	}
-	for (i = 1; i <= 80; i++) {
-		i2c1_cplb_write16(0x00E8, 0x007F);
-	}
-	// **************************************************
-	// Set to HS mode
-	// **************************************************
-	i2c1_cplb_write16(0x0500, 0x8081); // CSI2 lane setting, CSI2 mode=HS
-	i2c1_cplb_write16(0x0502, 0xA300); // bit set
-	// **************************************************
-	// Start output
-	// **************************************************
-	i2c1_cplb_write16(0x00E0, 0xC1DF); // 
-}
-
-#endif
 
 static int prev_sysclk, prev_HTS;
 static int AE_low, AE_high, AE_Target = 52;
@@ -2226,10 +1982,6 @@ static int ov5640_probe(struct i2c_client *client,
 	int retval;
 	u8 chip_id_high, chip_id_low;
 
-#ifdef TOSHIBA
-	printk("oooooooooooo1\n");
-	g_client = client;
-#else
 	/* request power down pin */
 	pwn_gpio = of_get_named_gpio(dev->of_node, "pwn-gpios", 0);
 	if (!gpio_is_valid(pwn_gpio)) {
@@ -2251,7 +2003,6 @@ static int ov5640_probe(struct i2c_client *client,
 					"ov5640_mipi_reset");
 	if (retval < 0)
 		return retval;
-#endif
 
 	/* Set initial values for the sensor struct. */
 	memset(&ov5640_data, 0, sizeof(ov5640_data));
@@ -2322,13 +2073,6 @@ static int ov5640_probe(struct i2c_client *client,
 	retval = v4l2_int_device_register(&ov5640_int_device);
 
 	clk_disable_unprepare(ov5640_data.sensor_clk);
-
-#ifdef TOSHIBA
-	g_sd = &ov5640_data.subdev;
-	allow_wr = 1;
-	debug = 3;
-	excel_init();
-#endif
 
 	pr_info("camera ov5640_mipi is found\n");
 	return retval;

@@ -1,3 +1,5 @@
+#error CVE-2020-36322 CVE-2021-28950
+
 /*
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>

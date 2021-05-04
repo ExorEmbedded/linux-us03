@@ -187,26 +187,19 @@ static irqreturn_t dual_rotary_encoder_irq(int irq, void *dev_id)
 	mutex_lock(&encoder->access_mutex);
 
 	state = dual_rotary_encoder_get_state(encoder);
-
-	switch (state) {
-	case 0x0:
-		if (encoder->armed) {
-			dual_rotary_encoder_report_event(encoder);
-			encoder->armed = false;
-		}
-		break;
-
-	case 0x1:
-	case 0x3:
-		if (encoder->armed)
-			encoder->dir = 2 - state;
-		break;
-
-	case 0x2:
-		encoder->armed = true;
-		break;
+	
+	if((state== 0x0) && (encoder->last_stable == 0x1))
+	{
+		encoder->dir = 1;
+		dual_rotary_encoder_report_event(encoder);
 	}
-
+	else if((state== 0x1) && (encoder->last_stable == 0x0))
+	{
+		encoder->dir = -1;
+		dual_rotary_encoder_report_event(encoder);
+	}
+	
+	encoder->last_stable = state;
 	mutex_unlock(&encoder->access_mutex);
 
 	return IRQ_HANDLED;
@@ -355,6 +348,7 @@ static int dual_rotary_encoder_probe(struct platform_device *pdev)
 		break;
 	case 1:
 		handler = &dual_rotary_encoder_irq;
+		encoder->last_stable = dual_rotary_encoder_get_state(encoder);
 		break;
 	default:
 		dev_err(dev, "'%d' is not a valid steps-per-period value\n",

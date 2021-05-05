@@ -1,5 +1,3 @@
-#error CVE-2020-12351
-#error CVE-2020-12352
 /*
    Copyright (c) 2010,2011 Code Aurora Forum.  All rights reserved.
    Copyright (c) 2011,2012 Intel Corp.

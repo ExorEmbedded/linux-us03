@@ -207,8 +207,10 @@ static int plcm10_init(struct plxx_data *data)
 
   struct i2c_adapter* adapter = i2c_get_adapter(0);
   if(!adapter)
+  {
+    printk("plxx i2c_get_adapter error");
     return -1;
-  
+  }
   //Try to init U5 i2c gpio expander
   msg.addr = PLCM10_U5ADDR;
   msg.flags = 0;
@@ -216,16 +218,21 @@ static int plcm10_init(struct plxx_data *data)
   msg.buf = buf;
 
   buf[0] = PLCMxx_OUTREG;
-  buf[1] = 0xFF - (b(PLCM10_LED_POL) | b(PLCM10_LED1) | b(PLCM10_LED2) | b(PLCM10_XO1) | b(PLCM10_XO2));  
+  buf[1] = 0xFF - (b(PLCM10_LED_POL) | b(PLCM10_LED1) | b(PLCM10_LED2) | b(PLCM10_XO1) | b(PLCM10_XO2));
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
+    printk("plxx i2c_tranfer 1 error %d",ret);
     return ret;
-  
+  }
   buf[0] = PLCMxx_CFGREG;
   buf[1] = 0xC0;//b(PLCM10_XI1) | b(PLCM10_XI2);
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
+    printk("plxx i2c_transfer 2 error %d",ret);
     return ret;
+  }
 
   //Try to init U6 i2c gpio expander
   msg.addr = PLCM10_U6ADDR;
@@ -237,13 +244,18 @@ static int plcm10_init(struct plxx_data *data)
   buf[1] = 0x00; //All outs = 0
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
+    printk("plxx i2c_transfer 3 error %d",ret);
     return ret;
-  
+  }
   buf[0] = PLCMxx_CFGREG;
   buf[1] = b(PLCM10_ENT_IN) | b(PLCM10_STATUS_IN);
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
+    printk("plxx i2c_transfer 4 error %d",ret);
     return ret;
+  }
 
   //Try to init U23 i2c gpio expander
   msg.addr = PLCM10_U23ADDR;
@@ -255,14 +267,18 @@ static int plcm10_init(struct plxx_data *data)
   buf[1] = 0x00; //All outs = 0
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
+    printk("plxx i2c_transfer 5 error %d",ret);
     return ret;
-
+  }
   buf[0] = PLCMxx_CFGREG;
   buf[1] = 0;
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
+    printk("plxx i2c_transfer 6 error %d",ret);
     return ret;
-  
+  }
   return 0;
 }
 

@@ -1373,9 +1373,11 @@ static int plxx_probe(struct platform_device *pdev)
 {
   int res = 0;
   int version;
-  struct plxx_data *data;  
+  struct plxx_data *data;
+
+  printk("plxx probe\n");
   data = kzalloc(sizeof(struct plxx_data), GFP_KERNEL);
-  if (data == NULL) 
+  if (data == NULL)
   {
     dev_err(&pdev->dev, "Memory allocation failed\n");
     return -ENOMEM;
@@ -1384,7 +1386,7 @@ static int plxx_probe(struct platform_device *pdev)
   dev_set_drvdata(&pdev->dev, data);
 
   res = plxx_parse_dt(&pdev->dev, data);
-  if (res) 
+  if (res)
   {
     dev_err(&pdev->dev, "Could not find valid DT data.\n");
     goto plxx_error1;
@@ -1394,12 +1396,12 @@ static int plxx_probe(struct platform_device *pdev)
 
   // Create sysfs entry
   res = sysfs_create_group(&pdev->dev.kobj, &plxx_attr_group);
-  if (res) 
+  if (res)
   {
     dev_err(&pdev->dev, "plxx device create file failed\n");
     goto plxx_error1;
   }
-  
+
   //PLCMxx detection and init
   data->plcmversion = PLCMxx_VERSION_INVALID;
   version = PLCMxx_VERSION_INVALID;
@@ -1428,8 +1430,8 @@ static int plxx_probe(struct platform_device *pdev)
       dev_err(&pdev->dev, "plxx device create file failed\n");
       goto plxx_error1;
     }
-  }
- 
+  } else dev_err(&pdev->dev, "plxx device invalid version\n");
+
   return res;
 plxx_error1:
   kfree(data);

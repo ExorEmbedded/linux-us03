@@ -47,7 +47,7 @@ config RSI_COEX
 	bool "Redpine Signals WLAN BT Coexistence support"
 	depends on BT && RSI_91X
 	depends on !(BT=m && RSI_91X=y)
-	default y
+	default n
 	---help---
 	  This option enables the WLAN BT coex support in rsi drivers.
 	  Select M (recommended), if you have want to use this feature

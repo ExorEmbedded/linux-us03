@@ -49,6 +49,7 @@ struct plxx_data
 {
   struct nvmem_device *    seeprom_device;
   struct nvmem_device *    ioexp_device;
+  struct i2c_client*       ioexp_client;
   u32                      index;                   // Plugin index
   u32                      sel_gpio;                // Gpio index to select the plugin
   u32                      installed;               // Indicates if the plugin is physically installed
@@ -154,7 +155,7 @@ static int plcm09_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
   
-  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  struct i2c_adapter* adapter = data->ioexp_client->adapter;//i2c_get_adapter(0);
   if(!adapter)
     return -1;
   
@@ -205,7 +206,7 @@ static int plcm10_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
 
-  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  struct i2c_adapter* adapter = data->ioexp_client->adapter;//i2c_get_adapter(0);
   if(!adapter)
   {
     printk("plxx i2c_get_adapter error");
@@ -966,6 +967,9 @@ static int plxx_parse_dt(struct device *dev, struct plxx_data *data)
   struct device_node* node = dev->of_node;
   int                 ret;
   struct nvmem_device*  nvmem;
+  struct device_node* ioexp_node;
+  u32                 ioexp_handle;
+  
 
   /* Parse the DT to find the I2C SEEPROM bindings*/
   nvmem = nvmem_device_get(dev, "eeprom");
@@ -989,6 +993,29 @@ static int plxx_parse_dt(struct device *dev, struct plxx_data *data)
   ret = of_property_read_u32(node, "index", &data->index);
   if (ret)
     return ret;
+
+  /* Parse the DT to find the I/O expander bindings*/
+  ret = of_property_read_u32(node, "ioexp", &ioexp_handle);
+  if (ret != 0) 
+  {
+    dev_err(dev, "Failed to locate ioexp\n");
+    return -ENODEV;
+  }
+
+  ioexp_node = of_find_node_by_phandle(ioexp_handle);
+  if (ioexp_node == NULL) 
+  {
+    dev_err(dev, "Failed to find ioexp node\n");
+    return -ENODEV;
+  }
+
+  data->ioexp_client = of_find_i2c_device_by_node(ioexp_node);
+  if (data->ioexp_client == NULL) 
+  {
+    dev_err(dev, "Failed to find i2c ioexp client\n");
+    of_node_put(ioexp_node);
+    return -EPROBE_DEFER;
+  }
 
   /* Get the sel_gpio */
   data->sel_gpio = of_get_named_gpio(node, "sel-gpio", 0);

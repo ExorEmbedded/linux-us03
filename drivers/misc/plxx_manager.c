@@ -153,11 +153,16 @@ static int plcm09_init(struct plxx_data *data)
   struct i2c_msg msg;
   int ret = 0;
   unsigned char buf[2];
-  
+
   struct i2c_adapter* adapter = i2c_get_adapter(0);
   if(!adapter)
     return -1;
-  
+
+#ifdef CONFIG_SOC_IMX6Q
+  // PLCM09 disabled on USOM4
+  return -1;
+#endif
+
   //Try to init U3 i2c gpio expander
   msg.addr = PLCM09_U3ADDR;
   msg.flags = 0;

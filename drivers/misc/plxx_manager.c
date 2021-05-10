@@ -154,10 +154,21 @@ static int plcm09_init(struct plxx_data *data)
   struct i2c_msg msg;
   int ret = 0;
   unsigned char buf[2];
-  
-  struct i2c_adapter* adapter = data->ioexp_client->adapter;//i2c_get_adapter(0);
+
+  int i2caddr = 0;
+#ifdef CONFIG_NSOM_I2C_1
+  i2caddr = 1;
+#endif
+
+  struct i2c_adapter* adapter = i2c_get_adapter(i2caddr);
   if(!adapter)
     return -1;
+
+#ifdef CONFIG_SOC_IMX6Q
+  // PLCM09 disabled on USOM4
+  ret = -1;
+  goto init_end;
+#endif
   
   //Try to init U3 i2c gpio expander
   msg.addr = PLCM09_U3ADDR;
@@ -206,7 +217,12 @@ static int plcm10_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
 
-  struct i2c_adapter* adapter = data->ioexp_client->adapter;//i2c_get_adapter(0);
+  int i2caddr = 0;
+#ifdef CONFIG_NSOM_I2C_1
+  i2caddr = 1;
+#endif
+
+  struct i2c_adapter* adapter = i2c_get_adapter(i2caddr);
   if(!adapter)
   {
     printk("plxx i2c_get_adapter error");

@@ -160,7 +160,8 @@ static int plcm09_init(struct plxx_data *data)
 
 #ifdef CONFIG_SOC_IMX6Q
   // PLCM09 disabled on USOM4
-  return -1;
+  ret = -1;
+  goto init_end;
 #endif
 
   //Try to init U3 i2c gpio expander

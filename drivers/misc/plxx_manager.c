@@ -158,7 +158,7 @@ static int plcm09_init(struct plxx_data *data)
   if(!adapter)
     return -1;
 
-#ifdef CONFIG_SOC_IMX6Q
+#ifndef CONFIG_SOC_IMX6Q
   // PLCM09 disabled on USOM4
   ret = -1;
   goto init_end;

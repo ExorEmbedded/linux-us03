@@ -541,6 +541,10 @@ config WORKING_HOURS
 	help
 	    Say Y to add working hours counters in I2C EEPROM.
 
+config PLXX_I2C_BUS
+        int "PLXX I2C Bus address"
+        default 0
+
 config PLXX_MANAGER
 	tristate "Plugin plxx modules manager"
 	depends on EEPROM_AT24

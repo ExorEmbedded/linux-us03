@@ -154,13 +154,10 @@ static int plcm09_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
 
-  int i2caddr = 0;
-#ifdef CONFIG_NSOM_I2C_1
-  printk("plxx switch i2c bus to 1\n");
-  i2caddr = 1;
-#endif
+  int i2caddr = CONFIG_PLXX_I2C_BUS;
 
   struct i2c_adapter* adapter = i2c_get_adapter(i2caddr);
+  printk("plxx switch i2c bus to %d\n",i2caddr);
   if(!adapter)
     return -1;
 
@@ -217,10 +214,7 @@ static int plcm10_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
 
-  int i2caddr = 0;
-#ifdef CONFIG_NSOM_I2C_1
-  i2caddr = 1;
-#endif
+  int i2caddr = CONFIG_PLXX_I2C_BUS;
 
   struct i2c_adapter* adapter = i2c_get_adapter(i2caddr);
   if(!adapter)

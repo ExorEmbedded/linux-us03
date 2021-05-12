@@ -154,10 +154,8 @@ static int plcm09_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
 
-  int i2caddr = CONFIG_PLXX_I2C_BUS;
-
-  struct i2c_adapter* adapter = i2c_get_adapter(i2caddr);
-  printk("plxx switch i2c bus to %d\n",i2caddr);
+  struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
+  printk("plxx switch i2c bus to %d\n",CONFIG_PLXX_I2C_BUS);
   if(!adapter)
     return -1;
 
@@ -214,9 +212,7 @@ static int plcm10_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
 
-  int i2caddr = CONFIG_PLXX_I2C_BUS;
-
-  struct i2c_adapter* adapter = i2c_get_adapter(i2caddr);
+  struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
   if(!adapter)
   {
     printk("plxx i2c_get_adapter error");
@@ -315,7 +311,7 @@ static int plcmxx_set_out(struct plxx_data *data, unsigned char sa, unsigned cha
   unsigned char buf[2];
   unsigned char currval, newval;
 
-  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
   if(!adapter)
     return -1;
 
@@ -365,7 +361,7 @@ static int plcmxx_get_in(struct plxx_data *data, unsigned char sa, unsigned char
   unsigned char currval;
   int ret;
 
-  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
   if(!adapter)
     return -1;
 

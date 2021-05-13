@@ -154,7 +154,8 @@ static int plcm09_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
 
-  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
+  printk("plxx switch i2c bus to %d\n",CONFIG_PLXX_I2C_BUS);
   if(!adapter)
     return -1;
 
@@ -175,7 +176,7 @@ static int plcm09_init(struct plxx_data *data)
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
     goto init_end;
-  
+
   buf[0] = PLCMxx_CFGREG;
   buf[1] = 0xC0; //P6,7 = cfg input
   ret = i2c_transfer(adapter, &msg, 1);
@@ -193,11 +194,11 @@ static int plcm09_init(struct plxx_data *data)
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
     goto init_end;
-  
+
   buf[0] = PLCMxx_CFGREG;
   buf[1] = 0xF0; //P3...7 = cfg input
   ret = i2c_transfer(adapter, &msg, 1);
- 
+
 init_end:
   i2c_put_adapter(adapter);
   return ret;
@@ -211,10 +212,12 @@ static int plcm10_init(struct plxx_data *data)
   int ret = 0;
   unsigned char buf[2];
 
-  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
   if(!adapter)
+  {
+    printk("plxx i2c_get_adapter error");
     return -1;
-  
+  }
   //Try to init U5 i2c gpio expander
   msg.addr = PLCM10_U5ADDR;
   msg.flags = 0;
@@ -222,16 +225,19 @@ static int plcm10_init(struct plxx_data *data)
   msg.buf = buf;
 
   buf[0] = PLCMxx_OUTREG;
-  buf[1] = 0xFF - (b(PLCM10_LED_POL) | b(PLCM10_LED1) | b(PLCM10_LED2) | b(PLCM10_XO1) | b(PLCM10_XO2));  
+  buf[1] = 0xFF - (b(PLCM10_LED_POL) | b(PLCM10_LED1) | b(PLCM10_LED2) | b(PLCM10_XO1) | b(PLCM10_XO2));
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
     return ret;
-  
+  }
   buf[0] = PLCMxx_CFGREG;
   buf[1] = 0xC0;//b(PLCM10_XI1) | b(PLCM10_XI2);
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
     return ret;
+  }
 
   //Try to init U6 i2c gpio expander
   msg.addr = PLCM10_U6ADDR;
@@ -243,13 +249,16 @@ static int plcm10_init(struct plxx_data *data)
   buf[1] = 0x00; //All outs = 0
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
     return ret;
-  
+  }
   buf[0] = PLCMxx_CFGREG;
   buf[1] = b(PLCM10_ENT_IN) | b(PLCM10_STATUS_IN);
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
     return ret;
+  }
 
   //Try to init U23 i2c gpio expander
   msg.addr = PLCM10_U23ADDR;
@@ -261,14 +270,16 @@ static int plcm10_init(struct plxx_data *data)
   buf[1] = 0x00; //All outs = 0
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
     return ret;
-
+  }
   buf[0] = PLCMxx_CFGREG;
   buf[1] = 0;
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
+  {
     return ret;
-  
+  }
   return 0;
 }
 
@@ -294,7 +305,7 @@ static int plcmxx_set_out(struct plxx_data *data, unsigned char sa, unsigned cha
   unsigned char buf[2];
   unsigned char currval, newval;
 
-  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
   if(!adapter)
     return -1;
 
@@ -344,7 +355,7 @@ static int plcmxx_get_in(struct plxx_data *data, unsigned char sa, unsigned char
   unsigned char currval;
   int ret;
 
-  struct i2c_adapter* adapter = i2c_get_adapter(0);
+  struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
   if(!adapter)
     return -1;
 
@@ -974,7 +985,7 @@ static int plxx_parse_dt(struct device *dev, struct plxx_data *data)
     return PTR_ERR(nvmem);
   }
   data->ioexp_device = nvmem;
-    
+
   /* Get the plugin index */
   ret = of_property_read_u32(node, "index", &data->index);
   if (ret)
@@ -1127,7 +1138,7 @@ void AssignPlcmVersion(struct plxx_data* data)
       printk("plxx invalid version: hwcode %d func %d\n",hwcode,funcarea);
       data->plcmversion =  PLCMxx_VERSION_INVALID;
     }
-  }  
+  }
   else
     data->plcmversion =  PLCMxx_VERSION_09;
 }
@@ -1329,7 +1340,7 @@ static int UpdatePluginData(struct plxx_data *data)
   msleep(1);
   n = nvmem_device_read(data->seeprom_device, 0, FULLEEPROMSIZE, (void*)data->eeprom);
 
-  if(n < FULLEEPROMSIZE)  
+  if(n < FULLEEPROMSIZE)
   {
     ret = -1;                                        //Plugin not found
     memset(data->eeprom, 0, FULLEEPROMSIZE);
@@ -1337,14 +1348,14 @@ static int UpdatePluginData(struct plxx_data *data)
   }
   else
     data->installed = 1;
-  
+
   //If plugin found, now check if the seeprom contents are valid
   if(ret==0)                                              
   {
     u8 chksum = 1;
     int i;
     bool eeprom_isvalid = true;
-    
+
     for(i = SEE_CHKSM_START; i < SEE_FACTORYSIZE; i++)
       chksum += data->eeprom[i];
     chksum -= 0xaa;
@@ -1363,6 +1374,14 @@ static int UpdatePluginData(struct plxx_data *data)
 
     AssignPlcmVersion(data);
 
+#ifndef CONFIG_SOC_IMX6Q
+    if (data->plcmversion == PLCMxx_VERSION_09)
+    {
+       data->installed = 0;
+       ret = -1;
+    }
+    else
+#endif
     if(eeprom_isvalid == false)
     {                                                     //The plugin was detected bus has invalid SEEPROM contents ...
       memset(data->eeprom, 0, SEE_FACTORYSIZE);
@@ -1379,9 +1398,11 @@ static int plxx_probe(struct platform_device *pdev)
 {
   int res = 0;
   int version;
-  struct plxx_data *data;  
+  struct plxx_data *data;
+
+  printk("plxx probe\n");
   data = kzalloc(sizeof(struct plxx_data), GFP_KERNEL);
-  if (data == NULL) 
+  if (data == NULL)
   {
     dev_err(&pdev->dev, "Memory allocation failed\n");
     return -ENOMEM;
@@ -1390,7 +1411,7 @@ static int plxx_probe(struct platform_device *pdev)
   dev_set_drvdata(&pdev->dev, data);
 
   res = plxx_parse_dt(&pdev->dev, data);
-  if (res) 
+  if (res)
   {
     dev_err(&pdev->dev, "Could not find valid DT data.\n");
     goto plxx_error1;
@@ -1400,12 +1421,12 @@ static int plxx_probe(struct platform_device *pdev)
 
   // Create sysfs entry
   res = sysfs_create_group(&pdev->dev.kobj, &plxx_attr_group);
-  if (res) 
+  if (res)
   {
     dev_err(&pdev->dev, "plxx device create file failed\n");
     goto plxx_error1;
   }
-  
+
   //PLCMxx detection and init
   data->plcmversion = PLCMxx_VERSION_INVALID;
   version = PLCMxx_VERSION_INVALID;
@@ -1427,25 +1448,25 @@ static int plxx_probe(struct platform_device *pdev)
       case PLCMxx_VERSION_12 : res = sysfs_create_group(&pdev->dev.kobj, &plcm12_attr_group);
                                break;
       default : res = sysfs_create_group(&pdev->dev.kobj, &plcm09_attr_group);
-                 break;
+                break;
     }
-    if (res) 
+    if (res)
     {
       dev_err(&pdev->dev, "plxx device create file failed\n");
       goto plxx_error1;
     }
-  }
- 
+  } else dev_err(&pdev->dev, "plxx device invalid version\n");
+
   return res;
 plxx_error1:
   kfree(data);
   return res;
 }
-			     
+
 static int plxx_remove(struct platform_device *pdev)
 {
   struct plxx_data *data = dev_get_drvdata(&pdev->dev);
-  
+
   sysfs_remove_group(&pdev->dev.kobj, &plxx_attr_group);
   nvmem_device_put(data->seeprom_device);
   nvmem_device_put(data->ioexp_device);

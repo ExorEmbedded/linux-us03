@@ -152,8 +152,12 @@ static inline struct tc358746_state *to_state(struct v4l2_subdev *sd)
 #define FPGA_CLIPPER_BLANKING_WIDTH_REG	0x400C
 #define FPGA_CLIPPER_BLANKING_HEIGHT_REG	0x4010
 
-#define DEFAULT_WIDTH	1280
-#define DEFAULT_HEIGHT	800
+#define WIDTH_DEFAULT	1280
+#define WIDTH_MAX	1280
+#define WIDTH_MIN	150
+#define HEIGHT_DEFAULT	800
+#define HEIGHT_MAX	800
+#define HEIGHT_MIN	150
 
 #define FPGA_ROTATION_ENABLE	0x1
 #define FPGA_ROTATION_ANGLE_MASK	( (1<<2) | (1<<1) )
@@ -1691,6 +1695,66 @@ static DEVICE_ATTR(val, S_IRUGO | S_IWUSR, exor_camera_val_show, exor_camera_val
 
 /* width, height, rotation, mirroring *****************************/
 
+static void fpga_set_width(struct tc358746_state* state)
+{
+	int ret;
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_SCALER_WIDTH_REG,
+		state->i_fpga_width);
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_WIDTH_REG,
+		state->i_fpga_width);
+//	usleep_range(10 * 1000, 20 * 1000);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_BLANKING_WIDTH_REG,
+		WIDTH_DEFAULT - state->i_fpga_width);
+//	usleep_range(10 * 1000, 20 * 1000);
+}
+
+static void fpga_set_height(struct tc358746_state* state)
+{
+	int ret;
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_SCALER_HEIGHT_REG,
+		state->i_fpga_height + 0);
+	// fix for last couples lines sometimes being incomplete and slowly flashing: we clip them out
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_HEIGHT_REG,
+		state->i_fpga_height);
+//	usleep_range(10 * 1000, 20 * 1000);
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_CLIPPER_BLANKING_HEIGHT_REG,
+		HEIGHT_DEFAULT - state->i_fpga_height);
+//	usleep_range(10 * 1000, 20 * 1000);
+}
+
+static void fpga_set_rotation(struct tc358746_state* state)
+{
+	int ret;
+
+	ret = wu10cam_write_reg32_device(
+		state,
+		state->i2c_client_fpga->addr,
+		FPGA_ROTATION_CONTROL_REG,
+		state->i_fpga_control_register);
+}
+
 static void fpga_enable_all(struct tc358746_state* state, const bool b_enable)
 {
 	int ret = 0;
@@ -1756,7 +1820,7 @@ static void fpga_enable_all(struct tc358746_state* state, const bool b_enable)
 			WU10CAM_VIDEO_SELECT_REG,
 			i_value);
 
-		usleep_range(100 * 1000, 200 * 1000);
+		usleep_range(10 * 1000, 20 * 1000);
 
 		i_value &= ~(1 << 6);	// reset off
 		ret = wu10cam_write_reg32_device(
@@ -1802,27 +1866,18 @@ static ssize_t exor_camera_width_store(
 		return -EINVAL;
 	}
 
+	if (state->i_fpga_width < WIDTH_MIN)
+	{
+		state->i_fpga_width = WIDTH_MIN;
+	}
+	else if (state->i_fpga_width > WIDTH_MAX)
+	{
+		state->i_fpga_width = WIDTH_MAX;
+	}
+
 	fpga_enable_all(state, false);
 
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_SCALER_WIDTH_REG,
-		state->i_fpga_width);
-
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_CLIPPER_WIDTH_REG,
-		state->i_fpga_width);
-	usleep_range(10 * 1000, 20 * 1000);
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_CLIPPER_BLANKING_WIDTH_REG,
-		DEFAULT_WIDTH - state->i_fpga_width);
-	usleep_range(10 * 1000, 20 * 1000);
-
+	fpga_set_width(state);
 //	fpga_enable_all(state, true);
 
 	return count;
@@ -1862,27 +1917,19 @@ static ssize_t exor_camera_height_store(
 		return -EINVAL;
 	}
 
+	if (state->i_fpga_height < HEIGHT_MIN)
+	{
+		state->i_fpga_height = HEIGHT_MIN;
+	}
+	else if (state->i_fpga_height > HEIGHT_MAX)
+	{
+		state->i_fpga_height = HEIGHT_MAX;
+	}
+
 //	fpga_enable_all(state, false);
 
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_SCALER_HEIGHT_REG,
-		state->i_fpga_height);
-
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_CLIPPER_HEIGHT_REG,
-		state->i_fpga_height);
-	usleep_range(10 * 1000, 20 * 1000);
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_CLIPPER_BLANKING_HEIGHT_REG,
-		DEFAULT_HEIGHT - state->i_fpga_height);
-	usleep_range(10 * 1000, 20 * 1000);
-
+	fpga_set_height(state);
+//	fpga_set_rotation(state);
 	fpga_enable_all(state, true);
 
 	return count;
@@ -1922,7 +1969,7 @@ static ssize_t exor_camera_rotation_store(
 		return -EINVAL;
 	}
 
-//	fpga_enable_all(state, false);
+	fpga_enable_all(state, false);
 
 	state->i_fpga_control_register &= ~FPGA_ROTATION_ANGLE_MASK;
 	switch (state->i_fpga_rotation)
@@ -1934,12 +1981,10 @@ static ssize_t exor_camera_rotation_store(
 	default: state->i_fpga_control_register |= (0x0 << 1); break;
 	}
 	
-//	fpga_enable_all(state, true);
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_ROTATION_CONTROL_REG,
-		state->i_fpga_control_register);
+	fpga_enable_all(state, true);
+	fpga_set_width(state);
+	fpga_set_height(state);
+	fpga_set_rotation(state);
 
 	return count;
 }
@@ -1978,7 +2023,7 @@ static ssize_t exor_camera_mirror_horizontal_store(
 		return -EINVAL;
 	}
 
-//	fpga_enable_all(state, false);
+	fpga_enable_all(state, false);
 
 	if (state->i_fpga_mirror_horizontal)
 	{
@@ -1988,12 +2033,10 @@ static ssize_t exor_camera_mirror_horizontal_store(
 	{
 		state->i_fpga_control_register &= ~FPGA_MIRROR_HORIZONTAL_ENABLE;
 	}
-//	fpga_enable_all(state, true);
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_ROTATION_CONTROL_REG,
-		state->i_fpga_control_register);
+	fpga_enable_all(state, true);
+	fpga_set_width(state);
+	fpga_set_height(state);
+	fpga_set_rotation(state);
 
 	return count;
 }
@@ -2032,7 +2075,7 @@ static ssize_t exor_camera_mirror_vertical_store(
 		return -EINVAL;
 	}
 
-//	fpga_enable_all(state, false);
+	fpga_enable_all(state, false);
 
 	if (state->i_fpga_mirror_vertical)
 	{
@@ -2042,12 +2085,10 @@ static ssize_t exor_camera_mirror_vertical_store(
 	{
 		state->i_fpga_control_register &= ~FPGA_MIRROR_VERTICAL_ENABLE;
 	}
-	//fpga_enable_all(state, true);
-	ret = wu10cam_write_reg32_device(
-		state,
-		state->i2c_client_fpga->addr,
-		FPGA_ROTATION_CONTROL_REG,
-		state->i_fpga_control_register);
+	fpga_enable_all(state, true);
+	fpga_set_width(state);
+	fpga_set_height(state);
+	fpga_set_rotation(state);
 
 	return count;
 }

@@ -1,4 +1,4 @@
-#error CVE-2021-23134
+#error CVE-2021-23134 CVE-2020-25670 CVE-2020-25671 CVE-2020-25673
 /*
  * Copyright (C) 2011  Intel Corporation. All rights reserved.
  *

@@ -1,3 +1,4 @@
+#error CVE-2021-33033
 /*
  * NetLabel CIPSO/IPv4 Support
  *

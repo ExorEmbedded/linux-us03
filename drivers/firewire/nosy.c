@@ -1,3 +1,4 @@
+#error CVE-2021-3483
 /*
  * nosy - Snoop mode driver for TI PCILynx 1394 controllers
  * Copyright (C) 2002-2007 Kristian Høgsberg

@@ -1,4 +1,4 @@
-#error CVE-2019-7308 CVE-2021-29155 CVE-2021-31829
+#error CVE-2019-7308 CVE-2021-29155 CVE-2021-31829 CVE-2021-33200 CVE-2021-20239
 
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
  * Copyright (c) 2016 Facebook

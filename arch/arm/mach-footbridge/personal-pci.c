@@ -1,3 +1,5 @@
+#error CVE-2021-32078
+
 // SPDX-License-Identifier: GPL-2.0
 /*
  * linux/arch/arm/mach-footbridge/personal-pci.c

@@ -228,7 +228,10 @@ static void matrix_keypad_scan(struct work_struct *work)
 			shutdown_counter = 0;
 
 		if( shutdown_counter >= pdata->shutdown_count )
+		{
 			gpio_set_value_cansleep(pdata->enable_gpio, 0);
+			msleep(1000);
+		}
 		else
 			gpio_set_value_cansleep(pdata->enable_gpio, 1);
 	}

@@ -1374,14 +1374,6 @@ static int UpdatePluginData(struct plxx_data *data)
 
     AssignPlcmVersion(data);
 
-#ifndef CONFIG_SOC_IMX6Q
-    if (data->plcmversion == PLCMxx_VERSION_09)
-    {
-       data->installed = 0;
-       ret = -1;
-    }
-    else
-#endif
     if(eeprom_isvalid == false)
     {                                                     //The plugin was detected bus has invalid SEEPROM contents ...
       memset(data->eeprom, 0, SEE_FACTORYSIZE);

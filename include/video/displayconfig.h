@@ -91,9 +91,12 @@
  *1.35			SS							27.02.2020	Added display code #73: Multi-Inno MI0500AHT-5CP 800x480 for WE20-5inch.
  *1.36			SS							27.07.2020	Added display code #74: Multi-Inno  MI1210RT-2 1280x800 for WE20-12inch.
  *1.37			SS							27.11.2020	Added display code #75: Futurelabs  FLC-101HML0000SA2-V1 1280x800 for WE20-10inch.
- *														Added display code #76: Innolux  G121ICE-L01 1280x800 for WE20-12 ONLY.
+ *														          Added display code #76: Innolux  G121ICE-L01 1280x800 for WE20-12 ONLY.
+ *1.38			SS							02.12.2020	Added display code #77: DMB T050800480-A9WMC-002 800x480 for WE20-5inch.
+ *1.39			SS							11.12.2020	Changed pwm freq. for code #75: 10kHz because the DIMM is used also by the keyboard leds driven by TPS61165
+ *1.40			SS							22.07.2021	Modified display code #70:HT1560EI01AC5 (eX715MG), min duty using LT3754 set to 0,08%
  *
- * NEXT AVAILABLE DISPLAY CODE: 75
+ * NEXT AVAILABLE DISPLAY CODE: 78
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -1030,7 +1033,7 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 0x0F00, 		/* Brightness min=0.15% */
         .brightness_max = 85,
     }, 
-    /* 70: Innolux G156HCE-L01 DUAL LVDS 24 bit 1920x1080 IMX.6 ONLY*/
+    /* 70: HTDisplay HT1560EI01AC5 DUAL LVDS 24 bit 1920x1080 IMX.6 ONLY*/
     {
         .dispid    = 70,
         .rezx      = 1920, 
@@ -1038,7 +1041,7 @@ static struct t_DisplayParams displayconfig[] = {
         .bpp       = 24,
         
         .pclk_freq = 70930,      // DUAL LVDS dispaly: this is the freq. of one single channel
-        .pclk_inv  = 1,			 //27.03.2017 inverted clock polarity due to IMX.6 bug
+        .pclk_inv  = 1,			 		//27.03.2017 inverted clock polarity due to IMX.6 bug
         
         .hs_fp     = 15, 
         .hs_bp     = 90, 
@@ -1053,7 +1056,7 @@ static struct t_DisplayParams displayconfig[] = {
         .blank_inv      = 0,
         
         .pwmfreq        = 200,
-        .brightness_min = 10,
+        .brightness_min = 0x0800,		//min duty 0,08%
         .brightness_max = 100,
     },                               
     /* 71: FutureLabs FLC-101HML0000SA2 24 bit 1280x800 IMX.6 ONLY for TA19 */
@@ -1182,7 +1185,7 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 10000,
+        .pwmfreq        = 10000,	//11.12.2020 keyboard led dimming driven by TPS61165
         .brightness_min = 10,
         .brightness_max = 45,
     },    
@@ -1210,8 +1213,34 @@ static struct t_DisplayParams displayconfig[] = {
         
         .pwmfreq        = 200,
         .brightness_min = 5,
-        .brightness_max = 0x0146, 	//gestione inversione polarità PWM dimming (segno): 0x01nn=segno; 0x46= 70% (MAX dimm)
+        .brightness_max = 0x0146, 	//gestione inversione polarità PWM dimming (segno): 0x01nn=segno; 0x46= 70 (MAX dimm)
     },
+        /* 77: DMB T050800480-A9WMC-002 800x480 */
+    {
+      .dispid    = 77,
+      .rezx      = 800, 
+      .rezy      = 480, 
+      .bpp       = 16,
+      
+      .pclk_freq = 27000, 
+      .pclk_inv  = 0,
+      
+      .hs_fp     = 48, 
+      .hs_bp     = 48, 
+      .hs_w      = 8, 
+      .hs_inv    = 1,
+      
+      .vs_fp     = 12, 
+      .vs_bp     = 12, 
+      .vs_w      = 8, 
+      .vs_inv    = 1,
+      
+      .blank_inv      = 0,
+      
+      .pwmfreq        = 10000,
+      .brightness_min = 1,
+      .brightness_max = 80,
+    },   
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

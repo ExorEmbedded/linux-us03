@@ -761,6 +761,13 @@ static ssize_t plcm10_wlan_set(struct device *dev, struct device_attribute *attr
   return size;
 }
 
+static ssize_t plcmxx_version_get(struct device *dev, struct device_attribute *attr, char *buf)
+{
+  struct plxx_data *data = dev_get_drvdata(dev);
+
+  return sprintf(buf, "%d\n",data->plcmversion);
+}
+
 /*
 static DEVICE_ATTR(plcmxx_led1, S_IRUGO | S_IWUSR, plcmxx_led1_get, plcmxx_led1_set);
 static DEVICE_ATTR(plcmxx_led2, S_IRUGO | S_IWUSR, plcmxx_led2_get, plcmxx_led2_set);
@@ -796,6 +803,7 @@ static DEVICE_ATTR(plcmxx_power, S_IWUSR, NULL, plcmxx_power_set);
 static DEVICE_ATTR(plcmxx_wlan, S_IWUSR, NULL, plcm10_wlan_set);
 static DEVICE_ATTR(plcmxx_reset, S_IWUSR, NULL, plcm10_reset_set);
 static DEVICE_ATTR(plcmxx_usb_reset, S_IWUSR, NULL, plcm10_usb_reset_set);
+static DEVICE_ATTR(plcmxx_version, S_IRUGO, plcmxx_version_get, NULL);
 
 static struct attribute *plcm09_sysfs_attributes[] = {
   &dev_attr_plcm09_led1.attr,
@@ -822,6 +830,7 @@ static struct attribute *plcm10_sysfs_attributes[] = {
   &dev_attr_plcmxx_wlan.attr,
   &dev_attr_plcmxx_reset.attr,
   &dev_attr_plcmxx_usb_reset.attr,
+  &dev_attr_plcmxx_version.attr,
   NULL
 };
 
@@ -837,6 +846,7 @@ static struct attribute *plcm11_sysfs_attributes[] = {
   &dev_attr_plcmxx_power.attr,
   &dev_attr_plcmxx_reset.attr,
   &dev_attr_plcmxx_usb_reset.attr,
+  &dev_attr_plcmxx_version.attr,
   NULL
 };
 
@@ -853,6 +863,7 @@ static struct attribute *plcm12_sysfs_attributes[] = {
   &dev_attr_plcmxx_wlan.attr,
   &dev_attr_plcmxx_reset.attr,
   &dev_attr_plcmxx_usb_reset.attr,
+  &dev_attr_plcmxx_version.attr,
   NULL
 };
 
@@ -1156,24 +1167,19 @@ void AssignPlcmVersion(struct plxx_data* data)
   hwcode = data->eeprom[SEE_CODE_OFF];
   funcarea = data->eeprom[SEE_FUNCT_AREA_OFF] + (data->eeprom[SEE_FUNCT_AREA_OFF+1] << 8);
 
-  if (hwcode == 13)
+  if (funcarea & (0x01 << FFA_PLCM09))
     data->plcmversion = PLCMxx_VERSION_09;
-  else if (hwcode == 14)
-  {
-    if ( (funcarea & (0x01 << FFA_PLCM11)) && (funcarea & (0x01 << FFA_PLCM12)) )
+  else if ( (funcarea & (0x01 << FFA_PLCM11)) && (funcarea & (0x01 << FFA_PLCM12)) )
       data->plcmversion =  PLCMxx_VERSION_10;
-    else if (funcarea & (0x01 << FFA_PLCM11))
+  else if (funcarea & (0x01 << FFA_PLCM11))
       data->plcmversion =  PLCMxx_VERSION_11;
-    else if (funcarea & (0x01 << FFA_PLCM12))
+  else if (funcarea & (0x01 << FFA_PLCM12))
       data->plcmversion =  PLCMxx_VERSION_12;
-    else // bits are zero
-    {
-      printk("plxx invalid version: hwcode %d func %d\n",hwcode,funcarea);
-      data->plcmversion =  PLCMxx_VERSION_INVALID;
-    }
-  }  
-  else
-    data->plcmversion =  PLCMxx_VERSION_09;
+  else // bits are zero
+  {
+    data->plcmversion =  PLCMxx_VERSION_INVALID;
+  }
+  printk("plxx set version: hwcode %d func %02x version %d\n",hwcode,funcarea,data->plcmversion);
 }
 
 /* The function bit area of the plugin is seen as a RO binary file, where the i-th byte represents the binary status (0|1) of the i-th bit of the 

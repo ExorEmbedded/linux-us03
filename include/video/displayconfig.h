@@ -95,6 +95,7 @@
  *1.38			SS							02.12.2020	Added display code #77: DMB T050800480-A9WMC-002 800x480 for WE20-5inch.
  *1.39			SS							11.12.2020	Changed pwm freq. for code #75: 10kHz because the DIMM is used also by the keyboard leds driven by TPS61165
  *1.40			SS							22.07.2021	Modified display code #70:HT1560EI01AC5 (eX715MG), min duty using LT3754 set to 0,08%
+ *1.41			SS							27.09.2021	Changed pwm freq. for code #75: 5kHz and min duty to 1% to match datasheet minimum backlight spec and still drive keyboard leds
  *
  * NEXT AVAILABLE DISPLAY CODE: 78
  */
@@ -1185,8 +1186,8 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 10000,	//11.12.2020 keyboard led dimming driven by TPS61165
-        .brightness_min = 10,
+        .pwmfreq        = 5000,	//27.09.2021 keyboard led dimming driven by TPS61165
+        .brightness_min = 1,		//27.09.2021 min duty cycle as per new datasheet by Futurelabs
         .brightness_max = 45,
     },    
      /* 76: Innolux  G121ICE-L01 1280x800 for WE20-12 ONLY */

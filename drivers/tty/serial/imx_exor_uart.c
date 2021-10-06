@@ -1307,7 +1307,7 @@ enum hrtimer_restart hrtCallBack(struct hrtimer *phrt)
 
 void MPIDriverInit(struct s_MPIdata *pMPIdata)
 {
-	hrtimer_init(&pMPIdata->hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL);
+	hrtimer_init(&pMPIdata->hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL_HARD);
 	pMPIdata->hrt.function = hrtCallBack;
 	pMPIdata->MPIenabled = false;
 
@@ -1474,7 +1474,7 @@ void UltiUART1_StartTimer(struct s_MPIdata *pMPIdata, unsigned char ev, int time
 	ktime_t kt = ktime_set(timeoutUSec / 1000000, (timeoutUSec % 1000000)*1000);
 	pMPIdata->UltiUart1_TxTimeout = ev;
 	pMPIdata->UltiUart1_TxNunUSec = timeoutUSec;
-	hrtimer_start( &pMPIdata->hrt, kt, HRTIMER_MODE_REL );
+	hrtimer_start( &pMPIdata->hrt, kt, HRTIMER_MODE_REL_HARD );
 }
 
 void UltiUart1_StopTimer(struct s_MPIdata *pMPIdata)
@@ -2392,14 +2392,14 @@ unsigned char mTokTxFrame(struct s_MPIdata *pMPIdata)
 	{
 		if (pMPIdata->Dest == pMPIdata->Source)  //it is a self-token, the ring is broken
 		{
-			printk("MPI: TOK rec a SelfToken\n");
+			//printk("MPI: TOK rec a SelfToken\n");
 			mExitFromRing(pMPIdata);
 			return TOK_IDLE;
 		}
 		//Too token not for me
 		if (pMPIdata->TokenNotForMe++ > 60)
 		{
-			printk("MPI: TOK rec too many not for me\n");
+			//printk("MPI: TOK rec too many not for me\n");
 			pMPIdata->TokenNotForMe = 0;
 			return GotoActiveIdle(pMPIdata);
 		}
@@ -3262,7 +3262,7 @@ void Token(struct s_MPIdata *pMPIdata)
 		case TOK_LISTENTOKEN:
 			switch (pMPIdata->event) {
 				case EV_BRC_TOK:
-					printk("MPI: TOK rec in TOK_LISTENTOKEN\n");
+					//printk("MPI: TOK rec in TOK_LISTENTOKEN\n");
 					mTokListenTokenStartTimeout(pMPIdata);next_state = mTokListenToken(pMPIdata); break;//MG001
 				case EV_BRC_SD1:
 					mTokListenTokenStartTimeout(pMPIdata);next_state = mTokListenToken(pMPIdata); break;//MG001
@@ -3276,7 +3276,7 @@ void Token(struct s_MPIdata *pMPIdata)
 				case EV_TOK_SELFTOK_TIMEOUT : next_state = mTokSendFDLStatus(pMPIdata); break;
 				case EV_BRC_EOTX : mTokStartFDLTimeout(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break;
 				case EV_BRC_TOK :
-					printk("MPI: TOK rec in TOK_SELFTOKEN\n");
+					//printk("MPI: TOK rec in TOK_SELFTOKEN\n");
 					mTokFSMRestart(pMPIdata);next_state = TOK_ACTIVEIDLE; break;//MG002
 			} break;
 		case TOK_WAITFDLSTATUS2:
@@ -3285,7 +3285,7 @@ void Token(struct s_MPIdata *pMPIdata)
 				case EV_BRC_EOTX : next_state = mTokCheckResp(pMPIdata); break;
 				case EV_BRC_SD1 : mTokSD1Resp(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break;
 				case EV_BRC_TOK :
-					printk("MPI: TOK rec in TOK_WAITFDLSTATUS2\n");
+					//printk("MPI: TOK rec in TOK_WAITFDLSTATUS2\n");
 					mTokFSMRestart(pMPIdata);next_state = TOK_ACTIVEIDLE; break;//MG002
 			} break;
 		case TOK_ACTIVEIDLE:
@@ -3295,7 +3295,7 @@ void Token(struct s_MPIdata *pMPIdata)
 				case EV_BRC_EOTX:
 					next_state = TOK_WAITRX; break; //MG001
 				case EV_BRC_TOK:
-					printk("MPI: TOK rec in TOK_ACTIVEIDLE\n");
+					//printk("MPI: TOK rec in TOK_ACTIVEIDLE\n");
 					mTokStartTimeout10(pMPIdata);next_state = TOK_ACTIVEIDLE; break;   //MG001
 				case EV_SES_SD2:
 					mTokStartTimeout10(pMPIdata);next_state = TOK_ACTIVEIDLE; break;   //MG001
@@ -3306,7 +3306,7 @@ void Token(struct s_MPIdata *pMPIdata)
 			switch (pMPIdata->event) {
 				case EV_BRC_EOTX : mTokStartTimeoutTok(pMPIdata);next_state = TOK_WAITRX; break;
 				case EV_BRC_TOK :
-					printk("MPI: TOK rec in TOK_TOKEN_RETRY\n");
+					//printk("MPI: TOK rec in TOK_TOKEN_RETRY\n");
 					next_state = TOK_ACTIVEIDLE; break;
 			} break;
 		case TOK_WAITRX:
@@ -3324,7 +3324,7 @@ void Token(struct s_MPIdata *pMPIdata)
 				case EV_BRC_EOTX : mTokStartTimeoutTok(pMPIdata);next_state = TOK_WAITRX; break;
 				case EV_BRC_SD1 : next_state = mTokCheckFDLStatusResp(pMPIdata); break;
 				case EV_BRC_TOK :
-					printk("MPI: TOK rec in TOK_WAIT_FDLSTATUS\n");
+					//printk("MPI: TOK rec in TOK_WAIT_FDLSTATUS\n");
 					next_state = mTokListenToken(pMPIdata); break;
 			} break;
 		case TOK_WAITSESSRX:
@@ -4408,7 +4408,7 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 			sport->SCNKdata.pendingReq = false;
 #ifdef SCNK_USING_HRTIMER
 			sportArray[sport->port.line] = sport;
-			hrtimer_init(&sport->SCNKdata.hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL);
+			hrtimer_init(&sport->SCNKdata.hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL_HARD);
 #ifdef SCNK_DEBUG
 			//			dev_dbg(sport->port.dev, SCNK_DEBUG "<<<<<<<<< SCNK HRTinit function = %X on uart %d >>>>>>>>>>\n", (unsigned int)(hrtCallBackArray[sport->port.line]), sport->port.line);
 #endif
@@ -5232,7 +5232,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 #ifdef SCNK_DEBUG
 								//								dev_dbg(sport->port.dev, "<<<<<<<<< SCNK HRTstart should call %X after %d >>>>>>>>>>\n", (unsigned int)(sport->SCNKdata.hrt.function), sport->SCNKdata.gapTime);
 #endif
-								hrtimer_start( &sport->SCNKdata.hrt, kt, HRTIMER_MODE_REL );
+								hrtimer_start( &sport->SCNKdata.hrt, kt, HRTIMER_MODE_REL_HARD );
 #else
 								unsigned long temp;
 								udelay(sport->SCNKdata.gapTime / 1000); /*  */
@@ -5299,14 +5299,14 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 				while (readl(sport->port.membase + USR2) & USR2_RDR)	//disregard the rest
 					rx = readl(sport->port.membase + URXD0);
 				sport->MPIdata.rxCnt = 0;
-				printk(KERN_ALERT ">>>> WRONG Char %d \n", sport->MPIdata.rxCnt);
+				//printk(KERN_ALERT ">>>> WRONG Char %d \n", sport->MPIdata.rxCnt);
 			}
 			else {
 				//				printk("RX:%02X\n", (unsigned char)rx);
 				if (sport->MPIdata.rxCnt < 280)
 					sport->MPIdata.mpiRxBuf[sport->MPIdata.rxCnt++] = (unsigned char)rx;
-				else
-					printk("frame RX overflow\n");
+				//else
+				//	printk("frame RX overflow\n");
 
 				if (sport->MPIdata.UltiUart1_TxTimeout != EV__NULL && sport->MPIdata.UltiUart1_TxTimeout != EV_TOK_RUN){
 					UltiUART1_StartTimer(&sport->MPIdata, EV__GAP, 160);	//160 usec is the gap

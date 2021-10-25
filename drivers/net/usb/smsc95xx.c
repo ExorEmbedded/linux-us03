@@ -70,6 +70,9 @@ struct smsc95xx_priv {
 	u8 suspend_flags;
 };
 
+extern unsigned char pcie_mac1addr[];
+extern unsigned char pcie_mac2addr[];
+
 static bool turbo_mode = true;
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
@@ -774,7 +777,31 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 			return;
 		}
 	}
+	
+	/* No valid MAC address, so it is not a USB dongle but it should be the eth chip of our HSE11 board
+	 * If so, assign the specific MAC address and eth interface name
+	 */
+	if(dev->udev->descriptor.idProduct == 0xec00)
+	{
+	  if (dev->udev->bus->busnum==2)
+	    if (is_valid_ether_addr(pcie_mac1addr))
+	    {
+	      memcpy(dev->net->dev_addr, pcie_mac1addr, ETH_ALEN);
+	      dev->driver_info->flags &= ~FLAG_ETHER;
+	      strcpy (dev->net->name, "eth1");
+	      return;
+	    }
 
+	  if (dev->udev->bus->busnum==1)
+	    if (is_valid_ether_addr(pcie_mac2addr))
+	    {
+	      memcpy(dev->net->dev_addr, pcie_mac2addr, ETH_ALEN);
+	      dev->driver_info->flags &= ~FLAG_ETHER;
+	      strcpy (dev->net->name, "eth2");
+	      return;
+	    }
+	}
+	  
 	/* no eeprom, or eeprom values are invalid. generate random MAC */
 	eth_hw_addr_random(dev->net);
 	netif_dbg(dev, ifup, dev->net, "MAC address set to eth_random_addr\n");

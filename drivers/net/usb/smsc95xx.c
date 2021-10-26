@@ -783,7 +783,7 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 	 */
 	if(dev->udev->descriptor.idProduct == 0xec00)
 	{
-	  if (dev->udev->bus->busnum==2)
+	  if (dev->udev->bus->busnum==1)
 	    if (is_valid_ether_addr(pcie_mac1addr))
 	    {
 	      memcpy(dev->net->dev_addr, pcie_mac1addr, ETH_ALEN);
@@ -792,7 +792,7 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 	      return;
 	    }
 
-	  if (dev->udev->bus->busnum==1)
+	  if (dev->udev->bus->busnum==2)
 	    if (is_valid_ether_addr(pcie_mac2addr))
 	    {
 	      memcpy(dev->net->dev_addr, pcie_mac2addr, ETH_ALEN);

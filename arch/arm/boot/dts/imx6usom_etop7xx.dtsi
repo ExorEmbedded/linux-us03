@@ -176,7 +176,26 @@
                 compatible = "fsl,mxc_v4l2_output";
                 status = "okay";
         };
+
+	soc {
+	  aips-bus@02100000 { /* AIPS2 */
+			usbotg2@02184000 {
+				 compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				 reg = <0x02184000 0x200>;
+				 interrupts = <0 43 IRQ_TYPE_LEVEL_HIGH>;
+				 clocks = <&clks IMX6QDL_CLK_USBOH3>;
+				 fsl,usbphy = <&usbphy1>;
+				 fsl,usbmisc = <&usbmisc 0>;
+				 fsl,anatop = <&anatop>;
+				 vbus-supply = <&reg_usb_otg_vbus>;
+				 dr_mode = "host";
+				 status = "okay";
+			};
+	  };
+	};
 };
+
+/delete-node/&usbotg;
 
 &cpu0 {
 	arm-supply = <&sw1a_reg>;

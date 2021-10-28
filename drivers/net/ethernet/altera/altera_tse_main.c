@@ -1249,8 +1249,8 @@ static const struct altera_dmaops altera_dtype_msgdma = {
 #include <linux/irq.h>
 #include <linux/slab.h>
 
-static unsigned char mac1addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
-static unsigned char mac2addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+extern unsigned char pcie_mac1addr[];
+extern unsigned char pcie_mac2addr[];
 
 /* Probe function to initialize one instance of the TSE ove PCIe core
  */
@@ -1376,9 +1376,9 @@ static int altera_tse_pciedev_probe(struct pci_dev *pdev, const struct pci_devic
 
   //Get MAC address from cmdline
   if(pdev->subsystem_device==0)
-    macaddr = mac1addr; 
+    macaddr = pcie_mac1addr; 
   else
-    macaddr = mac2addr; 
+    macaddr = pcie_mac2addr; 
     
   if (is_valid_ether_addr(macaddr))
     ether_addr_copy(ndev->dev_addr, macaddr);
@@ -1535,24 +1535,6 @@ static struct pci_driver altera_tse_driver = {
 
 //This to register the PCI driver
 module_pci_driver(altera_tse_driver); 
-
-/*--------------------------------------------------------------------*
-  MAC addresses taken from cmdline options
- *--------------------------------------------------------------------*/
-static int __init getmac1addr(char* str)
-{
-  sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac1addr[0], &mac1addr[1], &mac1addr[2], &mac1addr[3], &mac1addr[4], &mac1addr[5]);
-  return 1;
-}
-
-static int __init getmac2addr(char* str)
-{
-  sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac2addr[0], &mac2addr[1], &mac2addr[2], &mac2addr[3], &mac2addr[4], &mac2addr[5]);
-  return 1;
-}
-
-__setup("pcie_tse1addr=",getmac1addr);
-__setup("pcie_tse2addr=",getmac2addr);
 
 MODULE_AUTHOR("Altera Corporation");
 MODULE_DESCRIPTION("Altera Triple Speed Ethernet MAC driver");

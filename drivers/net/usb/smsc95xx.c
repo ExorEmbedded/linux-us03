@@ -787,7 +787,6 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 	    if (is_valid_ether_addr(pcie_mac1addr))
 	    {
 	      memcpy(dev->net->dev_addr, pcie_mac1addr, ETH_ALEN);
-	      dev->driver_info->flags &= ~FLAG_ETHER;
 	      strcpy (dev->net->name, "eth1");
 	      return;
 	    }
@@ -796,7 +795,6 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 	    if (is_valid_ether_addr(pcie_mac2addr))
 	    {
 	      memcpy(dev->net->dev_addr, pcie_mac2addr, ETH_ALEN);
-	      dev->driver_info->flags &= ~FLAG_ETHER;
 	      strcpy (dev->net->name, "eth2");
 	      return;
 	    }
@@ -1930,6 +1928,19 @@ static const struct driver_info smsc95xx_info = {
 	.flags		= FLAG_ETHER | FLAG_SEND_ZLP | FLAG_LINK_INTR,
 };
 
+static const struct driver_info smsc9512_info = {
+	.description	= "smsc9512 USB 2.0 Ethernet",
+	.bind		= smsc95xx_bind,
+	.unbind		= smsc95xx_unbind,
+	.link_reset	= smsc95xx_link_reset,
+	.reset		= smsc95xx_reset,
+	.rx_fixup	= smsc95xx_rx_fixup,
+	.tx_fixup	= smsc95xx_tx_fixup,
+	.status		= smsc95xx_status,
+	.manage_power	= smsc95xx_manage_power,
+	.flags		= FLAG_SEND_ZLP | FLAG_LINK_INTR,
+};
+
 static const struct usb_device_id products[] = {
 	{
 		/* SMSC9500 USB Ethernet Device */
@@ -1954,7 +1965,7 @@ static const struct usb_device_id products[] = {
 	{
 		/* SMSC9512/9514 USB Hub & Ethernet Device */
 		USB_DEVICE(0x0424, 0xec00),
-		.driver_info = (unsigned long) &smsc95xx_info,
+		.driver_info = (unsigned long) &smsc9512_info,
 	},
 	{
 		/* SMSC9500 USB Ethernet Device (SAL10) */

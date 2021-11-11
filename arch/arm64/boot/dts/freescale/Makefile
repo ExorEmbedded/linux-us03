@@ -129,6 +129,7 @@ dtb-$(CONFIG_ARCH_FSL_IMX8MM) += fsl-imx8mm-evk.dtb \
 				 fsl-imx8mm-ddr4-evk-rm67191.dtb \
 				 us04_jsmart.dtb \
 				 us04_wu10.dtb \
+				 us04_ex705m.dtb \
 				 us04_etopxx.dtb
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)

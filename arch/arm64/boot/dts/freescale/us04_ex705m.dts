@@ -1,0 +1,249 @@
+/*
+ * Copyright (C) 2019 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a.
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+  
+/dts-v1/;
+  
+#include "imx8mm_us04.dtsi"
+  
+/ {
+	model = "ex705m i.MX8MM US04 board";
+	compatible = "fsl,imx8mm-evk", "fsl,imx8mm";
+
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+	};
+
+	thermal-zones {
+		/* cpu thermal */
+		cpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <2000>;
+			thermal-sensors = <&tmu>;
+			trips {
+				cpu_alert0: trip0 {
+					temperature = <110000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit0: trip1 {
+					temperature = <120000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert0>;
+					cooling-device =
+					<&A53_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+	};
+	
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm1 0 50000 0>;
+	};
+	
+	working_hours {
+	  compatible = "working_hours";
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
+	  backlight = <&backlight0>;
+	  status = "okay";
+	};	
+
+	plxx0: plugin0 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio1 7 0>;
+	  index = <0>;
+	  status = "okay";
+	};	
+	
+	plxx1: plugin1 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio1 4 0>;
+	  index = <1>;
+	  status = "okay";
+	};	
+};
+
+&backlight0 {
+    compatible = "pwm-backlight";
+    pwms = <&pwm3 0 50000 0>;
+    brightness-levels = <0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
+    default-brightness-level = <0>;
+    enable-gpios = <&gpio5 5 0>;
+    status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+	status = "okay";
+};
+
+&i2c1 {
+    
+	plxxseeprom:seeprom1@57 {
+		compatible = "atmel,24c02";
+		reg = <0x57>;
+	};
+
+	plxxioexp:ioexp1@41 {
+		compatible = "atmel,24c02";
+		reg = <0x41>;
+	};    
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-mode = "rmii";
+	phy-handle = <&ethphy0>;
+	fsl,magic-packet;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			max-speed = <100>;
+			reg = <1>;
+		};
+	};
+};
+
+&pcie0{
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie0>;
+	reset-gpio = <&gpio4 18 0>;
+	ext_osc = <1>;
+	fsl,max-link-speed = <1>;
+	status = "okay";
+};
+
+&uart1 { /* Main UART */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	rts-gpio = <&gpio1 1 0>;
+	mode-gpio = <&gpio1 0 0>;
+	rxen-gpio = <&gpio1 3 0>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+	is-plugin-module;
+	plugin1 = <&plxx0>;
+	plugin2 = <&plxx1>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
+};
+
+&dsi_lvds_bridge {
+	ti,lvds-format = <1>;
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog &pinctrl_hog2>;
+
+	imx8mm-evk {
+		pinctrl_hog2: hoggrp-2 {
+			fsl,pins = <
+				MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7      0x1c4
+				MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4      0x1c4
+				MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8      0x1c4
+				MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7       0x1c4
+			>;
+		};
+
+		pinctrl_pcie0: pcie0grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI1_TXD6_GPIO4_IO18	0x1c4
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
+			>;
+		};
+
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
+				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+			>;
+		};
+
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ENET_MDC_ENET1_MDC		0x3
+				MX8MM_IOMUXC_ENET_MDIO_ENET1_MDIO	0x3
+				MX8MM_IOMUXC_ENET_TD2_ENET1_TX_CLK	0x4000001f
+				MX8MM_IOMUXC_ENET_TD1_ENET1_RGMII_TD1	0x56
+				MX8MM_IOMUXC_ENET_TD0_ENET1_RGMII_TD0	0x56
+				MX8MM_IOMUXC_ENET_RD1_ENET1_RGMII_RD1	0x56
+				MX8MM_IOMUXC_ENET_RD0_ENET1_RGMII_RD0	0x56
+				MX8MM_IOMUXC_ENET_RXC_ENET1_RX_ER	0x56
+				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x56
+				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x56
+			>;
+		};
+		
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI2_RXFS_UART1_TX	    0x140
+				MX8MM_IOMUXC_SAI2_RXC_UART1_RX	    0x140
+				MX8MM_IOMUXC_SAI2_RXD0_UART1_RTS_B	0x140
+				MX8MM_IOMUXC_SAI2_TXFS_UART1_CTS_B	0x140
+				MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3   0x11
+				MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1   0x11
+				MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0   0x11
+			>;
+		};
+		
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI3_TXFS_UART2_RX     0x140
+				MX8MM_IOMUXC_SAI3_RXD_UART2_RTS_B   0x140
+				MX8MM_IOMUXC_SAI3_RXC_UART2_CTS_B   0x140
+				MX8MM_IOMUXC_SAI3_TXC_UART2_TX      0x140
+			>;
+		};
+	};
+};
+

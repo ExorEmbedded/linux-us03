@@ -121,6 +121,25 @@
 		enable-gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>;
 };
 
+&ecspi3 {
+    fsl,spi-num-chipselects = <1>;
+    cs-gpios = <&gpio5 25 0>;  /* CS0 */
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi3>;
+    status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
+
+	fram: at25@3 {
+        compatible = "atmel,at25", "st,m95256";
+        reg = <0>;
+        spi-max-frequency = <20000000>;
+        pagesize = <64>;
+        size = <65536>;
+        address-width = <16>;
+    };
+};
+
 &iomuxc {
 	imx8mm-evk {
 
@@ -147,6 +166,15 @@
 		pinctrl_pcie0: pcie0grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_NAND_RE_B_GPIO3_IO15         0x1c4
+			>;
+		};
+
+		pinctrl_ecspi3: ecspi3grp {
+			fsl,pins = <
+                MX8MM_IOMUXC_UART1_RXD_ECSPI3_SCLK      0x11
+                MX8MM_IOMUXC_UART1_TXD_ECSPI3_MOSI      0x11
+                MX8MM_IOMUXC_UART2_RXD_ECSPI3_MISO      0x11
+                MX8MM_IOMUXC_UART2_TXD_GPIO5_IO25       0x11
 			>;
 		};
 		

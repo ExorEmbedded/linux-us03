@@ -86,6 +86,34 @@
 		compatible = "national,lm75b";
 		reg = <0x4c>;
 	};
+	
+	ads1015@48 {
+	    compatible = "ti,ads1015";
+	    reg = <0x48>;
+	    #address-cells = <1>;
+	    #size-cells = <0>;
+	    
+	    channel@4 {
+			reg = <4>;
+			ti,gain = <2>;
+			ti,datarate = <4>;
+	    };    
+	    channel@5 {
+			reg = <5>;
+			ti,gain = <2>;
+			ti,datarate = <4>;
+	    };    
+	    channel@6 {
+			reg = <6>;
+			ti,gain = <2>;
+			ti,datarate = <4>;
+	    };    
+	    channel@7 {
+			reg = <7>;
+			ti,gain = <2>;
+			ti,datarate = <4>;
+	    };    
+    };	
 };
 
 &fec1 {

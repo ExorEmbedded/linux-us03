@@ -35,10 +35,6 @@
 #define SUPPORT_SYSRQ
 #endif
 
-// #define SCNK_DRIVER  ----> (CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
-// #define SCNK_USING_HRTIMER
-#define CONFIG_SERIAL_IMX_EXOR_UART_MODULE 1
-
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -66,7 +62,6 @@
 #include <linux/platform_data/dma-imx.h>
 #include <linux/plxx_manager.h>
 
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 #include <linux/ktime.h>
 #ifdef SCNK_USING_HRTIMER
 #include <linux/hrtimer.h>
@@ -82,6 +77,30 @@
 #include <linux/hrtimer.h>
 #include "../../../include/linux/time.h"
 #include "../../../arch/arm/include/asm/ftrace.h"
+
+//#define DBG_IN_KERN
+#ifdef DBG_IN_KERN
+ktime_t m_start, m_end;
+int m_tm;
+unsigned char m_ev;
+static int dbg_trig;
+
+#define NR_DEB_TRACE 100
+unsigned char dbg_ev[NR_DEB_TRACE];
+unsigned char dbg_tk[NR_DEB_TRACE];
+unsigned char dbg_sn[NR_DEB_TRACE];
+unsigned char dbg_rx[NR_DEB_TRACE];
+unsigned char dbg_to[NR_DEB_TRACE];
+unsigned int dbg_rl[NR_DEB_TRACE];
+unsigned int dbg_tl[NR_DEB_TRACE];
+
+ktime_t dbg_tm[NR_DEB_TRACE];
+unsigned char dbg_snd;
+unsigned char dbg_lastRx;
+int dbg_idx;
+int dbg_tmtrig;
+unsigned int dbg_lastRl;
+unsigned int dbg_lastTl;
 #endif
 #endif
 
@@ -209,7 +228,6 @@
 #define DEV_NAME		"ttymxc"
 #define DRIVER_VERSION		"1.1"
 
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 #define REQ_RPT		0x00
 #define REQ_LANG	0x06
 #define RES_LANG	0x04
@@ -290,6 +308,8 @@ typedef unsigned int dword;
 #define MPI_MASTER_STACK 1
 #define MPI_SLAVE_STACK 0
 #define BUF_LEN  512
+#define GAP_TIME 176
+#define SEND_DELAY_TIME 154
 
 #define SET_MPI_MODE 0x54EF
 #define GET_MPI_DIAG 0x54EE
@@ -357,7 +377,7 @@ struct s_MPIparams
 
 /* Config Par ----------------------------*/
 #define N_MACCHINE   8
-#define N_EVPOST	 256
+#define N_EVPOST	 32
 
 #define FSM_TOK      0
 #define FSM_LOG      1
@@ -378,6 +398,7 @@ struct s_MPIparams
 
 /* Events --------------------------------*/
 #define EV__GAP 99
+#define EV__SEND_DELAY 100
 #define EV__NULL 0
 #define EV_BRC_ENABLE 1
 #define EV_BRC_ACK 2
@@ -595,9 +616,7 @@ typedef struct
 struct s_MPIdata
 {
 
-	struct imx_port *mpiSport;
 	bool m_isOpen;
-	struct hrtimer hrt;
 	byte UltiUart1_TxTimeout;
 	int UltiUart1_TxNunUSec;
 
@@ -623,8 +642,6 @@ struct s_MPIdata
 	byte JbsSessReqPending;
 
 	byte MyOperFlag;
-	byte WrMyBuff[256];
-	byte FrameMyBuff[256];
 	word WrMyBuffLength;
 	byte FrameMyBuffLength;
 	word MyLen;
@@ -632,7 +649,6 @@ struct s_MPIdata
 	unsigned char countArray[7];
 	unsigned char interruptsCount[3];
 
-	unsigned char ev_queue[N_EVPOST];
 	unsigned char ev_queue_rd;
 	unsigned char ev_queue_wr;
 	unsigned char queue_empty;
@@ -656,18 +672,13 @@ struct s_MPIdata
 	signed char  FrameUniopNodeNum;       /* Node of UniOP in network      */
 	byte  FrameSendBufferLen1;
 	byte  FrameSendBufferLen;
-	byte  FrameSendBuffer[MAX_LENGTH_SEND + 10];       /* TX buffer */
-	byte  FrameSendBuffer1[MAX_LENGTH_SEND + 10];       /* TX buffer */
 
 	word  FrameSessionSendLength;
-	byte  FrameSessionSendBuffer[MAX_LENGTH_SEND + 10];     //MG001
 	word  FrameSessionReceiveLength;
-	byte  FrameSessionReceiveBuffer[MAX_LENGTH_RECV + 10];  //MG001
 
 	byte ProcedureApplMStatus;                 /* procedure global status      */
 	bool ProcedureApplMRequestPending;         /* Waiting to send PLC a request*/
 	bool ProcedureApplMResponsePending;        /* Waiting for answer from PLC  */
-	sStationStatus StationStatus[NR_MAX_STATIONS]; /* the station statuses    */
 	byte LowestAddress;                        /* Station for next GAP         */
 	signed char NextGAP;
 	bool AreWeInRing;
@@ -683,11 +694,8 @@ struct s_MPIdata
 	byte Source;
 	byte Dest;
 	byte FlowCtrl;
-	byte MyFrameResponseBuff[MAX_LENGTH_RECV + 10];
 	word MyFrameResponseBuffLen;
-	byte MyFrameRequestBuff[MAX_LENGTH_SEND + 10];
 	word FrameJobSessionLen;
-	byte FrameJobSessionBuff[MAX_LENGTH_SEND + 10];
 	byte ReadyForConfigMode;
 	byte SlaveSession;
 
@@ -717,24 +725,41 @@ struct s_MPIdata
 	byte GapUpdateFactorCnt;
 	signed char NxtStat;
 	byte cnt;
-	unsigned char m_taskBuf[BUF_LEN];
+//	unsigned char m_taskBuf[BUF_LEN];
 	int m_taskLen;
 	int applTryCnt;
 	bool MPIenabled;
 	bool MPImode;
 	int rxCnt;
-	unsigned char mpiRxBuf[280];
-	//	int txCnt;
-	//	int txIdx;
+	int txCnt;
+	int txIdx;
 	//	unsigned char mpiTxBuf[280];
+    byte lastTMevent;
+    byte ev_after_delay;
+    volatile bool exitReq;
+    int lastTxNunUSec;
+	unsigned char ev_queue[N_EVPOST];
+	byte  FrameSendBuffer[MAX_LENGTH_SEND + 10];       /* TX buffer */
+	byte  FrameSendBuffer1[MAX_LENGTH_SEND + 10];       /* TX buffer */
+	byte  FrameSessionSendBuffer[MAX_LENGTH_SEND + 10];     //MG001
+	byte  FrameSessionReceiveBuffer[MAX_LENGTH_RECV + 10];  //MG001
+	sStationStatus StationStatus[NR_MAX_STATIONS]; /* the station statuses    */
+	byte MyFrameResponseBuff[MAX_LENGTH_RECV + 10];
+	byte MyFrameRequestBuff[MAX_LENGTH_SEND + 10];
+	byte FrameJobSessionBuff[MAX_LENGTH_SEND + 10];
+	byte WrMyBuff[256];
+	byte FrameMyBuff[256];
+	unsigned char mpiRxBuf[280];
 	unsigned char localBuf[UART_XMIT_SIZE];
 	struct circ_buf mpiTxBuf;
+	struct imx_port *mpiSport;
+	struct hrtimer hrt;
+    raw_spinlock_t mpiLock;
 };
 void ev_move(struct s_MPIdata *pMPIdata, unsigned char ev);
 
 #endif
 
-#endif
 /*
  * This determines how often we check the modem status signals
  * for any change.  They generally aren't connected to an IRQ
@@ -793,12 +818,10 @@ struct imx_port {
 	struct platform_device* plugin2dev;
 	int			mode_two_lines_only;
 	unsigned long		txfullflag;
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 	struct s_SCNKparams	SCNKparams;
 	struct s_SCNKdata	SCNKdata;
 #ifdef EXOR_MPI
 	struct s_MPIdata	MPIdata;
-#endif
 #endif
 };
 
@@ -808,7 +831,6 @@ struct imx_port_ucrs {
 	unsigned int	ucr3;
 };
 
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 static void addCrc(unsigned char b, unsigned short *crc)
 {
 	unsigned char cy;
@@ -913,16 +935,18 @@ enum hrtimer_restart (*hrtCallBackArray[UART_NR] )(struct hrtimer *) = {&hrtCall
 #endif
 
 #ifdef EXOR_MPI
-struct ValueName
+typedef struct
 {
 	int value;
 	const char *name;
-};
+}ValueName;
 
 // event names
-struct ValueName event_name[] =
+ValueName event_name[] =
 {
 { EV__NULL, "EV__NULL" },
+{ EV__GAP, "EV__GAP" },
+{ EV__SEND_DELAY, "EV__SEND_DELAY" },
 { EV_BRC_ENABLE, "EV_BRC_ENABLE" },
 { EV_BRC_ACK, "EV_BRC_ACK" },
 { EV_BRC_TOK, "EV_BRC_TOK" },
@@ -974,7 +998,7 @@ struct ValueName event_name[] =
 { EV_TX_DELAY_DONE, "EV_TX_DELAY_DONE" },
 };
 // state names
-struct ValueName state_name[] =
+ValueName state_name[] =
 {
 { _NULL, "_NULL" },
 { TOK_IDLE, "TOK_IDLE" },
@@ -1024,33 +1048,50 @@ struct ValueName state_name[] =
 { LGF_SENT_LOGOFF_ACK, "LGF_SENT_LOGOFF_ACK" },
 };
 
+#if defined(DBG_IN_KERN) || defined(DEBUG_STATE)
+static const char *eventName(int ev)
+{
+    int i;
+    for (i=0; i<sizeof(event_name)/sizeof(ValueName); ++i)
+    {
+        if (event_name[i].value == ev)
+            return event_name[i].name;
+    }
+    return "unknown";
+};
+
+static const char *stateName(int state)
+{
+    int i;
+    for (i=0; i<sizeof(state_name)/sizeof(ValueName); ++i)
+    {
+        if (state_name[i].value == state)
+            return state_name[i].name;
+    }
+    return "unknown";
+};
+#endif
+#ifdef DBG_IN_KERN
+void dumpLastTk(void){
+    int i=0;
+    int idx = dbg_idx;
+    while (i<sizeof(dbg_tk)){
+        printk("%lld: ev:%s ----> tk:%s Rx:%02X,%d Sn:%02X,%d TO:%s\n",dbg_tm[idx],eventName(dbg_ev[idx]),stateName(dbg_tk[idx]), dbg_rx[idx],dbg_rl[idx],dbg_sn[idx],dbg_tl[idx], eventName(dbg_to[idx]));
+        if (--idx < 0)
+            idx = sizeof(dbg_tk)-1;
+        i++;
+    }
+}
+#endif
+
+
+
 #ifdef DEBUG_STATE
 #include <sys/time.h>
 #include <string>       // std::string
 #include <sstream>      // std::stringstream
 #include <fstream>      // std::stringstream
 #include <deque>
-
-static const char *eventName(int ev)
-{
-	for (int i=0; i<sizeof(event_name)/sizeof(ValueName); ++i)
-	{
-		if (event_name[i].value == ev)
-			return event_name[i].name;
-	}
-	return "unknown";
-};
-
-static const char *stateName(int state)
-{
-	for (int i=0; i<sizeof(state_name)/sizeof(ValueName); ++i)
-	{
-		if (state_name[i].value == state)
-			return state_name[i].name;
-	}
-	return "unknown";
-};
-
 class MsgContainer
 {
 	class UsTimer
@@ -1288,26 +1329,37 @@ static void mpiReceiveFrame(struct s_MPIdata *pMPIdata, unsigned char *buf, unsi
 
 enum hrtimer_restart hrtCallBack(struct hrtimer *phrt)
 {
-	struct s_MPIdata *pMPIdata = container_of(phrt, struct s_MPIdata, hrt);
-	unsigned long flags=0;
-	//	struct imx_port *sport = container_of(pMPIdata, struct imx_port, MPIdata);
-	spin_lock_irqsave(&pMPIdata->mpiSport->port.lock, flags);
-	if (pMPIdata->UltiUart1_TxTimeout == EV__GAP) {
-		if (pMPIdata->rxCnt) {
-			//			printk("MPI frame RX %d\n", pMPIdata->rxCnt);
-			mpiReceiveFrame(pMPIdata, pMPIdata->mpiRxBuf, pMPIdata->rxCnt);
-			//			pMPIdata->rxCnt = 0;
-		}
-	}
-	else
-		ev_move(pMPIdata, pMPIdata->UltiUart1_TxTimeout);
-	spin_unlock_irqrestore(&pMPIdata->mpiSport->port.lock, flags);
-	return HRTIMER_NORESTART;
+    struct s_MPIdata *pMPIdata = container_of(phrt, struct s_MPIdata, hrt);
+    unsigned long flags=0;
+    raw_spin_lock_irqsave(&pMPIdata->mpiLock, flags);
+#ifdef DBG_IN_KERN
+    m_end = ktime_get();
+#endif
+    if (pMPIdata->UltiUart1_TxTimeout == EV__GAP) {
+        if (pMPIdata->rxCnt) {
+#ifdef DBG_IN_KERN
+            if (m_end-m_start > 1500000) printk("MPI frame RX:%d %d %lld -  %02X,%02X,%02X\n", pMPIdata->rxCnt, m_tm, (m_end-m_start), pMPIdata->mpiRxBuf[0], pMPIdata->mpiRxBuf[1], pMPIdata->mpiRxBuf[2]);
+#endif
+            mpiReceiveFrame(pMPIdata, pMPIdata->mpiRxBuf, pMPIdata->rxCnt);
+        }
+    }
+    else if (pMPIdata->UltiUart1_TxTimeout != EV__NULL){
+#ifdef DBG_IN_KERN
+        if (m_ev != EV_TOK_FDLTIMEOUT && m_ev != EV__SEND_DELAY){
+            printk("UltiUart timeout: ev:%s %d %lld tk:%s\n", eventName(m_ev), m_tm, (m_end-m_start), stateName(pMPIdata->tok_state));
+            if (m_ev == EV_TOK_TIMEOUT_TOK)
+                dbg_tmtrig = 1;
+        }
+#endif
+        ev_move(pMPIdata, pMPIdata->UltiUart1_TxTimeout);
+    }
+    raw_spin_unlock_irqrestore(&pMPIdata->mpiLock, flags);
+    return HRTIMER_NORESTART;
 }
 
 void MPIDriverInit(struct s_MPIdata *pMPIdata)
 {
-	hrtimer_init(&pMPIdata->hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL_HARD);
+    hrtimer_init(&pMPIdata->hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL_HARD);
 	pMPIdata->hrt.function = hrtCallBack;
 	pMPIdata->MPIenabled = false;
 
@@ -1430,7 +1482,8 @@ void MPIDriverInit(struct s_MPIdata *pMPIdata)
 	pMPIdata->shortACK_EOTEvent = 0;
 	pMPIdata->mpiTxBuf.buf = pMPIdata->localBuf;
 	pMPIdata->mpiTxBuf.head = pMPIdata->mpiTxBuf.tail = 0;
-	pMPIdata->MPImode = true;
+    raw_spin_lock_init(&pMPIdata->mpiLock);
+    pMPIdata->MPImode = true;
 }
 
 
@@ -1448,9 +1501,11 @@ static void sendData(struct s_MPIdata *pMPIdata, char * buf, unsigned int len)
 {
 	int i;
 	struct imx_port *sport = pMPIdata->mpiSport;
-
-	//	printk("MPI frame TX %d\n", len);
-
+#ifdef DBG_IN_KERN
+    //	printk("MPI frame TX %d\n", len);
+    dbg_snd = buf[0];
+    dbg_lastTl = len;
+#endif
 	if (len == 1)
 		pMPIdata->shortACK_EOTEvent = 1;
 
@@ -1471,16 +1526,28 @@ void sendShortAck(struct s_MPIdata *pMPIdata)
 
 void UltiUART1_StartTimer(struct s_MPIdata *pMPIdata, unsigned char ev, int timeoutUSec)
 {
-	ktime_t kt = ktime_set(timeoutUSec / 1000000, (timeoutUSec % 1000000)*1000);
-	pMPIdata->UltiUart1_TxTimeout = ev;
-	pMPIdata->UltiUart1_TxNunUSec = timeoutUSec;
-	hrtimer_start( &pMPIdata->hrt, kt, HRTIMER_MODE_REL_HARD );
+    ktime_t kt = ktime_set(timeoutUSec / 1000000, (timeoutUSec % 1000000)*1000);
+#ifdef DBG_IN_KERN
+//    if (ev == EV_TOK_TIMEOUT_TOK)    printk("StartTimer from tk:%s to ev:%d time:%d %d %d\n", stateName(pMPIdata->tok_state), ev, timeoutUSec,pMPIdata->PassTokenReply,pMPIdata->shortACK_EOTEvent);
+#endif
+    pMPIdata->UltiUart1_TxTimeout = ev;
+    pMPIdata->UltiUart1_TxNunUSec = timeoutUSec;
+#ifdef DBG_IN_KERN
+    m_start = ktime_get();
+    m_tm = timeoutUSec;
+    m_ev = ev;
+#endif
+    hrtimer_start( &pMPIdata->hrt, kt, HRTIMER_MODE_REL_HARD );
 }
 
 void UltiUart1_StopTimer(struct s_MPIdata *pMPIdata)
 {
-	hrtimer_try_to_cancel(&pMPIdata->hrt);
-	pMPIdata->UltiUart1_TxTimeout = EV__NULL;
+#ifdef DBG_IN_KERN
+    if (pMPIdata->UltiUart1_TxTimeout != EV__GAP && pMPIdata->UltiUart1_TxTimeout != EV__SEND_DELAY)
+        printk("StopTimer when it was ev:%d %s\n", pMPIdata->UltiUart1_TxTimeout, eventName(pMPIdata->UltiUart1_TxTimeout));
+#endif
+    hrtimer_try_to_cancel(&pMPIdata->hrt);
+    pMPIdata->UltiUart1_TxTimeout = EV__NULL;
 }
 
 /************************************************************************
@@ -1601,65 +1668,31 @@ void ResetLastDAStation(struct s_MPIdata *pMPIdata)
 signed char PrepareNextGAP(struct s_MPIdata *pMPIdata)
 {
 	int i;
-
-#if MON_DEBUG
-	putCh('a');
-#endif
-
 	if (pMPIdata->NextGAP == pMPIdata->MaxStationAddress)
 		pMPIdata->NextGAP = -1;
 
-	for (i = 0; i < pMPIdata->MaxStationAddress; i++)
-	{
-#if MON_DEBUG
-		putHexByte(pMPIdata->NextGAP);
-#endif
-		if (pMPIdata->StationStatus[pMPIdata->NextGAP + 1].IsActive && (pMPIdata->StationStatus[pMPIdata->NextGAP + 1].StationType >= 2))
-		{
-			if ((pMPIdata->NextGAP + 1) == (pMPIdata->FrameUniopNodeNum + 1))
-			{
-#if MON_DEBUG
-				putCh('d');
-#endif
+    for (i = 0; i < pMPIdata->MaxStationAddress; i++){
+		if (pMPIdata->StationStatus[pMPIdata->NextGAP + 1].IsActive && (pMPIdata->StationStatus[pMPIdata->NextGAP + 1].StationType >= 2)){
+			if ((pMPIdata->NextGAP + 1) == (pMPIdata->FrameUniopNodeNum + 1)){
 				pMPIdata->NextGAP = pMPIdata->FrameUniopNodeNum;
 				return -1;
 			}
 			pMPIdata->NextGAP = pMPIdata->FrameUniopNodeNum + 1;
-#if MON_DEBUG
-			putCh('b');
-#endif
 			return pMPIdata->NextGAP;
-		}
-		else
-		{
-			if ((pMPIdata->NextGAP + 1) > pMPIdata->MaxStationAddress)
-			{
+        }else{
+			if ((pMPIdata->NextGAP + 1) > pMPIdata->MaxStationAddress){
 				pMPIdata->NextGAP = -1;
-#if MON_DEBUG
-				putCh('e');
-#endif
-			}
-			else
-			{
-				if ((pMPIdata->NextGAP + 1) == pMPIdata->FrameUniopNodeNum)
-				{
+            }else{
+				if ((pMPIdata->NextGAP + 1) == pMPIdata->FrameUniopNodeNum){
 					pMPIdata->NextGAP++;
-#if MON_DEBUG
-					putCh('f');
-#endif
-				}
-				else
-				{
-#if MON_DEBUG
-					putCh('g');
-#endif
+                }else{
 					pMPIdata->NextGAP += 1;
 					return pMPIdata->NextGAP;
 				}
 			}
 		}
 	}
-	return -1;	//MG001
+    return -1;
 }
 
 /************************************************************************
@@ -1683,10 +1716,8 @@ signed char GetNextActiveStation(struct s_MPIdata *pMPIdata)
 	// StartNode to find the next master station, i.e. a station
 	// registered as In the token ring or ready for it
 	i = pMPIdata->FrameUniopNodeNum + 1;
-	while (i != pMPIdata->FrameUniopNodeNum)
-	{
-		if (i > pMPIdata->MaxStationAddress)
-		{
+	while (i != pMPIdata->FrameUniopNodeNum){
+		if (i > pMPIdata->MaxStationAddress){
 			if (pMPIdata->FrameUniopNodeNum == 0)
 				break;
 			else
@@ -1736,8 +1767,6 @@ void mExitFromRing(struct s_MPIdata *pMPIdata)
 	DBGReg(242, pMPIdata->tok_state, TOK_IDLE);
 	pMPIdata->tok_state = TOK_IDLE;
 	dumpTokState(pMPIdata->tok_state);
-
-	UltiUART1_StartTimer(pMPIdata, EV_TOK_RUN,1000*1000);
 }
 //MG003 End
 
@@ -1783,15 +1812,15 @@ byte LogOn_AckRespFrameOk(struct s_MPIdata *pMPIdata)
 unsigned char mLogAbortSession(struct s_MPIdata *pMPIdata)
 {
 	mExitFromRing(pMPIdata); //MG003
-	return LOG_IDLE; //MG003
+    UltiUART1_StartTimer(pMPIdata, EV_TOK_RUN,1000*1000);
+    return LOG_IDLE; //MG003
 }
 
 
 unsigned char mLogCheckLogOff(struct s_MPIdata *pMPIdata)
 {
 	//Exit from Ring!!!!
-	if (pMPIdata->LogOn_Retry > MAX_LOGON_RETRY)
-	{
+	if (pMPIdata->LogOn_Retry > MAX_LOGON_RETRY){
 		pMPIdata->LogOn_Retry = 0;
 		ev_post(pMPIdata, EV_LOG_OFF);
 		pMPIdata->NumTokenRotations = 0;
@@ -1808,8 +1837,7 @@ unsigned char mLogCheckLogOff(struct s_MPIdata *pMPIdata)
 
 unsigned char mLogSendRespAck(struct s_MPIdata *pMPIdata)
 {
-	if (LogOn_RespFrameOk(pMPIdata))
-	{
+	if (LogOn_RespFrameOk(pMPIdata)){
 		//Send Short Ack
 		sendShortAck(pMPIdata);
 
@@ -1833,8 +1861,7 @@ unsigned char mLogSendRespAck(struct s_MPIdata *pMPIdata)
 
 unsigned char mLogWaitAckRespAck(struct s_MPIdata *pMPIdata)
 {
-	if (LogOn_AckRespFrameOk(pMPIdata))
-	{
+	if (LogOn_AckRespFrameOk(pMPIdata)){
 		sendShortAck(pMPIdata);
 
 		//Success!!!
@@ -1851,11 +1878,10 @@ unsigned char mLgfCheckLogOff(struct s_MPIdata *pMPIdata)
 	if (pMPIdata->SlaveSession)   //MG001
 		return LGF_RUN;  //MG001
 
-	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0x80)
-	{
+	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0x80){
 		mExitFromRing(pMPIdata); //MG003
-		return LGF_IDLE; //MG003
-
+        UltiUART1_StartTimer(pMPIdata, EV_TOK_RUN,1000*1000);
+    	return LGF_IDLE; //MG003
 	}
 	return LGF_RUN;
 }
@@ -1867,8 +1893,7 @@ void mLgfSendLogOffAck(struct s_MPIdata *pMPIdata)
 
 void mLgfAbortSession(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->LgfSessReqPending)
-	{
+	if (pMPIdata->LgfSessReqPending){
 		pMPIdata->LgfSessReqPending = false;
 		pMPIdata->SessReqPending    = false;
 		pMPIdata->SessionStarted    = false;
@@ -1881,8 +1906,7 @@ void mLgfAbortSession(struct s_MPIdata *pMPIdata)
 
 unsigned char mLgfCheckSD1(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->Dest == pMPIdata->FrameUniopNodeNum)
-	{
+	if (pMPIdata->Dest == pMPIdata->FrameUniopNodeNum){
 		pMPIdata->LgfSessReqPending = false;
 		pMPIdata->SessReqPending    = false;
 		pMPIdata->SessionStarted    = false;
@@ -1898,8 +1922,7 @@ unsigned char mLgfCheckSD1(struct s_MPIdata *pMPIdata)
 /*--- JobAction & JobAction0 common functions -------------*/
 char JobAckFrameOk(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->FrameSessionReceiveBuffer[9] != 0xB0)
-	{
+	if (pMPIdata->FrameSessionReceiveBuffer[9] != 0xB0){
 		pMPIdata->StationStatus[pMPIdata->FrameSessionSendBuffer[4] & 0x7F].Job = 0;
 		return 0;
 	}
@@ -1909,8 +1932,7 @@ char JobAckFrameOk(struct s_MPIdata *pMPIdata)
 /*----JobAction0----------------------------*/
 void mJob0ApplicationResponseErr(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->Job0SessReqPending)
-	{
+	if (pMPIdata->Job0SessReqPending){
 		pMPIdata->Job0SessReqPending = false;
 		pMPIdata->SessReqPending     = false;
 		pMPIdata->SessionStarted     = false;
@@ -1942,8 +1964,7 @@ void mJob0SendReq(struct s_MPIdata *pMPIdata)
 
 unsigned char mJob0SendShortAck(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xB0)
-	{
+	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xB0){
 		sendShortAck(pMPIdata);
 		return JB0_WAITJOBRESP0;
 	}
@@ -1955,8 +1976,7 @@ unsigned char mJob0SendShortAck(struct s_MPIdata *pMPIdata)
 
 unsigned char mJob0SendJobAck(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xF1)
-	{
+	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xF1){
 		sendShortAck(pMPIdata);
 
 		pMPIdata->FrameSessionSendBuffer[0]  = D_SD2;
@@ -1999,12 +2019,10 @@ void mJobApplicationResponse(struct s_MPIdata *pMPIdata)
 		pMPIdata->JobSessReqPending = false;
 		pMPIdata->SessReqPending    = false;
 		pMPIdata->SessionStarted    = false;
-		if (pMPIdata->MyFrameResponseBuff[14] != 0xFF)
-		{
+		if (pMPIdata->MyFrameResponseBuff[14] != 0xFF){
 			pMPIdata->ProcedureApplMStatus = RESPONSE_NAK2;
 			DBGReg(239, pMPIdata->ProcedureApplMStatus, 0x0003);
-		}
-		else
+        }else
 			pMPIdata->ProcedureApplMStatus = NO_ERROR;
 		pMPIdata->ProcedureApplMRequestPending  = false;
 		pMPIdata->ProcedureApplMResponsePending = false;
@@ -2013,8 +2031,7 @@ void mJobApplicationResponse(struct s_MPIdata *pMPIdata)
 
 void mJobApplicationResponseErr(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->JobSessReqPending)
-	{
+	if (pMPIdata->JobSessReqPending){
 		pMPIdata->Job0SessReqPending = false;
 		pMPIdata->SessReqPending     = false;
 		pMPIdata->SessionStarted     = false;
@@ -2046,13 +2063,10 @@ void mJobSendReq(struct s_MPIdata *pMPIdata)
 
 unsigned char  mJobRetryReq(struct s_MPIdata *pMPIdata)
 {
-	if (++pMPIdata->JobRetry > NR_JOB_RETRY)
-	{
+	if (++pMPIdata->JobRetry > NR_JOB_RETRY){
 		mJobApplicationResponseErr(pMPIdata);
 		return JOB_RUN;
-	}
-	else
-	{
+    }else{
 		RtlCopyMemory(pMPIdata->FrameSessionSendBuffer, pMPIdata->FrameJobSessionBuff, pMPIdata->FrameJobSessionLen);   //MG001
 		pMPIdata->FrameSessionSendLength =pMPIdata->FrameJobSessionLen;                               //MG001
 		pMPIdata->JobSessReqPending = true;
@@ -2067,8 +2081,7 @@ unsigned char mJobSendShortAck(struct s_MPIdata *pMPIdata)
 	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0x80)  //MG001
 		return JOB_WAITJOBACK;                  //MG001
 
-	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xB0)
-	{
+	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xB0){
 		sendShortAck(pMPIdata);
 		return JOB_WAITJOBRESP;
 	}
@@ -2081,14 +2094,12 @@ unsigned char mJobSendJobAck(struct s_MPIdata *pMPIdata)
 	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0x80)  //MG001
 		return JOB_WAITJOBRESP;                 //MG001
 
-	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xB0)
-	{
+	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xB0){
 		sendShortAck(pMPIdata);
 		DBGReg(240, pMPIdata->FrameSessionReceiveBuffer[9], 0);
 		return JOB_WAITJOBRESP;
 	}
-	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xF1)
-	{
+	if (pMPIdata->FrameSessionReceiveBuffer[9] == 0xF1){
 		pMPIdata->MyFrameResponseBuffLen = pMPIdata->FrameSessionReceiveBuffer[1]-7;
 		RtlCopyMemory(pMPIdata->MyFrameResponseBuff, &pMPIdata->FrameSessionReceiveBuffer[11], pMPIdata->MyFrameResponseBuffLen);
 
@@ -2127,16 +2138,15 @@ unsigned char mJobSendJobAck(struct s_MPIdata *pMPIdata)
 
 unsigned char mJobRetryJobAck(struct s_MPIdata *pMPIdata)
 {
-	if (++pMPIdata->JobRetry > NR_JOB_RETRY)
-	{
+	if (++pMPIdata->JobRetry > NR_JOB_RETRY){
 		mJobApplicationResponseErr(pMPIdata);
 		return JOB_RUN;
-	}
-	else
-	{
+    }else{
 		//retransmit previous Job number
-		if (pMPIdata->StationStatus[pMPIdata->Last_DA].Job == 1)   pMPIdata->StationStatus[pMPIdata->Last_DA].Job = 0xFF;
-		else                                   pMPIdata->StationStatus[pMPIdata->Last_DA].Job--;
+        if (pMPIdata->StationStatus[pMPIdata->Last_DA].Job == 1)
+            pMPIdata->StationStatus[pMPIdata->Last_DA].Job = 0xFF;
+        else
+            pMPIdata->StationStatus[pMPIdata->Last_DA].Job--;
 
 		pMPIdata->FrameSessionSendBuffer[0]  = D_SD2;
 		pMPIdata->FrameSessionSendBuffer[1]  = 0x08;
@@ -2156,8 +2166,10 @@ unsigned char mJobRetryJobAck(struct s_MPIdata *pMPIdata)
 		//Calcola FCS
 		CalcCheckSum(pMPIdata->FrameSessionSendBuffer, 4, pMPIdata->FrameSessionSendLength - 2);
 
-		if (pMPIdata->StationStatus[pMPIdata->Last_DA].Job == 0xFF) pMPIdata->StationStatus[pMPIdata->Last_DA].Job = 1;
-		else pMPIdata->StationStatus[pMPIdata->Last_DA].Job++;
+        if (pMPIdata->StationStatus[pMPIdata->Last_DA].Job == 0xFF)
+            pMPIdata->StationStatus[pMPIdata->Last_DA].Job = 1;
+        else
+            pMPIdata->StationStatus[pMPIdata->Last_DA].Job++;
 
 		pMPIdata->SessReqPending = true;
 		return JOB_WAITSHORTACK2;
@@ -2166,8 +2178,7 @@ unsigned char mJobRetryJobAck(struct s_MPIdata *pMPIdata)
 
 void mJobStopSess(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->JobSessReqPending)
-	{
+	if (pMPIdata->JobSessReqPending){
 		pMPIdata->JobSessReqPending = false;
 	}
 }
@@ -2192,6 +2203,7 @@ void mTokFSMRestart(struct s_MPIdata *pMPIdata)
 void mTokListenTokenStartTimeout(struct s_MPIdata *pMPIdata)
 {
 	UltiUART1_StartTimer(pMPIdata, EV_TOK_TIMEOUT, (word)pMPIdata->FrameUniopNodeNum * pMPIdata->guardTimeFactor + pMPIdata->guardTimeConstant); //guard timeout
+    pMPIdata->PassTokenReply = 0;
 }
 
 unsigned char mTokListenToken(struct s_MPIdata *pMPIdata)
@@ -2201,14 +2213,12 @@ unsigned char mTokListenToken(struct s_MPIdata *pMPIdata)
 
 	// When we have listened to 2 complete token rotations
 	// then we are ready to join the token ring
-	if (2 <= pMPIdata->NumTokenRotations)
-	{
+	if (2 <= pMPIdata->NumTokenRotations){
 		mTokFSMRestart(pMPIdata); //MG002
 		return TOK_ACTIVEIDLE;
 	}
 
-	if (pMPIdata->LowestAddress > pMPIdata->Source)
-	{
+	if (pMPIdata->LowestAddress > pMPIdata->Source){
 		pMPIdata->LowestAddress = pMPIdata->Source;
 		pMPIdata->NumTokenRotations = 0;
 	}
@@ -2223,8 +2233,7 @@ void mTokActiveIdle(struct s_MPIdata *pMPIdata)
 {
 	// Since SA is passing the token it must be an active master
 	pMPIdata->StationStatus[pMPIdata->Source].StationType = 2; // Master Master ready to enter token ring (Ready FC=0x20)
-	if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest)
-	{
+	if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest){
 		dumpDebug("mTokActiveIdle");
 		// We have been addressed with an FDL status request
 		// If we are already in the token ring then tell the
@@ -2233,8 +2242,7 @@ void mTokActiveIdle(struct s_MPIdata *pMPIdata)
 		pMPIdata->NextGAP = pMPIdata->FrameUniopNodeNum;
 		if (pMPIdata->NextStation == (signed char)-1)
 			pMPIdata->NextStation = pMPIdata->Source;
-
-		pMPIdata->FrameSendBuffer[0] = D_SD1;
+        pMPIdata->FrameSendBuffer[0] = D_SD1;
 		pMPIdata->FrameSendBuffer[1] = pMPIdata->Source;
 		pMPIdata->FrameSendBuffer[2] = pMPIdata->FrameUniopNodeNum;
 		pMPIdata->FrameSendBuffer[3] = (pMPIdata->AreWeInRing)? FCST_MSIR | RFC_OK : FCST_MSRD | RFC_OK;
@@ -2242,6 +2250,9 @@ void mTokActiveIdle(struct s_MPIdata *pMPIdata)
 		CalcCheckSum(pMPIdata->FrameSendBuffer, 1, 4);
 		pMPIdata->FrameSendBuffer[5] = D_ED;
 		pMPIdata->FrameSendBufferLen = 6;
+#ifdef DBG_IN_KERN
+        dbg_trig = 1;
+#endif
 		sendData(pMPIdata, pMPIdata->FrameSendBuffer, (byte)pMPIdata->FrameSendBufferLen);
 
 		pMPIdata->FlagSendSelfToken = 0;
@@ -2294,16 +2305,14 @@ unsigned char GotoActiveIdle(struct s_MPIdata *pMPIdata)
 }
 void StopTimeoutFDL(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->UltiUart1_TxTimeout == EV_TOK_FDLTIMEOUT)
-	{
+	if (pMPIdata->UltiUart1_TxTimeout == EV_TOK_FDLTIMEOUT){
 		UltiUart1_StopTimer(pMPIdata);
 	}
 }
 
 void mTokSD1Resp(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest)
-	{
+	if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest){
 		StopTimeoutFDL(pMPIdata);       //MG001
 		// Since SA is passing the token it must be an active master
 		pMPIdata->NextGAP = pMPIdata->FrameUniopNodeNum;
@@ -2325,8 +2334,7 @@ void mTokSD1Resp(struct s_MPIdata *pMPIdata)
 
 byte FDLStatus(struct s_MPIdata *pMPIdata, signed char *MyNextGap)
 {
-	if ((*MyNextGap = PrepareNextGAP(pMPIdata)) != (signed char)-1)
-	{
+	if ((*MyNextGap = PrepareNextGAP(pMPIdata)) != (signed char)-1){
 		dumpDebug("FDLStatus");
 		pMPIdata->FrameSendBuffer[0] = D_SD1;
 		pMPIdata->FrameSendBuffer[1] = *MyNextGap;
@@ -2347,8 +2355,7 @@ byte FDLStatus(struct s_MPIdata *pMPIdata, signed char *MyNextGap)
 
 byte PassToken(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->PassTokenReply < PASS_TOKEN_REPLY)
-	{
+	if (pMPIdata->PassTokenReply < PASS_TOKEN_REPLY){
 		// If the NextStation hasn't been calculated yet do it now
 		if (pMPIdata->NextStation == (signed char)-1)
 			pMPIdata->NextStation = pMPIdata->FrameUniopNodeNum;
@@ -2388,18 +2395,17 @@ byte PassToken(struct s_MPIdata *pMPIdata)
 
 unsigned char mTokTxFrame(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->FrameUniopNodeNum != pMPIdata->Dest)
-	{
-		if (pMPIdata->Dest == pMPIdata->Source)  //it is a self-token, the ring is broken
-		{
-			//printk("MPI: TOK rec a SelfToken\n");
+	if (pMPIdata->FrameUniopNodeNum != pMPIdata->Dest){
+        if (pMPIdata->Dest == pMPIdata->Source){  //it is a self-token, the ring is broken
+            //printk("MPI: TOK rec a SelfToken\n");
 			mExitFromRing(pMPIdata);
-			return TOK_IDLE;
+            UltiUART1_StartTimer(pMPIdata, EV_TOK_RUN,1000*1000);
+            return TOK_IDLE;
 		}
 		//Too token not for me
 		if (pMPIdata->TokenNotForMe++ > 60)
 		{
-			//printk("MPI: TOK rec too many not for me\n");
+            //printk("MPI: TOK rec too many not for me\n");
 			pMPIdata->TokenNotForMe = 0;
 			return GotoActiveIdle(pMPIdata);
 		}
@@ -2416,24 +2422,19 @@ unsigned char mTokTxFrame(struct s_MPIdata *pMPIdata)
 	if (pMPIdata->GapUpdateFactorCnt <= pMPIdata->GapUpdateFactor)   //MG001
 		pMPIdata->GapUpdateFactorCnt++;                     //MG001
 
-	if (pMPIdata->SessReqPending && !pMPIdata->SessionStarted)//Session Request Pending
-	{
-		if (pMPIdata->LgfSessReqPending || pMPIdata->LgsSessReqPending || pMPIdata->J0sSessReqPending || pMPIdata->JbsSessReqPending)
-		{
+    if (pMPIdata->SessReqPending && !pMPIdata->SessionStarted){//Session Request Pending
+		if (pMPIdata->LgfSessReqPending || pMPIdata->LgsSessReqPending || pMPIdata->J0sSessReqPending || pMPIdata->JbsSessReqPending){
 			pMPIdata->FrameSessionSendLength = pMPIdata->FrameSendBufferLen1;
 			sendData(pMPIdata, pMPIdata->FrameSendBuffer1, (byte)pMPIdata->FrameSessionSendLength);
-		}
-		else
+        }else
 			sendData(pMPIdata, pMPIdata->FrameSessionSendBuffer, (byte)pMPIdata->FrameSessionSendLength);
 
 		pMPIdata->SessionStarted = true;
 		return TOK_WAITRX;
 	}
 
-	if (pMPIdata->GapUpdateFactorCnt > pMPIdata->GapUpdateFactor)  //MG001
-	{
-		if (FDLStatus(pMPIdata, &pMPIdata->NxtStat))
-		{
+    if (pMPIdata->GapUpdateFactorCnt > pMPIdata->GapUpdateFactor){
+		if (FDLStatus(pMPIdata, &pMPIdata->NxtStat)){
 			if (pMPIdata->NxtStat == pMPIdata->NextStation - 1)
 				pMPIdata->GapUpdateFactorCnt = 0;
 			return TOK_WAITRX;// Send an FDL Status request to the next GAP
@@ -2449,13 +2450,13 @@ unsigned char mTokTxFrame(struct s_MPIdata *pMPIdata)
 void mTokStartTimeoutTok(struct s_MPIdata *pMPIdata)
 {
 	UltiUART1_StartTimer(pMPIdata, EV_TOK_TIMEOUT_TOK, pMPIdata->tokTimeout); //guard timeout
-	//  dumpInteger("TOKEN TIMEOUT", tokTimeout);
+//  dumpInteger("TOKEN TIMEOUT", tokTimeout);
+//        pMPIdata->PassTokenReply = 0;
 }
 
 void StopTimeoutTok(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->UltiUart1_TxTimeout == EV_TOK_TIMEOUT_TOK)
-	{
+	if (pMPIdata->UltiUart1_TxTimeout == EV_TOK_TIMEOUT_TOK){
 		pMPIdata->PassTokenReply = 0;
 		UltiUart1_StopTimer(pMPIdata);
 	}
@@ -2478,10 +2479,9 @@ void mTokStopTimeoutTok(struct s_MPIdata *pMPIdata)
 
 void StopTimeoutAck(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->UltiUart1_TxTimeout == EV_BRC_ACK_TIMEOUT)
-	{
+	if (pMPIdata->UltiUart1_TxTimeout == EV_BRC_ACK_TIMEOUT){
 		UltiUart1_StopTimer(pMPIdata);
-	}
+    }
 }
 
 void mTokStartTimeout10(struct s_MPIdata *pMPIdata)
@@ -2500,10 +2500,9 @@ void mTokStartSelfTokTimeout(struct s_MPIdata *pMPIdata)
 unsigned char mTokCheckReply(struct s_MPIdata *pMPIdata)
 {
 	//Sessione Slave - Su EOTX di ACK
-	if (pMPIdata->ReadyForConfigMode == 2)
-	{
+	if (pMPIdata->ReadyForConfigMode == 2){
 		pMPIdata->ReadyForConfigMode = 3;
-		return TOK_IDLE;
+        return TOK_IDLE;
 	}
 
 	if (pMPIdata->LgfSessReqPending || pMPIdata->LgsSessReqPending || pMPIdata->J0sSessReqPending || pMPIdata->JbsSessReqPending) {
@@ -2511,39 +2510,34 @@ unsigned char mTokCheckReply(struct s_MPIdata *pMPIdata)
 			pMPIdata->CurrentShortAck = SKIP;
 			if (PassToken(pMPIdata))
 				return TOK_WAITRX;// Pass Token
-			return GotoActiveIdle(pMPIdata);
+            return GotoActiveIdle(pMPIdata);
 		}
 	}
 
 	//Session Master
-	if (pMPIdata->SessionStarted)
-	{
+	if (pMPIdata->SessionStarted){
 		pMPIdata->SessReqPending = false;
 		pMPIdata->SessionStarted = false;
 		UltiUART1_StartTimer(pMPIdata, EV_BRC_ACK_TIMEOUT, pMPIdata->ackGuardTime); //timeout di guardia
-		return TOK_WAITSESSRX;
+        return TOK_WAITSESSRX;
 	}
 
-	if (pMPIdata->Sd1RespGuard)
-	{
+	if (pMPIdata->Sd1RespGuard){
 		pMPIdata->Sd1RespGuard = 0;
-		return TOK_WAITRX;
+        return TOK_WAITRX;
 	}
-
-	//it's a pass token
-	if (pMPIdata->PassTokenReply > 0)
-	{
-		mTokStartTimeoutTok(pMPIdata);
-		return TOK_WAITRX;
-	}
-	if (pMPIdata->shortACK_EOTEvent)
-	{
-		pMPIdata->shortACK_EOTEvent = 0;
-		mTokStartTimeoutTok(pMPIdata);
-		return TOK_WAITRX;
-	}
+    //it's a pass token
+    if (pMPIdata->PassTokenReply > 0){
+        mTokStartTimeoutTok(pMPIdata);
+        return TOK_WAITRX;
+    }
+    if (pMPIdata->shortACK_EOTEvent){
+        pMPIdata->shortACK_EOTEvent = 0;
+        mTokStartTimeoutTok(pMPIdata);
+        return TOK_WAITRX;
+    }
 	mTokStartFDLTimeout(pMPIdata);
-	return TOK_WAITFDLSTATUS;
+    return TOK_WAITFDLSTATUS;
 }
 
 void mTokReloadTimer(struct s_MPIdata *pMPIdata)
@@ -2553,20 +2547,15 @@ void mTokReloadTimer(struct s_MPIdata *pMPIdata)
 unsigned char mTokWaitSessRx(struct s_MPIdata *pMPIdata, int stat)
 {
 	StopTimeoutAck(pMPIdata);
-	if (stat)
-	{
+	if (stat){
 #ifdef RETRY_IN_SAME_TOKEN
-		if (++pMPIdata->JobRetry < NR_JOB_RETRY)
-		{
-			if (pMPIdata->job_state == JOB_WAITSHORTACK)
-			{
+		if (++pMPIdata->JobRetry < NR_JOB_RETRY){
+			if (pMPIdata->job_state == JOB_WAITSHORTACK){
 				RtlCopyMemory(pMPIdata->FrameSessionSendBuffer, pMPIdata->FrameJobSessionBuff, pMPIdata->FrameJobSessionLen);   //MG001
 				pMPIdata->FrameSessionSendLength =pMPIdata->FrameJobSessionLen;                               //MG001
 				pMPIdata->JobSessReqPending = true;
 				pMPIdata->SessReqPending    = true;
-			}
-			else
-			{
+            }else{
 				//retransmit previous Job number
 				if (pMPIdata->StationStatus[pMPIdata->Last_DA].Job == 1)
 					pMPIdata->StationStatus[pMPIdata->Last_DA].Job = 0xFF;
@@ -2588,34 +2577,31 @@ unsigned char mTokWaitSessRx(struct s_MPIdata *pMPIdata, int stat)
 				pMPIdata->FrameSessionSendLength = JOBACTION_ACK_LEN;
 				//Calcola FCS
 				CalcCheckSum(pMPIdata->FrameSessionSendBuffer, 4, pMPIdata->FrameSessionSendLength - 2);
-				if (pMPIdata->StationStatus[pMPIdata->Last_DA].Job == 0xFF) pMPIdata->StationStatus[pMPIdata->Last_DA].Job = 1;
-				else pMPIdata->StationStatus[pMPIdata->Last_DA].Job++;
+                if (pMPIdata->StationStatus[pMPIdata->Last_DA].Job == 0xFF)
+                    pMPIdata->StationStatus[pMPIdata->Last_DA].Job = 1;
+                else
+                    pMPIdata->StationStatus[pMPIdata->Last_DA].Job++;
 				pMPIdata->SessReqPending = true;
 			}
 			//resend
 			return mTokTxFrame(pMPIdata);
-		}
-		else {
+        }else{
 			ResetLastDAStation(pMPIdata);
 			ev_post(pMPIdata, EV_SES_ERR);
 		}
 #else
 		ev_post(pMPIdata, EV_SES_RETRY);
 #endif
-	}
-	else
+    }else
 		ev_post(pMPIdata, EV_SES_ACK);
 
 	//Pass Token
-	{
-		if (PassToken(pMPIdata))
-		{
-			pMPIdata->FlagPassToken = 1;
-			return TOK_WAITSESSRX;
-		}
-	}
-	pMPIdata->FlagPassToken = 0;
-	return GotoActiveIdle(pMPIdata);
+    if (PassToken(pMPIdata)){
+        pMPIdata->FlagPassToken = 1;
+        return TOK_WAITSESSRX;
+    }
+    pMPIdata->FlagPassToken = 0;
+    return GotoActiveIdle(pMPIdata);
 }
 
 #ifdef MANAGE_RR_ANSWERS
@@ -2642,33 +2628,30 @@ unsigned char mTokWaitSessRxSD1(struct s_MPIdata *pMPIdata)
 	StopTimeoutAck(pMPIdata);
 
 	if (pMPIdata->FrameSessionReceiveBuffer[3] == (FCST_MSIR | RFC_TTNAK) ||  /* Master in for ring + NAK no resource */
-			pMPIdata->FrameSessionReceiveBuffer[3] == (FCST_MSIR | RFC_RS_NAK))   /* Master in for ring + NAK no service activated */
-	{
+            pMPIdata->FrameSessionReceiveBuffer[3] == (FCST_MSIR | RFC_RS_NAK)){   /* Master in for ring + NAK no service activated */
 		mExitFromRing(pMPIdata);
-		return TOK_IDLE;
+        UltiUART1_StartTimer(pMPIdata, EV_TOK_RUN,1000*1000);
+        return TOK_IDLE;
 	}
 
 	ev_post(pMPIdata, EV_SES_ERR);
 	//Pass Token
-	if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest)
-	{
-		if (PassToken(pMPIdata))
-		{
+	if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest){
+		if (PassToken(pMPIdata)){
 			pMPIdata->FlagPassToken = 1;
 			return TOK_WAITSESSRX;
 		}
 	}
 	pMPIdata->FlagPassToken = 0;
-	return GotoActiveIdle(pMPIdata);
+    return GotoActiveIdle(pMPIdata);
 }
 //MG001 end
 
 unsigned char mTokCheckGuard(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->FlagPassToken)
-	{
+	if (pMPIdata->FlagPassToken){
 		pMPIdata->FlagPassToken = 0;
-		mTokStartTimeoutTok(pMPIdata);
+        mTokStartTimeoutTok(pMPIdata);
 		return TOK_WAITRX;
 	}
 	return TOK_WAITSESSRX;
@@ -2688,12 +2671,10 @@ unsigned char mTokPassToken(struct s_MPIdata *pMPIdata)
 
 unsigned char mTokCheckFDLStatusResp(struct s_MPIdata *pMPIdata)
 {
-	if ((pMPIdata->Source == pMPIdata->NextGAP) && (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest))
-	{
+	if ((pMPIdata->Source == pMPIdata->NextGAP) && (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest)){
 		// Copy the station type from the StationType bits in the FC
 		// to our internal variable
-		pMPIdata->StationStatus[pMPIdata->Source].StationType =
-				(pMPIdata->FrameSessionReceiveBuffer[3] & FCMSK_ST) >> 4;
+        pMPIdata->StationStatus[pMPIdata->Source].StationType =	(pMPIdata->FrameSessionReceiveBuffer[3] & FCMSK_ST) >> 4;
 
 		pMPIdata->NextStation = pMPIdata->Source;
 		pMPIdata->StationStatus[pMPIdata->Source].StationType = 3;
@@ -2731,8 +2712,7 @@ unsigned char mTokSendFDLStatus(struct s_MPIdata *pMPIdata)
 {
 	signed char nxtgap;
 
-	if (pMPIdata->cnt++ == 255)//to recovery error
-	{
+    if (pMPIdata->cnt++ == 255){//to recovery error
 		ResetStations(pMPIdata);
 		pMPIdata->cnt = 0;
 	}
@@ -2744,8 +2724,7 @@ unsigned char mTokSendFDLStatus(struct s_MPIdata *pMPIdata)
 
 unsigned char mTokCheckResp(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->FlagSendSelfToken)
-	{
+	if (pMPIdata->FlagSendSelfToken){
 		pMPIdata->FlagSendSelfToken = 0;
 		mTokStartSelfTokTimeout(pMPIdata);
 		return TOK_SELFTOKEN;
@@ -2764,16 +2743,17 @@ void mTokSelfToken(struct s_MPIdata *pMPIdata)
 
 void mTokSendFDLStatusRsp(struct s_MPIdata *pMPIdata)
 {
-	if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest)
-	{
-		if (pMPIdata->cnt++ > 5)//to avoid dead lock
-		{
+	if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest){
+        if (pMPIdata->cnt++ > 5){ //to avoid dead lock
 			pMPIdata->cnt = 0;
 			mTokStartTimeout10(pMPIdata);
 			return;
 		}
-
-		dumpDebug("mTokSendFDLStatusRsp");
+#ifdef DBG_IN_KERN
+        dbg_trig = 0;
+        printk("PREPARING FDL RESPONSE 002 RING=%d\n", (pMPIdata->AreWeInRing)?1:0);
+#endif
+        dumpDebug("mTokSendFDLStatusRsp");
 		pMPIdata->NextGAP = pMPIdata->FrameUniopNodeNum;
 		pMPIdata->FrameSendBuffer[0] = D_SD1;
 		pMPIdata->FrameSendBuffer[1] = pMPIdata->Source;
@@ -3243,120 +3223,130 @@ unsigned char ev_get(struct s_MPIdata *pMPIdata)
 
 void Token(struct s_MPIdata *pMPIdata)
 {
-	unsigned char next_state = _NULL;
-	unsigned char last_state = pMPIdata->tok_state;
+    unsigned char next_state = _NULL;
+    unsigned char last_state = pMPIdata->tok_state;
 #if EVENTLOG
 #if !SHORT_FORM
-	unsigned char s[80];
+    unsigned char s[80];
 #endif
 #endif
-	switch (pMPIdata->tok_state)
-	{
-		case TOK_IDLE:
-			switch (pMPIdata->event) {
-				case EV_BRC_ENABLE:
-					next_state = TOK_IDLE; break;
-				case EV_TOK_RUN:
-					mTokListenTokenStartTimeout(pMPIdata);next_state = TOK_LISTENTOKEN; break;
-			} break;
-		case TOK_LISTENTOKEN:
-			switch (pMPIdata->event) {
-				case EV_BRC_TOK:
-					//printk("MPI: TOK rec in TOK_LISTENTOKEN\n");
-					mTokListenTokenStartTimeout(pMPIdata);next_state = mTokListenToken(pMPIdata); break;//MG001
-				case EV_BRC_SD1:
-					mTokListenTokenStartTimeout(pMPIdata);next_state = mTokListenToken(pMPIdata); break;//MG001
-				case EV_TOK_TIMEOUT:
-					mTokSendSelfToken(pMPIdata);next_state = TOK_LISTENTOKEN; break;
-				case EV_BRC_EOTX:
-					mTokStartSelfTokTimeout(pMPIdata);next_state = TOK_SELFTOKEN; break;
-			} break;
-		case TOK_SELFTOKEN:
-			switch (pMPIdata->event) {
-				case EV_TOK_SELFTOK_TIMEOUT : next_state = mTokSendFDLStatus(pMPIdata); break;
-				case EV_BRC_EOTX : mTokStartFDLTimeout(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break;
-				case EV_BRC_TOK :
-					//printk("MPI: TOK rec in TOK_SELFTOKEN\n");
-					mTokFSMRestart(pMPIdata);next_state = TOK_ACTIVEIDLE; break;//MG002
-			} break;
-		case TOK_WAITFDLSTATUS2:
-			switch (pMPIdata->event) {
-				case EV_TOK_FDLTIMEOUT : mTokSendSelfToken(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break;
-				case EV_BRC_EOTX : next_state = mTokCheckResp(pMPIdata); break;
-				case EV_BRC_SD1 : mTokSD1Resp(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break;
-				case EV_BRC_TOK :
-					//printk("MPI: TOK rec in TOK_WAITFDLSTATUS2\n");
-					mTokFSMRestart(pMPIdata);next_state = TOK_ACTIVEIDLE; break;//MG002
-			} break;
-		case TOK_ACTIVEIDLE:
-			switch (pMPIdata->event) {
-				case EV_BRC_SD1:
-					mTokActiveIdle(pMPIdata);next_state = TOK_ACTIVEIDLE; break;
-				case EV_BRC_EOTX:
-					next_state = TOK_WAITRX; break; //MG001
-				case EV_BRC_TOK:
-					//printk("MPI: TOK rec in TOK_ACTIVEIDLE\n");
-					mTokStartTimeout10(pMPIdata);next_state = TOK_ACTIVEIDLE; break;   //MG001
-				case EV_SES_SD2:
-					mTokStartTimeout10(pMPIdata);next_state = TOK_ACTIVEIDLE; break;   //MG001
-				case EV_TOK_TIMEOUT:
-					mTokSelfToken(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break; //MG002
-			} break;
-		case TOK_TOKEN_RETRY:
-			switch (pMPIdata->event) {
-				case EV_BRC_EOTX : mTokStartTimeoutTok(pMPIdata);next_state = TOK_WAITRX; break;
-				case EV_BRC_TOK :
-					//printk("MPI: TOK rec in TOK_TOKEN_RETRY\n");
-					next_state = TOK_ACTIVEIDLE; break;
-			} break;
-		case TOK_WAITRX:
-			switch (pMPIdata->event) {
-				case EV_BRC_SD1 : mTokListenTokenStartTimeout(pMPIdata);mTokSendFDLStatusRsp(pMPIdata);next_state = TOK_WAITRX; break;   //MG001
-				case EV_SES_SD2 : mTokListenTokenStartTimeout(pMPIdata);next_state = TOK_WAITRX; break;        //MG001
-				case EV_BRC_TOK : next_state = mTokTxFrame(pMPIdata); break;
-				case EV_BRC_EOTX : next_state = mTokCheckReply(pMPIdata); break;
-				case EV_TOK_TIMEOUT_TOK : next_state = mTokPassToken1(pMPIdata); break;
-				case EV_TOK_TIMEOUT : mTokSelfToken(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break; //MG002
-			} break;
-		case TOK_WAITFDLSTATUS:
-			switch (pMPIdata->event) {
-				case EV_TOK_FDLTIMEOUT : next_state = mTokPassToken(pMPIdata); break;
-				case EV_BRC_EOTX : mTokStartTimeoutTok(pMPIdata);next_state = TOK_WAITRX; break;
-				case EV_BRC_SD1 : next_state = mTokCheckFDLStatusResp(pMPIdata); break;
-				case EV_BRC_TOK :
-					//printk("MPI: TOK rec in TOK_WAIT_FDLSTATUS\n");
-					next_state = mTokListenToken(pMPIdata); break;
-			} break;
-		case TOK_WAITSESSRX:
-			switch (pMPIdata->event) {
-				case EV_BRC_ACK : next_state = mTokWaitSessRx(pMPIdata, 0); break;
-				case EV_BRC_SD1 : next_state = mTokWaitSessRxSD1(pMPIdata); break;
-				case EV_BRC_EOTX : next_state = mTokCheckGuard(pMPIdata); break;
-				case EV_BRC_ACK_TIMEOUT: next_state = mTokWaitSessRx(pMPIdata, 1);  break;
+    if (pMPIdata->exitReq){
+        mExitFromRing(pMPIdata);
+        pMPIdata->exitReq = false;
+        pMPIdata->UltiUart1_TxTimeout = EV__NULL;
+        pMPIdata->event = EV_BRC_ENABLE;
+    }
+
+    switch (pMPIdata->tok_state)
+    {
+    case TOK_IDLE:
+        switch (pMPIdata->event) {
+        case EV_BRC_ENABLE: next_state = TOK_IDLE; break;
+        case EV_TOK_RUN: mTokListenTokenStartTimeout(pMPIdata);next_state = TOK_LISTENTOKEN; break;
+        } break;
+    case TOK_LISTENTOKEN:
+        switch (pMPIdata->event) {
+        case EV_BRC_TOK: mTokListenTokenStartTimeout(pMPIdata);next_state = mTokListenToken(pMPIdata); break;//MG001
+        case EV_BRC_SD1: mTokListenTokenStartTimeout(pMPIdata);next_state = TOK_LISTENTOKEN; break;//MG001
+        case EV_TOK_TIMEOUT: mTokSendSelfToken(pMPIdata);next_state = TOK_LISTENTOKEN; break;
+        case EV_BRC_EOTX: mTokStartSelfTokTimeout(pMPIdata);next_state = TOK_SELFTOKEN; break;
+        } break;
+    case TOK_SELFTOKEN:
+        switch (pMPIdata->event) {
+        case EV_TOK_SELFTOK_TIMEOUT: next_state = mTokSendFDLStatus(pMPIdata); break;
+        case EV_BRC_EOTX: mTokStartFDLTimeout(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break;
+        case EV_BRC_TOK: mTokFSMRestart(pMPIdata);next_state = TOK_ACTIVEIDLE; break;//MG002
+        } break;
+    case TOK_WAITFDLSTATUS2:
+        switch (pMPIdata->event) {
+        case EV_TOK_FDLTIMEOUT: mTokSendSelfToken(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break;
+        case EV_BRC_EOTX: next_state = mTokCheckResp(pMPIdata); break;
+        case EV_BRC_SD1: pMPIdata->ev_after_delay = pMPIdata->event;UltiUART1_StartTimer(pMPIdata, EV__SEND_DELAY, SEND_DELAY_TIME);next_state = pMPIdata->tok_state; break;
+        case EV__SEND_DELAY:
+            switch(pMPIdata->ev_after_delay){
+            case EV_BRC_SD1: mTokSD1Resp(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break;
+            }break;
+        case EV_BRC_TOK: mTokFSMRestart(pMPIdata);mTokStartTimeoutTok(pMPIdata);next_state = TOK_ACTIVEIDLE; break;//MG002
+        } break;
+    case TOK_ACTIVEIDLE:
+        switch (pMPIdata->event) {
+        case EV_BRC_SD1: pMPIdata->ev_after_delay = pMPIdata->event;UltiUART1_StartTimer(pMPIdata, EV__SEND_DELAY, SEND_DELAY_TIME);next_state = pMPIdata->tok_state; break;
+        case EV__SEND_DELAY :
+            switch(pMPIdata->ev_after_delay){
+            case EV_BRC_SD1: mTokActiveIdle(pMPIdata);next_state = TOK_ACTIVEIDLE; break;
+            }break;
+        case EV_BRC_TOK: mTokStartTimeout10(pMPIdata);next_state = TOK_ACTIVEIDLE; break;   //MG001
+        case EV_SES_SD2: mTokStartTimeout10(pMPIdata);next_state = TOK_ACTIVEIDLE; break;   //MG001
+        case EV_BRC_EOTX: next_state = TOK_WAITRX; break; //MG001
+        case EV_TOK_TIMEOUT: mTokSelfToken(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break; //MG002
+        } break;
+    case TOK_TOKEN_RETRY:
+        switch (pMPIdata->event) {
+        case EV_BRC_EOTX: mTokStartTimeoutTok(pMPIdata);next_state = TOK_WAITRX; break;
+        case EV_BRC_TOK: next_state = TOK_ACTIVEIDLE; break;
+        } break;
+    case TOK_WAITRX:
+        switch (pMPIdata->event) {
+        case EV_BRC_SD1:
+        case EV_BRC_TOK:
+            pMPIdata->ev_after_delay = pMPIdata->event;UltiUART1_StartTimer(pMPIdata, EV__SEND_DELAY, SEND_DELAY_TIME);next_state = pMPIdata->tok_state; break;
+        case EV__SEND_DELAY:
+            switch(pMPIdata->ev_after_delay){
+            case EV_BRC_SD1: mTokListenTokenStartTimeout(pMPIdata);mTokSendFDLStatusRsp(pMPIdata);next_state = TOK_WAITRX; break;   //MG001
+            case EV_BRC_TOK: next_state = mTokTxFrame(pMPIdata); break;
+            }break;
+        case EV_SES_SD2: mTokListenTokenStartTimeout(pMPIdata);next_state = pMPIdata->tok_state; break;        //MG001
+        case EV_BRC_EOTX: next_state = mTokCheckReply(pMPIdata); break;
+        case EV_TOK_TIMEOUT_TOK: next_state = mTokPassToken1(pMPIdata); break;
+        case EV_TOK_TIMEOUT: mTokSelfToken(pMPIdata);next_state = TOK_WAITFDLSTATUS2; break; //MG002
+        } break;
+    case TOK_WAITFDLSTATUS:
+        switch (pMPIdata->event) {
+        case EV_BRC_SD1:
+        case EV_BRC_TOK:
+            pMPIdata->ev_after_delay = pMPIdata->event;UltiUART1_StartTimer(pMPIdata, EV__SEND_DELAY, SEND_DELAY_TIME);next_state = pMPIdata->tok_state; break;
+        case EV__SEND_DELAY:
+            switch(pMPIdata->ev_after_delay){
+            case EV_BRC_SD1: next_state = mTokCheckFDLStatusResp(pMPIdata); break;
+            case EV_BRC_TOK: next_state = mTokListenToken(pMPIdata); break;
+            }break;
+        case EV_TOK_FDLTIMEOUT: next_state = mTokPassToken(pMPIdata); break;
+        case EV_BRC_EOTX: mTokStartTimeoutTok(pMPIdata);next_state = TOK_WAITRX; break;
+        } break;
+    case TOK_WAITSESSRX:
+        switch (pMPIdata->event) {
+        case EV_BRC_ACK:
+            pMPIdata->ev_after_delay = pMPIdata->event;UltiUART1_StartTimer(pMPIdata, EV__SEND_DELAY, SEND_DELAY_TIME);next_state = pMPIdata->tok_state; break;
+        case EV__SEND_DELAY:
+            switch(pMPIdata->ev_after_delay){
+            case EV_BRC_ACK: next_state = mTokWaitSessRx(pMPIdata, 0); break;
+            }break;
+        case EV_BRC_SD1: next_state = mTokWaitSessRxSD1(pMPIdata); break;
+        case EV_BRC_EOTX: next_state = mTokCheckGuard(pMPIdata); break;
+        case EV_BRC_ACK_TIMEOUT: next_state = mTokWaitSessRx(pMPIdata, 1);  break;
 #ifdef MANAGE_RR_ANSWERS
-				case EV_BRC_SDX: next_state = mTokAnswerRR(pMPIdata);  break;
+        case EV_BRC_SDX: next_state = mTokAnswerRR(pMPIdata);  break;
 #endif
-			} break;
+        } break;
 	}
-	if (next_state != _NULL)
-	{
-#if EVENTLOG
-#if SUBSET_EVENTLOG
-		if (msgEventsLog[event]) {
-#endif
-#if SHORT_FORM
-			dbg_byte = tok_state+LOG_STATE_OFFSET;
-			UltiUART2_FifoWrite(&dbg_byte, 1);
-			dbg_byte = next_state+LOG_STATE_OFFSET;
-			UltiUART2_FifoWrite(&dbg_byte, 1);
-#else
-			sprintf(s, "(%s)->(%s)", msgStates[tok_state], msgStates[next_state]);
-			DbgStrPrint(s);
-#endif
-#if SUBSET_EVENTLOG
-		}
-#endif
-#endif
+    if (next_state != _NULL){
+		#if EVENTLOG
+		  #if SUBSET_EVENTLOG
+			if (msgEventsLog[event]) {
+		  #endif
+		   #if SHORT_FORM
+				dbg_byte = tok_state+LOG_STATE_OFFSET;
+				UltiUART2_FifoWrite(&dbg_byte, 1);
+				dbg_byte = next_state+LOG_STATE_OFFSET;
+				  UltiUART2_FifoWrite(&dbg_byte, 1);
+			#else
+					sprintf(s, "(%s)->(%s)", msgStates[tok_state], msgStates[next_state]);
+				   DbgStrPrint(s);
+			#endif
+			#if SUBSET_EVENTLOG
+			 }
+		#endif
+		#endif
 		pMPIdata->tok_state = next_state;
 		DBGReg(pMPIdata->event, last_state, pMPIdata->tok_state);
 	}
@@ -3423,48 +3413,48 @@ void Log(struct s_MPIdata *pMPIdata)
 #endif
 #endif
 	switch (pMPIdata->log_state) {
-		case LOG_IDLE:
-			switch (pMPIdata->event) {
-				case EV_BRC_ENABLE : next_state = LOG_IDLE; break;
-				case EV_LOG_RUN : next_state = LOG_RUN; break;
-			} break;
-		case LOG_RUN:
-			switch (pMPIdata->event) {
-				case EV_LOG_START : mLogSendSAPReqFrame(pMPIdata);next_state = LOG_WAITSAPREQACK; break;
-					//case EV_SES_SD2 : next_state = LOG_RUN; break;
-			} break;
-		case LOG_WAITSAPREQACK:
-			switch (pMPIdata->event) {
-				case EV_SES_SD2 : next_state = mLogCheckLogOff(pMPIdata); break;
-				case EV_SES_ACK : next_state = LOG_WAITSAPRSP; break;
-					//MG003 case EV_SES_ERR : mLogAbortSession();next_state = LOG_RUN; break;
-					//MG003 case EV_BRC_APPL_TIMEOUT : mLogAbortSession();next_state = LOG_RUN; break;
-				case EV_SES_ERR : next_state = mLogAbortSession(pMPIdata); break;//MG003
-				case EV_BRC_APPL_TIMEOUT : next_state = mLogAbortSession(pMPIdata); break;//MG003
-			} break;
-		case LOG_WAITSAPRSP:
-			switch (pMPIdata->event) {
-				case EV_SES_SD2 : next_state = mLogSendRespAck(pMPIdata); break;
-					//MG003 case EV_BRC_APPL_TIMEOUT : mLogAbortSession();next_state = LOG_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : next_state = mLogAbortSession(pMPIdata); break;//MG003
-			} break;
-		case LOG_WAITSAPRSPACK:
-			switch (pMPIdata->event) {
-				case EV_SES_SD2 : next_state = mLogCheckLogOff(pMPIdata); break;
-				case EV_SES_ACK : next_state = LOG_WAITACKSAPRSPACK; break;
-					//MG003 case EV_SES_ERR : mLogAbortSession();next_state = LOG_RUN  ; break;
-					//MG003 case EV_BRC_APPL_TIMEOUT : mLogAbortSession();next_state = LOG_RUN ; break;
-				case EV_SES_ERR : next_state = mLogAbortSession(pMPIdata); break;//MG003
-				case EV_BRC_APPL_TIMEOUT : next_state = mLogAbortSession(pMPIdata); break;//MG003
-			} break;
-		case LOG_WAITACKSAPRSPACK:
-			switch (pMPIdata->event) {
-				case EV_SES_SD2 : next_state = mLogWaitAckRespAck(pMPIdata); break;
-					//MG003 case EV_SES_ERR : mLogAbortSession();next_state = LOG_RUN         ; break;
-					//MG003 case EV_BRC_APPL_TIMEOUT : mLogAbortSession();next_state = LOG_RUN  ; break;
-				case EV_SES_ERR : next_state = mLogAbortSession(pMPIdata); break;//MG003
-				case EV_BRC_APPL_TIMEOUT : next_state = mLogAbortSession(pMPIdata);break;//MG003
-			} break;
+    case LOG_IDLE:
+        switch (pMPIdata->event) {
+        case EV_BRC_ENABLE : next_state = LOG_IDLE; break;
+        case EV_LOG_RUN : next_state = LOG_RUN; break;
+        } break;
+    case LOG_RUN:
+        switch (pMPIdata->event) {
+        case EV_LOG_START : mLogSendSAPReqFrame(pMPIdata);next_state = LOG_WAITSAPREQACK; break;
+        //case EV_SES_SD2 : next_state = LOG_RUN; break;
+        } break;
+    case LOG_WAITSAPREQACK:
+        switch (pMPIdata->event) {
+        case EV_SES_SD2 : next_state = mLogCheckLogOff(pMPIdata); break;
+        case EV_SES_ACK : next_state = LOG_WAITSAPRSP; break;
+        //MG003 case EV_SES_ERR : mLogAbortSession();next_state = LOG_RUN; break;
+        //MG003 case EV_BRC_APPL_TIMEOUT : mLogAbortSession();next_state = LOG_RUN; break;
+        case EV_SES_ERR : next_state = mLogAbortSession(pMPIdata); break;//MG003
+        case EV_BRC_APPL_TIMEOUT : next_state = mLogAbortSession(pMPIdata); break;//MG003
+        } break;
+    case LOG_WAITSAPRSP:
+        switch (pMPIdata->event) {
+        case EV_SES_SD2 : next_state = mLogSendRespAck(pMPIdata); break;
+        //MG003 case EV_BRC_APPL_TIMEOUT : mLogAbortSession();next_state = LOG_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : next_state = mLogAbortSession(pMPIdata); break;//MG003
+        } break;
+    case LOG_WAITSAPRSPACK:
+        switch (pMPIdata->event) {
+        case EV_SES_SD2 : next_state = mLogCheckLogOff(pMPIdata); break;
+        case EV_SES_ACK : next_state = LOG_WAITACKSAPRSPACK; break;
+        //MG003 case EV_SES_ERR : mLogAbortSession();next_state = LOG_RUN  ; break;
+        //MG003 case EV_BRC_APPL_TIMEOUT : mLogAbortSession();next_state = LOG_RUN ; break;
+        case EV_SES_ERR : next_state = mLogAbortSession(pMPIdata); break;//MG003
+        case EV_BRC_APPL_TIMEOUT : next_state = mLogAbortSession(pMPIdata); break;//MG003
+        } break;
+    case LOG_WAITACKSAPRSPACK:
+        switch (pMPIdata->event) {
+        case EV_SES_SD2 : next_state = mLogWaitAckRespAck(pMPIdata); break;
+        //MG003 case EV_SES_ERR : mLogAbortSession();next_state = LOG_RUN         ; break;
+        //MG003 case EV_BRC_APPL_TIMEOUT : mLogAbortSession();next_state = LOG_RUN  ; break;
+        case EV_SES_ERR : next_state = mLogAbortSession(pMPIdata); break;//MG003
+        case EV_BRC_APPL_TIMEOUT : next_state = mLogAbortSession(pMPIdata);break;//MG003
+        } break;
 	}
 	if (next_state != _NULL) {
 #if EVENTLOG
@@ -3500,43 +3490,43 @@ void Job0(struct s_MPIdata *pMPIdata)
 #endif
 #endif
 	switch (pMPIdata->jb0_state) {
-		case JB0_IDLE:
-			switch (pMPIdata->event) {
-				case EV_BRC_ENABLE : next_state = JB0_IDLE; break;
-				case EV_JB0_RUN : next_state = JB0_RUN; break;
-			} break;
-		case JB0_RUN:
-			switch (pMPIdata->event) {
-				case EV_JB0_SEND_REQ : mJob0SendReq(pMPIdata);next_state = JB0_WAITSHORTACK0; break;
-			} break;
-		case JB0_WAITSHORTACK0:
-			switch (pMPIdata->event) {
-				case EV_LOG_OFF : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-				case EV_SES_ACK : next_state = JB0_WAITJOBACK0; break;
-				case EV_SES_ERR : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-			} break;
-		case JB0_WAITJOBACK0:
-			switch (pMPIdata->event) {
-				case EV_LOG_OFF : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-				case EV_SES_SD2 : next_state = mJob0SendShortAck(pMPIdata); break;
-				case EV_SES_ERR : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-			} break;
-		case JB0_WAITJOBRESP0:
-			switch (pMPIdata->event) {
-				case EV_LOG_OFF : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-				case EV_SES_SD2 : next_state = mJob0SendJobAck(pMPIdata); break;
-				case EV_SES_ERR : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-			} break;
-		case JB0_WAITSHORTACK02:
-			switch (pMPIdata->event) {
-				case EV_LOG_OFF : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-				case EV_SES_ACK : mJob0Ok(pMPIdata);next_state = JB0_RUN; break;
-				case EV_SES_ERR : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
-			} break;
+    case JB0_IDLE:
+        switch (pMPIdata->event) {
+        case EV_BRC_ENABLE : next_state = JB0_IDLE; break;
+        case EV_JB0_RUN : next_state = JB0_RUN; break;
+        } break;
+    case JB0_RUN:
+        switch (pMPIdata->event) {
+        case EV_JB0_SEND_REQ : mJob0SendReq(pMPIdata);next_state = JB0_WAITSHORTACK0; break;
+        } break;
+    case JB0_WAITSHORTACK0:
+        switch (pMPIdata->event) {
+        case EV_LOG_OFF : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        case EV_SES_ACK : next_state = JB0_WAITJOBACK0; break;
+        case EV_SES_ERR : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        } break;
+    case JB0_WAITJOBACK0:
+        switch (pMPIdata->event) {
+        case EV_LOG_OFF : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        case EV_SES_SD2 : next_state = mJob0SendShortAck(pMPIdata); break;
+        case EV_SES_ERR : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        } break;
+    case JB0_WAITJOBRESP0:
+        switch (pMPIdata->event) {
+        case EV_LOG_OFF : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        case EV_SES_SD2 : next_state = mJob0SendJobAck(pMPIdata); break;
+        case EV_SES_ERR : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        } break;
+    case JB0_WAITSHORTACK02:
+        switch (pMPIdata->event) {
+        case EV_LOG_OFF : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        case EV_SES_ACK : mJob0Ok(pMPIdata);next_state = JB0_RUN; break;
+        case EV_SES_ERR : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : mJob0ApplicationResponseErr(pMPIdata);next_state = JB0_RUN; break;
+        } break;
 	}
 	if (next_state != _NULL) {
 #if EVENTLOG
@@ -3572,49 +3562,49 @@ void Job(struct s_MPIdata *pMPIdata)
 #endif
 #endif
 	switch (pMPIdata->job_state) {
-		case JOB_IDLE:
-			switch (pMPIdata->event) {
-				case EV_BRC_ENABLE : next_state = JOB_IDLE; break;
-				case EV_JOB_RUN : next_state = JOB_RUN; break;
-			} break;
-		case JOB_RUN:
-			switch (pMPIdata->event) {
-				case EV_JOB_SEND_REQ : mJobSendReq(pMPIdata);next_state = JOB_WAITSHORTACK; break;
-			} break;
-		case JOB_WAITSHORTACK:
-			switch (pMPIdata->event) {
-				case EV_LOG_OFF : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_SES_ACK : next_state = JOB_WAITJOBACK; break;
-				case EV_SES_ERR : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_BRC_STOP_SESS : mJobStopSess(pMPIdata);next_state = JOB_RUN; break;
-				case EV_SES_RETRY : next_state = mJobRetryReq(pMPIdata); break;
-			} break;
-		case JOB_WAITJOBACK:
-			switch (pMPIdata->event) {
-				case EV_LOG_OFF : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_SES_SD2 : next_state = mJobSendShortAck(pMPIdata); break;
-				case EV_SES_ERR : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_BRC_STOP_SESS : mJobStopSess(pMPIdata);next_state = JOB_RUN; break;
-			} break;
-		case JOB_WAITJOBRESP:
-			switch (pMPIdata->event) {
-				case EV_LOG_OFF : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_SES_SD2 : next_state = mJobSendJobAck(pMPIdata); break;
-				case EV_SES_ERR : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_BRC_STOP_SESS : mJobStopSess(pMPIdata);next_state = JOB_RUN; break;
-			} break;
-		case JOB_WAITSHORTACK2:
-			switch (pMPIdata->event) {
-				case EV_LOG_OFF : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_SES_ACK : mJobApplicationResponse(pMPIdata);next_state = JOB_RUN; break;
-				case EV_SES_ERR : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_BRC_APPL_TIMEOUT : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
-				case EV_BRC_STOP_SESS : mJobStopSess(pMPIdata);next_state = JOB_RUN; break;
-				case EV_SES_RETRY : next_state = mJobRetryJobAck(pMPIdata); break;
-			} break;
+    case JOB_IDLE:
+        switch (pMPIdata->event) {
+        case EV_BRC_ENABLE : next_state = JOB_IDLE; break;
+        case EV_JOB_RUN : next_state = JOB_RUN; break;
+        } break;
+    case JOB_RUN:
+        switch (pMPIdata->event) {
+        case EV_JOB_SEND_REQ : mJobSendReq(pMPIdata);next_state = JOB_WAITSHORTACK; break;
+        } break;
+    case JOB_WAITSHORTACK:
+        switch (pMPIdata->event) {
+        case EV_LOG_OFF : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_SES_ACK : next_state = JOB_WAITJOBACK; break;
+        case EV_SES_ERR : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_BRC_STOP_SESS : mJobStopSess(pMPIdata);next_state = JOB_RUN; break;
+        case EV_SES_RETRY : next_state = mJobRetryReq(pMPIdata); break;
+        } break;
+    case JOB_WAITJOBACK:
+        switch (pMPIdata->event) {
+        case EV_LOG_OFF : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_SES_SD2 : next_state = mJobSendShortAck(pMPIdata); break;
+        case EV_SES_ERR : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_BRC_STOP_SESS : mJobStopSess(pMPIdata);next_state = JOB_RUN; break;
+        } break;
+    case JOB_WAITJOBRESP:
+        switch (pMPIdata->event) {
+        case EV_LOG_OFF : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_SES_SD2 : next_state = mJobSendJobAck(pMPIdata); break;
+        case EV_SES_ERR : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_BRC_STOP_SESS : mJobStopSess(pMPIdata);next_state = JOB_RUN; break;
+        } break;
+    case JOB_WAITSHORTACK2:
+        switch (pMPIdata->event) {
+        case EV_LOG_OFF : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_SES_ACK : mJobApplicationResponse(pMPIdata);next_state = JOB_RUN; break;
+        case EV_SES_ERR : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_BRC_APPL_TIMEOUT : mJobApplicationResponseErr(pMPIdata);next_state = JOB_RUN; break;
+        case EV_BRC_STOP_SESS : mJobStopSess(pMPIdata);next_state = JOB_RUN; break;
+        case EV_SES_RETRY : next_state = mJobRetryJobAck(pMPIdata); break;
+        } break;
 	}
 	if (next_state != _NULL) {
 #if EVENTLOG
@@ -3844,8 +3834,7 @@ void ev_move(struct s_MPIdata *pMPIdata, unsigned char ev)
 
 	ev_post(pMPIdata, ev);
 	pMPIdata->event = ev_get(pMPIdata);
-	while ( pMPIdata->event )
-	{
+	while ( pMPIdata->event ){
 #if EVENTLOG
 #if SUBSET_EVENTLOG
 		if (msgEventsLog[event])
@@ -3862,7 +3851,10 @@ void ev_move(struct s_MPIdata *pMPIdata, unsigned char ev)
 		}
 #endif
 #endif
-
+#ifdef DBG_IN_KERN
+        dbg_snd = 0;
+        dbg_lastTl = 0;
+#endif
 		Token(pMPIdata);
 		LogOff(pMPIdata);
 
@@ -3880,9 +3872,27 @@ void ev_move(struct s_MPIdata *pMPIdata, unsigned char ev)
 		Job0Slave(pMPIdata);
 		JobSlave(pMPIdata);
 #endif
-
-		if (pMPIdata->queue_empty)
-		{
+#ifdef DBG_IN_KERN
+        {
+            dbg_ev[dbg_idx] = pMPIdata->event;
+            dbg_tk[dbg_idx] = pMPIdata->tok_state;
+            dbg_sn[dbg_idx] = dbg_snd;
+            dbg_tm[dbg_idx] = ktime_get();
+            dbg_rx[dbg_idx] = dbg_lastRx;
+            dbg_to[dbg_idx] = pMPIdata->UltiUart1_TxTimeout;
+            dbg_rl[dbg_idx] = dbg_lastRl;
+            dbg_tl[dbg_idx] = dbg_lastTl;
+            dbg_lastRx = 0;
+            dbg_lastRl = 0;
+            if (++dbg_idx > sizeof(dbg_tk))
+                dbg_idx = 0;
+            if (dbg_tmtrig){
+                dbg_tmtrig = 0;
+                dumpLastTk();
+            }
+        }
+#endif
+		if (pMPIdata->queue_empty){
 			return;
 		}
 		pMPIdata->event = ev_get(pMPIdata);
@@ -3932,13 +3942,12 @@ void setRxFifoThrForMPI(struct imx_port *sport, int status)
 
 void MPIDriverOpen(struct s_MPIdata *pMPIdata, struct s_MPIparams init)
 {
-	if (pMPIdata->m_isOpen)
-	{
+	if (pMPIdata->m_isOpen){
 		pMPIdata->FrameUniopNodeNum = init.panelNode;	//????????????? do it in open
-		ResetStations(pMPIdata);
-	}
-	else
-	{
+        //ResetStations(pMPIdata);
+        mExitFromRing(pMPIdata);
+        UltiUART1_StartTimer(pMPIdata, EV_TOK_RUN, 100*1000);
+    }else{
 		pMPIdata->FrameUniopNodeNum = init.panelNode;	//????????????? do it in open
 		pMPIdata->MaxStationAddress = init.maxNode;
 		pMPIdata->applResponseTime = init.applTimeout;
@@ -3974,43 +3983,60 @@ void MPIDriverOpen(struct s_MPIdata *pMPIdata, struct s_MPIparams init)
 static void mpiReceiveFrame(struct s_MPIdata *pMPIdata, unsigned char *buf, unsigned int len)
 {
 	unsigned char l;
-	StopTimeoutTok(pMPIdata);
+    int eventDone = 0;
+    int spurious = 0;
 	while (len) {
-		switch (buf[0])
-		{
-			case D_SD1:
-				if (len < 6) {
-					len = 0;
-					break;
-				}
-				pMPIdata->FrameSessionReceiveLength = 6;
-				memcpy(pMPIdata->FrameSessionReceiveBuffer, buf, 6);
-				pMPIdata->Dest = buf[1];
-				pMPIdata->Source = buf[2];
-				DBGReg(255, D_SD1, MAKEWORD(pMPIdata->Source, pMPIdata->Dest));
-				pMPIdata->FlowCtrl = buf[3];
-				pMPIdata->StationStatus[pMPIdata->Source].IsActive = 1;
-#ifdef MANAGE_RR_ANSWERS
-				if (pMPIdata->Dest == pMPIdata->FrameUniopNodeNum && (pMPIdata->FlowCtrl & 0x4F) == 2)
-					ev_move(pMPIdata, EV_BRC_SDX);
-				else
+#ifdef DBG_IN_KERN
+        dbg_lastRx = buf[0];
+        dbg_lastRl = len;
 #endif
-					ev_move(pMPIdata, EV_BRC_SD1);
-				len -= 6;
-				buf += 6;
-				pMPIdata->rxCnt -= 6;
-				break;
-			case D_SD2:
-				l =  buf[1]+6;
-				if (len < l) {
-					len = 0;
-					break;
-				}
-				pMPIdata->FrameSessionReceiveLength = l;
-				memcpy(pMPIdata->FrameSessionReceiveBuffer, buf, l);
-				pMPIdata->FlowCtrl = buf[6];
-				pMPIdata->Dest = buf[4] & 0x7F;
-				pMPIdata->Source = buf[5] & 0x7F;
+		switch (buf[0]){
+        case D_SD1:
+            if (len < 6) {
+                //printk("SD1 too short: %d\n", len);
+                len = 0;
+                break;
+            }
+            pMPIdata->FrameSessionReceiveLength = 6;
+            memcpy(pMPIdata->FrameSessionReceiveBuffer, buf, 6);
+            pMPIdata->Dest = buf[1];
+            pMPIdata->Source = buf[2];
+            DBGReg(255, D_SD1, MAKEWORD(pMPIdata->Source, pMPIdata->Dest));
+            pMPIdata->FlowCtrl = buf[3];
+            pMPIdata->StationStatus[pMPIdata->Source].IsActive = 1;
+#ifdef MANAGE_RR_ANSWERS
+            if (pMPIdata->Dest == pMPIdata->FrameUniopNodeNum && (pMPIdata->FlowCtrl & 0x4F) == 2)
+                ev_move(pMPIdata, EV_BRC_SDX);
+            else
+#endif
+#ifdef DBG_IN_KERN
+            if (pMPIdata->FrameUniopNodeNum == pMPIdata->Dest)
+                printk("RECEIVED A FDL REQ FOR ME\n");
+#endif
+            ev_move(pMPIdata, EV_BRC_SD1);
+            eventDone = 1;
+            len -= 6;
+            buf += 6;
+            pMPIdata->rxCnt -= 6;
+            break;
+        case D_SD2:
+            if (buf[1] == buf[2] && buf[3] == D_SD2)
+                l =  buf[1]+6;
+            else{
+                 len = 0;
+                 //printk(">>>>>>>>>>>>>>>>>>>> OUT OF SEQUENCE CHAR %02X %02X %02X %02X on SD2 message <<<<<<<<<<<<<<<<<<<<<\n", *(buf-1), *(buf), *(buf+1), *(buf+2));
+                 break;
+            }
+            if (len < l) {
+                //printk("SD2 too short: %d instead of %d\n", len, l);
+                len = 0;
+                break;
+            }
+            pMPIdata->FrameSessionReceiveLength = l;
+            memcpy(pMPIdata->FrameSessionReceiveBuffer, buf, l);
+            pMPIdata->FlowCtrl = buf[6];
+            pMPIdata->Dest = buf[4] & 0x7F;
+            pMPIdata->Source = buf[5] & 0x7F;
 #if 0
 			{
 				byte AM_JobNr = pMPIdata->FrameSessionReceiveBuffer[9] == 0xB0 ? pMPIdata->FrameSessionReceiveBuffer[11] : pMPIdata->FrameSessionReceiveBuffer[10];
@@ -4019,66 +4045,83 @@ static void mpiReceiveFrame(struct s_MPIdata *pMPIdata, unsigned char *buf, unsi
 											(AM_JobNr & 0x0F))));
 			}
 #endif
-				len -= l;
-				buf += l;
-				pMPIdata->rxCnt -= l;
-				pMPIdata->StationStatus[pMPIdata->Source].IsActive = 1;
-				if (pMPIdata->Dest != pMPIdata->FrameUniopNodeNum)
-				{
-					if (pMPIdata->tok_state == TOK_WAITRX ||         //MG001
-							pMPIdata->tok_state == TOK_LISTENTOKEN ||    //MG001
-							pMPIdata->tok_state == TOK_ACTIVEIDLE)       //MG001
+            len -= l;
+            buf += l;
+            pMPIdata->rxCnt -= l;
+            pMPIdata->StationStatus[pMPIdata->Source].IsActive = 1;
+            if (pMPIdata->Dest != pMPIdata->FrameUniopNodeNum){
+                if (pMPIdata->tok_state == TOK_WAITRX || pMPIdata->tok_state == TOK_LISTENTOKEN || pMPIdata->tok_state == TOK_ACTIVEIDLE)
 						mTokListenTokenStartTimeout(pMPIdata);      //MG001
 					break;
-				}
+            }
 #ifdef MANAGE_RR_ANSWERS
 				if ((pMPIdata->FlowCtrl & 0x4F) == 2)
 					ev_move(pMPIdata, EV_BRC_SDX);
 				else
 #endif
-					ev_move(pMPIdata, EV_SES_SD2);
-				break;
-			case D_TOK:
-				if (len < 3) {
-					len = 0;
-					break;
-				}
-				pMPIdata->Dest   = buf[1] & 0x7F;                        //MG002
-				pMPIdata->Source = buf[2] & 0x7F;                        //MG002
-				len -= 3;
-				buf += 3;
-				pMPIdata->rxCnt -= 3;
-				DBGReg(255, D_TOK, MAKEWORD(pMPIdata->Source, pMPIdata->Dest));
-				if ((pMPIdata->Source > NR_MAX_STATIONS - 1) || (pMPIdata->Dest > NR_MAX_STATIONS - 1)) {  //MG002
-					break;                                                            //MG002
-				}
-				pMPIdata->StationStatus[pMPIdata->Source].IsActive = 1;
-				pMPIdata->StationStatus[pMPIdata->Source].StationType = 3;
-				ev_move(pMPIdata, EV_BRC_TOK);
-				break;
-			case D_SC:
-				DBGReg(255, D_SC, 0);
-				len -= 1;
-				buf += 1;
-				pMPIdata->rxCnt -= 1;
-				if (pMPIdata->tok_state == TOK_WAITSESSRX)
-					ev_move(pMPIdata, EV_BRC_ACK); // consider ack only if I sent SD2 req
-				break;
-			default:
-				len--;
-				buf++;
-				pMPIdata->rxCnt--;
-				break;
+            ev_move(pMPIdata, EV_SES_SD2);
+            eventDone = 1;
+            break;
+        case D_TOK:
+            if (len < 3) {
+                //printk("SD4 too short: %d\n", len);
+                len = 0;
+                break;
+            }
+            pMPIdata->Dest   = buf[1] & 0x7F;                        //MG002
+            pMPIdata->Source = buf[2] & 0x7F;                        //MG002
+            len -= 3;
+            buf += 3;
+            pMPIdata->rxCnt -= 3;
+            DBGReg(255, D_TOK, MAKEWORD(pMPIdata->Source, pMPIdata->Dest));
+            if ((pMPIdata->Source > NR_MAX_STATIONS - 1) || (pMPIdata->Dest > NR_MAX_STATIONS - 1)) {  //MG002
+                break;                                                            //MG002
+            }
+            pMPIdata->StationStatus[pMPIdata->Source].IsActive = 1;
+            pMPIdata->StationStatus[pMPIdata->Source].StationType = 3;
+            ev_move(pMPIdata, EV_BRC_TOK);
+            eventDone = 1;
+            break;
+        case D_SC:
+            DBGReg(255, D_SC, 0);
+            len -= 1;
+            buf += 1;
+            pMPIdata->rxCnt -= 1;
+            if (pMPIdata->tok_state == TOK_WAITSESSRX){
+                ev_move(pMPIdata, EV_BRC_ACK); // consider ack only if I sent SD2 req
+                eventDone = 1;
+            }
+            break;
+        default:
+            len--;
+            buf++;
+            pMPIdata->rxCnt--;
+            spurious = 1;
+            //printk(">>>>>>>>>>>>>>>>>>>> OUT OF SEQUENCE CHAR %02X <<<<<<<<<<<<<<<<<<<<<\n", *(buf-1));
+            break;
 		} //switch(FrameSessionReceiveBuffer[0])
+#ifdef DBG_IN_KERN
+        if (len > 1)  printk("RX overrun ECH:%02X, EL:%d ACH:%02X AL:%d\n", dbg_lastRx, dbg_lastRl, buf[0], len);
+#endif
 	}
 	if (pMPIdata->rxCnt) {
+        //printk (">>>>>>>>>>>>>>>>>>> SHOULD NEVER OCCUR <<<<<<<<<<<<<<<<<<<<<<<<<< %d %d \n", pMPIdata->rxCnt, len);
 		memcpy(pMPIdata->mpiRxBuf, buf, pMPIdata->rxCnt);
 	}
+    //set event as it was a timeout in case of spurious
+    if (eventDone)
+        StopTimeoutTok(pMPIdata);
+    else if (spurious && pMPIdata->lastTMevent == EV_BRC_ACK_TIMEOUT){
+        //printk("Spurious char detected last event %s generated\n", eventName(pMPIdata->lastTMevent));
+        StopTimeoutTok(pMPIdata);
+        ev_move(pMPIdata, pMPIdata->lastTMevent);
+    }
+    else
+        UltiUART1_StartTimer(pMPIdata,pMPIdata->lastTMevent,pMPIdata->lastTxNunUSec); //revew the last timer
 }
 
 #endif
 
-#endif
 
 static void imx_rs485_stop_tx(struct uart_port *port)
 {
@@ -4185,70 +4228,77 @@ void imx_config_rs485(struct uart_port *port)
 }
 
 #ifdef EXOR_MPI
+struct s_diagReq {
+    unsigned int maxLen;
+    unsigned char *buf;
+};
 static int serial_ioctl_mpi(struct imx_port *sport, unsigned int cmd, unsigned long arg)
 {
-	unsigned long flags = 0;
-	int ret = 0;
-	switch (cmd) {
-		case SET_MPI_MODE:
-			if (!sport->SCNKdata.SCNKenabled) {
-				spin_lock_irqsave(&sport->port.lock, flags);
-				sport->MPIdata.mpiSport = sport;
-				MPIDriverInit(&sport->MPIdata);
-				spin_unlock_irqrestore(&sport->port.lock, flags);
-			}
-			break;
-		case MPI_OPEN:
-			if (!sport->SCNKdata.SCNKenabled) {
-				struct s_MPIparams init;
-				if (copy_from_user(&init, (struct s_MPIparams *) arg, sizeof(init)))
-					ret = -EFAULT;
-				else {
-					spin_lock_irqsave(&sport->port.lock, flags);
-					MPIDriverOpen(&sport->MPIdata, init);
-					spin_unlock_irqrestore(&sport->port.lock, flags);
-				}
-			}
-			break;
+    unsigned long flags = 0;
+    int ret = 0;
 
-		case MPI_RUN:
-		{
-			spin_lock_irqsave(&sport->port.lock, flags);
-			ev_move(&sport->MPIdata, EV_TOK_RUN);					//do it in run
-			spin_unlock_irqrestore(&sport->port.lock, flags);
-		}
-			break;
+    switch (cmd) {
+    case SET_MPI_MODE:
+        if (!sport->SCNKdata.SCNKenabled) {
+            sport->MPIdata.mpiSport = sport;
+            MPIDriverInit(&sport->MPIdata);
+        }
+        break;
+    case MPI_OPEN:
+        if (!sport->SCNKdata.SCNKenabled) {
+            struct s_MPIparams init;
+            if (copy_from_user(&init, (struct s_MPIparams *) arg, sizeof(init)))
+                ret = -EFAULT;
+            else{
+                raw_spin_lock_irqsave(&sport->MPIdata.mpiLock, flags);
+                MPIDriverOpen(&sport->MPIdata, init);
+                raw_spin_unlock_irqrestore(&sport->MPIdata.mpiLock, flags);
+            }
+        }
+        break;
+    case MPI_RUN:
+        raw_spin_lock_irqsave(&sport->MPIdata.mpiLock, flags);
+        ev_move(&sport->MPIdata, EV_TOK_RUN);					//do it in run
+        raw_spin_unlock_irqrestore(&sport->MPIdata.mpiLock, flags);
+        break;
 
-		case MPI_IS_OPEN:
-			if (copy_to_user((unsigned int *)arg, &sport->MPIdata.m_isOpen, sizeof(sport->MPIdata.m_isOpen)))
-				ret = -EFAULT;
-			break;
+    case MPI_IS_OPEN:
+        if (copy_to_user((unsigned int *)arg, &sport->MPIdata.m_isOpen, sizeof(sport->MPIdata.m_isOpen)))
+            ret = -EFAULT;
+        break;
+    case GET_MPI_DIAG:
+        {
+	        struct s_diagReq req;
+	        int len = 0;
+	        if (copy_from_user(&req, (void *)arg, sizeof (req)))
+	            ret = -EFAULT;
+	        len = (req.maxLen < sizeof(sport->MPIdata))?req.maxLen : sizeof(sport->MPIdata);
+	        if (copy_to_user(req.buf, &sport->MPIdata, len))
+	            ret = -EFAULT;
+        }
+        break;
 
-		case GET_MPI_DIAG:
-			//			if (copy_to_user((unsigned int *)arg, &(sport->SCNKdata.diag_cnt), sizeof(sport->SCNKdata.diag_cnt)))
-			ret = -EFAULT;
-			break;
+    case SET_MPI_DIAG:
+        {
+            unsigned int tmp[2];
+            if (copy_from_user(tmp, (unsigned int*) arg, sizeof(tmp)))
+                ret = -EFAULT;
+        }
+        break;
 
-		case SET_MPI_DIAG:
-		{
-			unsigned int tmp[2];
-			if (copy_from_user(tmp, (unsigned int*) arg, sizeof(tmp)))
-				ret = -EFAULT;
-		}
-			break;
+    case MPI_CLOSE:
+        sport->MPIdata.exitReq = true;
+        while (sport->MPIdata.exitReq)
+            ;
 
-		case MPI_CLOSE:
-			spin_lock_irqsave(&sport->port.lock, flags);
-			mExitFromRing(&sport->MPIdata);
-			UltiUart1_StopTimer(&sport->MPIdata);
-			usleep_range(10000,11000);
-			sport->MPIdata.m_isOpen = false;
-			sport->MPIdata.MPIenabled = false;
-			sport->MPIdata.MPImode = false;
-			spin_unlock_irqrestore(&sport->port.lock, flags);
-			break;
-
-		case SET_MPI_DATA:
+        usleep_range(1000000,1010000);
+        raw_spin_lock_irqsave(&sport->MPIdata.mpiLock, flags);
+        sport->MPIdata.m_isOpen = false;
+        sport->MPIdata.MPIenabled = false;
+        sport->MPIdata.MPImode = false;
+        raw_spin_unlock_irqrestore(&sport->MPIdata.mpiLock, flags);
+        break;
+    case SET_MPI_DATA:
 		{
 			unsigned int tmp;
 			if (copy_from_user(&tmp, (unsigned int *) arg, sizeof(tmp)))
@@ -4259,61 +4309,48 @@ static int serial_ioctl_mpi(struct imx_port *sport, unsigned int cmd, unsigned l
 					ret = -EFAULT;
 			}
 		}
-			break;
-
-		case SET_MPI_REQ:
+        break;
+    case SET_MPI_REQ:
 		{
 			int tmp;
 			if (copy_from_user(&tmp, (int *) arg, sizeof(tmp)))
 				ret = -EFAULT;
-			else {
-				spin_lock_irqsave(&sport->port.lock, flags);
-				sport->MPIdata.ProcedureApplMRequestPending = tmp;
+            else{
+                raw_spin_lock_irqsave(&sport->MPIdata.mpiLock, flags);
+                sport->MPIdata.ProcedureApplMRequestPending = tmp;
 				sport->MPIdata.ProcedureApplMResponsePending = tmp;
 				sport->MPIdata.ProcedureApplMStatus = M_PROC_RUNNING;
 				sport->MPIdata.applTryCnt = sport->MPIdata.applResponseTime / 5; //init timeout counting
-				spin_unlock_irqrestore(&sport->port.lock, flags);
-			}
-		}
-			break;
-		case GET_MPI_RQST:
+                raw_spin_unlock_irqrestore(&sport->MPIdata.mpiLock, flags);
+             }
+        }
+        break;
+    case GET_MPI_RQST:
 		{
 			unsigned char plcIndex;
 			if (copy_from_user(&plcIndex, (unsigned char *) arg, sizeof(plcIndex)))
 				ret = -EFAULT;
 			else {
 				byte tmp;
-				spin_lock_irqsave(&sport->port.lock, flags);
-				if (sport->MPIdata.ProcedureApplMRequestPending)
-				{
+                raw_spin_lock_irqsave(&sport->MPIdata.mpiLock, flags);
+                if (sport->MPIdata.ProcedureApplMRequestPending){
 					// Check whether there really was no traffic on the line at all !!!!!
-					if (sport->MPIdata.AreWeInRing && sport->MPIdata.StationStatus[plcIndex].IsActive &&
-							sport->MPIdata.StationStatus[plcIndex].StationType >= 2)
-					{
-						if (sport->MPIdata.SlaveSession == false)
-						{
-							if (!sport->MPIdata.StationStatus[plcIndex].Logged)
-							{
-								if (sport->MPIdata.StationStatus[plcIndex].LogStatus == 0)
-								{
+                    if (sport->MPIdata.AreWeInRing && sport->MPIdata.StationStatus[plcIndex].IsActive && sport->MPIdata.StationStatus[plcIndex].StationType >= 2){
+						if (sport->MPIdata.SlaveSession == false){
+							if (!sport->MPIdata.StationStatus[plcIndex].Logged){
+								if (sport->MPIdata.StationStatus[plcIndex].LogStatus == 0){
 									sport->MPIdata.LogOn_DA = plcIndex;
 									ev_post(&sport->MPIdata, EV_LOG_START);
 									sport->MPIdata.StationStatus[plcIndex].LogStatus = 1;
 								}
-							}
-							else
-							{
+                            }else{
 								sport->MPIdata.Last_DA = plcIndex;
-								if (sport->MPIdata.StationStatus[sport->MPIdata.Last_DA].Job == 0)
-								{
-									if (sport->MPIdata.StationStatus[plcIndex].LogStatus == 1)
-									{
+								if (sport->MPIdata.StationStatus[sport->MPIdata.Last_DA].Job == 0){
+									if (sport->MPIdata.StationStatus[plcIndex].LogStatus == 1){
 										ev_post(&sport->MPIdata, EV_JB0_SEND_REQ);
 										sport->MPIdata.StationStatus[plcIndex].LogStatus = 2;
 									}
-								}
-								else
-								{
+                                }else{
 									ev_post(&sport->MPIdata, EV_JOB_SEND_REQ);
 									sport->MPIdata.ProcedureApplMRequestPending = false;
 								}
@@ -4321,13 +4358,10 @@ static int serial_ioctl_mpi(struct imx_port *sport, unsigned int cmd, unsigned l
 						}
 					}
 				}
-
 				/* Comm sequence is over when ProcedureMResponsePending == false     */
-				if (sport->MPIdata.ProcedureApplMResponsePending)
-				{
+                if (sport->MPIdata.ProcedureApplMResponsePending){
 					// check application timeout
-					if (--sport->MPIdata.applTryCnt == 0)
-					{
+                    if (--sport->MPIdata.applTryCnt == 0){
 						sport->MPIdata.ProcedureApplMStatus = TIMEOUT_ERR;
 						DBGReg(239, sport->MPIdata.ProcedureApplMStatus, 0x0006);
 						sport->MPIdata.ProcedureApplMRequestPending = false;
@@ -4335,18 +4369,17 @@ static int serial_ioctl_mpi(struct imx_port *sport, unsigned int cmd, unsigned l
 						ev_post(&sport->MPIdata, EV_BRC_APPL_TIMEOUT);
 					}
 				}
-
 				if (NO_ERROR == sport->MPIdata.ProcedureApplMStatus) {
 					sport->MPIdata.ProcedureApplMStatus = M_PROC_OK;
 				}
 				tmp = sport->MPIdata.ProcedureApplMStatus;
-				spin_unlock_irqrestore(&sport->port.lock, flags);
-				if (copy_to_user((unsigned char *)arg, &tmp, sizeof(sport->MPIdata.ProcedureApplMStatus)))
+                raw_spin_unlock_irqrestore(&sport->MPIdata.mpiLock, flags);
+                if (copy_to_user((unsigned char *)arg, &tmp, sizeof(sport->MPIdata.ProcedureApplMStatus)))
 					ret = -EFAULT;
 			}
 		}
-			break;
-		case GET_MPI_RESP:
+        break;
+    case GET_MPI_RESP:
 		{
 			unsigned int len = sport->MPIdata.MyFrameResponseBuffLen;
 			if (copy_to_user((unsigned char *)arg, &len, sizeof(len)))
@@ -4354,12 +4387,12 @@ static int serial_ioctl_mpi(struct imx_port *sport, unsigned int cmd, unsigned l
 			else if (copy_to_user((unsigned char *)arg+sizeof(len), &sport->MPIdata.MyFrameResponseBuff, len))
 				ret = -EFAULT;
 		}
-			break;
-		default:
-			ret = -ENOIOCTLCMD;
-			break;
+        break;
+    default:
+        ret = -ENOIOCTLCMD;
+        break;
 	}
-	return ret;
+    return ret;
 }
 #endif
 
@@ -4369,70 +4402,67 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 	struct imx_port *sport = (struct imx_port *)port;
 
 	switch (cmd) {
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
-		case SET_SCNK_MODE:
-			if ( arg == 0 || sport->MPIdata.MPIenabled){
-				sport->SCNKdata.SCNKenabled = false;
-				break;
-			}
-			if (copy_from_user(&(sport->SCNKparams), (struct s_SCNKparams *) arg, sizeof(sport->SCNKparams)))
-				return -EFAULT;
-			sport->SCNKdata.useTxBuf2 = false;
-			sport->SCNKdata.useCRC = false;
-			memset (sport->SCNKdata.outBufMsg1, 0, sizeof(sport->SCNKdata.outBufMsg1));
-			sport->SCNKdata.outBufMsg1[0] = 0x01;
-			sport->SCNKdata.outBufMsg1[1] = 0x18;
-			sport->SCNKdata.outBufMsg1[2] = sport->SCNKparams.outBufLen;
-			setSCNKTxData(sport->SCNKdata.outBufMsg1,sport->SCNKparams.outBufLen+6, false);
-			memset (sport->SCNKdata.outBufMsg2, 0, sizeof(sport->SCNKdata.outBufMsg1));
-			sport->SCNKdata.outBufMsg2[0] = 0x01;
-			sport->SCNKdata.outBufMsg2[1] = 0x18;
-			sport->SCNKdata.outBufMsg2[2] = sport->SCNKparams.outBufLen;
-			setSCNKTxData(sport->SCNKdata.outBufMsg2,sport->SCNKparams.outBufLen+6, false);
-
-			sport->SCNKdata.statMsg[0] = 0x01;
-			sport->SCNKdata.statMsg[1] = 0x14;
-			sport->SCNKdata.SCNKstatus = 0x8006;
-			sport->SCNKdata.infoMsg[0] = 0x01;
-			sport->SCNKdata.infoMsg[1] = 0x18;
-			sport->SCNKdata.infoMsg[2] = 0x08;
-			sport->SCNKdata.infoMsg[3] = sport->SCNKparams.manufID >> 8;
-			sport->SCNKdata.infoMsg[4] = sport->SCNKparams.manufID & 0xFF;
-			memset (sport->SCNKdata.diag_cnt, 0, sizeof(sport->SCNKdata.diag_cnt));
-			sport->SCNKdata.txBuf.buf = sport->SCNKdata.localBuf;
-			sport->SCNKdata.txBuf.head = sport->SCNKdata.txBuf.tail = 0;
-			sport->SCNKdata.expectedLen = 3;
-			sport->SCNKdata.rxLen = 0;
-			sport->SCNKdata.lastRecvJob = 0;
-			sport->SCNKdata.gapTime = 180000;
-			sport->SCNKdata.pendingReq = false;
+    case SET_SCNK_MODE:
+        if ( arg == 0 || sport->MPIdata.MPIenabled){
+            sport->SCNKdata.SCNKenabled = false;
+            break;
+        }
+        if (copy_from_user(&(sport->SCNKparams), (struct s_SCNKparams *) arg, sizeof(sport->SCNKparams)))
+            return -EFAULT;
+        sport->SCNKdata.useTxBuf2 = false;
+        sport->SCNKdata.useCRC = false;
+        memset (sport->SCNKdata.outBufMsg1, 0, sizeof(sport->SCNKdata.outBufMsg1));
+        sport->SCNKdata.outBufMsg1[0] = 0x01;
+        sport->SCNKdata.outBufMsg1[1] = 0x18;
+        sport->SCNKdata.outBufMsg1[2] = sport->SCNKparams.outBufLen;
+        setSCNKTxData(sport->SCNKdata.outBufMsg1,sport->SCNKparams.outBufLen+6, false);
+        memset (sport->SCNKdata.outBufMsg2, 0, sizeof(sport->SCNKdata.outBufMsg1));
+        sport->SCNKdata.outBufMsg2[0] = 0x01;
+        sport->SCNKdata.outBufMsg2[1] = 0x18;
+        sport->SCNKdata.outBufMsg2[2] = sport->SCNKparams.outBufLen;
+        setSCNKTxData(sport->SCNKdata.outBufMsg2,sport->SCNKparams.outBufLen+6, false);
+        sport->SCNKdata.statMsg[0] = 0x01;
+        sport->SCNKdata.statMsg[1] = 0x14;
+        sport->SCNKdata.SCNKstatus = 0x8006;
+        sport->SCNKdata.infoMsg[0] = 0x01;
+        sport->SCNKdata.infoMsg[1] = 0x18;
+        sport->SCNKdata.infoMsg[2] = 0x08;
+        sport->SCNKdata.infoMsg[3] = sport->SCNKparams.manufID >> 8;
+        sport->SCNKdata.infoMsg[4] = sport->SCNKparams.manufID & 0xFF;
+        memset (sport->SCNKdata.diag_cnt, 0, sizeof(sport->SCNKdata.diag_cnt));
+        sport->SCNKdata.txBuf.buf = sport->SCNKdata.localBuf;
+        sport->SCNKdata.txBuf.head = sport->SCNKdata.txBuf.tail = 0;
+        sport->SCNKdata.expectedLen = 3;
+        sport->SCNKdata.rxLen = 0;
+        sport->SCNKdata.lastRecvJob = 0;
+        sport->SCNKdata.gapTime = 180000;
+        sport->SCNKdata.pendingReq = false;
 #ifdef SCNK_USING_HRTIMER
-			sportArray[sport->port.line] = sport;
-			hrtimer_init(&sport->SCNKdata.hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL_HARD);
+        sportArray[sport->port.line] = sport;
+        hrtimer_init(&sport->SCNKdata.hrt, CLOCK_MONOTONIC,HRTIMER_MODE_REL_HARD);
 #ifdef SCNK_DEBUG
-			//			dev_dbg(sport->port.dev, SCNK_DEBUG "<<<<<<<<< SCNK HRTinit function = %X on uart %d >>>>>>>>>>\n", (unsigned int)(hrtCallBackArray[sport->port.line]), sport->port.line);
+        //			dev_dbg(sport->port.dev, SCNK_DEBUG "<<<<<<<<< SCNK HRTinit function = %X on uart %d >>>>>>>>>>\n", (unsigned int)(hrtCallBackArray[sport->port.line]), sport->port.line);
 #endif
-			sport->SCNKdata.hrt.function = hrtCallBackArray[sport->port.line];
+        sport->SCNKdata.hrt.function = hrtCallBackArray[sport->port.line];
 #endif
-			getrawmonotonic(&sport->SCNKdata.lastCycle);
-			sport->port.read_status_mask |= (URXD_FRMERR | URXD_PRERR);
-			sport->SCNKdata.SCNKenabled = true;
+        getrawmonotonic(&sport->SCNKdata.lastCycle);
+        sport->port.read_status_mask |= (URXD_FRMERR | URXD_PRERR);
+        sport->SCNKdata.SCNKenabled = true;
 #ifdef SCNK_DEBUG
-			dev_dbg(sport->port.dev, "<<<<<<<<< SCNK Mode activated on port:%d unitID=%d inL:%d outL:%d MANUF:%X >>>>>>>>>>\n",
+        dev_dbg(sport->port.dev, "<<<<<<<<< SCNK Mode activated on port:%d unitID=%d inL:%d outL:%d MANUF:%X >>>>>>>>>>\n",
 					sport->port.line,
 					sport->SCNKparams.unitID,
 					sport->SCNKparams.inBufLen,
 					sport->SCNKparams.outBufLen,
 					sport->SCNKparams.manufID);
 #endif
-			break;
+        break;
+    case GET_SCNK_DIAG:
+        if (copy_to_user((unsigned int *)arg, &(sport->SCNKdata.diag_cnt), sizeof(sport->SCNKdata.diag_cnt)))
+            return -EFAULT;
+        break;
 
-		case GET_SCNK_DIAG:
-			if (copy_to_user((unsigned int *)arg, &(sport->SCNKdata.diag_cnt), sizeof(sport->SCNKdata.diag_cnt)))
-				return -EFAULT;
-			break;
-
-		case SET_SCNK_DIAG:
+    case SET_SCNK_DIAG:
 		{
 			unsigned int tmp[2];
 			if (copy_from_user(tmp, (unsigned int*) arg, sizeof(tmp)))
@@ -4440,16 +4470,16 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 			if (tmp[0] < (sizeof(sport->SCNKdata.diag_cnt)/sizeof(unsigned int)))
 				sport->SCNKdata.diag_cnt[tmp[0]] = tmp[1];
 		}
-			break;
-		case SET_SCNK_PREQ:
-			sport->SCNKdata.pendingReq = true;
-			break;
-		case GET_SCNK_SREQ:
-			if (copy_to_user((unsigned int *)arg, &(sport->SCNKdata.pendingReq), sizeof(sport->SCNKdata.pendingReq)))
-				return -EFAULT;
-			break;
-		case TOG_SCNK_BAUD:
-		{
+        break;
+    case SET_SCNK_PREQ:
+        sport->SCNKdata.pendingReq = true;
+        break;
+    case GET_SCNK_SREQ:
+        if (copy_to_user((unsigned int *)arg, &(sport->SCNKdata.pendingReq), sizeof(sport->SCNKdata.pendingReq)))
+            return -EFAULT;
+        break;
+    case TOG_SCNK_BAUD:
+        {
 			bool is375 = false;
 			if (copy_from_user(&is375, (unsigned int*) arg, sizeof(is375)))
 				return -EFAULT;
@@ -4458,13 +4488,12 @@ static int imx_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg
 			else
 				sport->SCNKdata.gapTime = 180000;
 		}
-			break;
-#endif
-		default:
+        break;
+    default:
 #ifdef EXOR_MPI
-			return serial_ioctl_mpi(sport, cmd, arg);
+        return serial_ioctl_mpi(sport, cmd, arg);
 #else
-			return -ENOIOCTLCMD;
+        return -ENOIOCTLCMD;
 #endif			
 	}
 	return 0;
@@ -4625,11 +4654,9 @@ static void imx_stop_tx(struct uart_port *port)
 		temp = readl(port->membase + UCR4);
 		temp &= ~UCR4_TCEN;
 		writel(temp, port->membase + UCR4);
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 #ifdef EXOR_MPI
-		if (sport->MPIdata.MPIenabled)
-			ev_move(&sport->MPIdata, EV_BRC_EOTX);
-#endif
+        if (sport->MPIdata.MPIenabled)
+            ev_move(&sport->MPIdata, EV_BRC_EOTX);
 #endif
 	}
 }
@@ -4677,16 +4704,17 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 	unsigned long temp;
 	struct tty_port *ttyport = &sport->port.state->port;
 
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 	if (sport->SCNKdata.SCNKenabled)
 	{
 		xmit = &sport->SCNKdata.txBuf;
 	}
 #ifdef EXOR_MPI
 	else if(sport->MPIdata.MPIenabled) {
-		xmit = &sport->MPIdata.mpiTxBuf;
-	}
+        xmit = &sport->MPIdata.mpiTxBuf;
+#ifdef DBG_IN_KERN
+        if (dbg_trig) printk("TRANSMIT MPI BUFFER: %d %d\n", xmit->head, xmit->tail);
 #endif
+    }
 #endif
 	//	printk("ITB %X,%X,%02X,%d\n",readl(sport->port.membase + USR2),txfullflag & UTS_TXFULL, xmit->buf[xmit->tail], uart_circ_chars_pending(xmit));
 	if (sport->port.x_char) {
@@ -4745,8 +4773,9 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 	if (uart_circ_empty(xmit))
 		imx_stop_tx(&sport->port);
 
-	//	printk("<<<< imx_transmit_buffer %d, %d\n",ttyport->low_latency, txfullflag & UTS_TXFULL);
-	if(ttyport->low_latency)
+//        printk("<<<< imx_transmit_buffer %d, %d\n",ttyport->low_latency, txfullflag & UTS_TXFULL);
+//        printk("<<<< imx_transmit_buffer %d\n",ttyport->low_latency);
+        if(ttyport->low_latency)
 	{ //Handle the low latency option for MPI protocol
 		if ((sport->txfullflag & UTS_TXFULL) && (!sport->dma_is_enabled) )
 		{ 	//If we exited the TXBUFF write loop because of TXFULL, it means we probably need to transmit a chunk which is bugger than the TX FIFO size
@@ -4758,7 +4787,7 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		if (!sport->dma_is_enabled)
 		{ // Set the IRTS flag to ignore RTS and start transmission
 			temp = readl(sport->port.membase + UCR2);
-			temp |= UCR2_IRTS;
+                        temp |= UCR2_IRTS;
 			writel(temp, sport->port.membase + UCR2);
 		}
 	}
@@ -4870,7 +4899,6 @@ static void imx_start_tx(struct uart_port *port)
 	unsigned long temp;
 
 
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 	if (sport->SCNKdata.SCNKenabled) {
 		struct circ_buf *xmit = &sport->port.state->xmit;
 		unsigned char *pBuf = (sport->SCNKdata.useTxBuf2)?
@@ -4886,9 +4914,11 @@ static void imx_start_tx(struct uart_port *port)
 		sport->SCNKdata.useTxBuf2 = !sport->SCNKdata.useTxBuf2;
 	}
 	else
-#endif
 	{
-		if (port->rs485.flags & SER_RS485_ENABLED) {
+#ifdef DBG_IN_KERN
+        if (dbg_trig) printk("START TX 485=%d\n", port->rs485.flags & SER_RS485_ENABLED);
+#endif
+        if (port->rs485.flags & SER_RS485_ENABLED) {
 			imx_rs485_start_tx(port);
 			/* enable transmitter and shifter empty irq */
 			temp = readl(port->membase + UCR4);
@@ -4909,7 +4939,10 @@ static void imx_start_tx(struct uart_port *port)
 		}
 
 		if (!sport->dma_is_enabled) {
-			temp = readl(sport->port.membase + UCR1);
+#ifdef DBG_IN_KERN
+            if (dbg_trig) printk("START TX: enable TXEMPTY INT\n");
+#endif
+            temp = readl(sport->port.membase + UCR1);
 			writel(temp | UCR1_TXMPTYEN, sport->port.membase + UCR1);
 		}
 
@@ -4953,12 +4986,16 @@ static irqreturn_t imx_rtsint(int irq, void *dev_id)
 static irqreturn_t imx_txint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
-	unsigned long flags;
+    unsigned long flags=0;
+    unsigned long flags2=0;
 
-	spin_lock_irqsave(&sport->port.lock, flags);
-//	printk("<<<< imx_txint %02X\n",readl(sport->port.membase + USR2));
-	imx_transmit_buffer(sport);
-	spin_unlock_irqrestore(&sport->port.lock, flags);
+    spin_lock_irqsave(&sport->port.lock, flags);
+    if (sport->MPIdata.MPIenabled)
+        raw_spin_lock_irqsave(&sport->MPIdata.mpiLock,flags2);
+    imx_transmit_buffer(sport);
+    if (sport->MPIdata.MPIenabled)
+        raw_spin_unlock_irqrestore(&sport->MPIdata.mpiLock,flags2);
+    spin_unlock_irqrestore(&sport->port.lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -4966,13 +5003,13 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int rx, flg;
-#if !(defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE))
-	unsigned int ignored = 0;
-#endif
 	struct tty_port *port = &sport->port.state->port;
-	unsigned long flags, temp;
+        unsigned long flags, temp;
+        unsigned long flags2 = 0;
 
 	spin_lock_irqsave(&sport->port.lock, flags);
+    if (sport->MPIdata.MPIenabled)
+        raw_spin_lock_irqsave(&sport->MPIdata.mpiLock,flags2);
 
 	while (readl(sport->port.membase + USR2) & USR2_RDR) {
 		flg = TTY_NORMAL;
@@ -5002,13 +5039,6 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 
 //			printk(KERN_ALERT ">>>> WRONG Char2 %d %X %X\n", sport->port.read_status_mask, rx, rx & (sport->port.read_status_mask | 0xFF));
 
-#if !(defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE))
-			if (rx & sport->port.ignore_status_mask) {
-				if (++ignored > 100)
-					goto out;
-				continue;
-			}
-#endif
 			rx &= (sport->port.read_status_mask | 0xFF);
 
 			if (rx & URXD_BRK)
@@ -5028,7 +5058,6 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 		if (sport->port.ignore_status_mask & URXD_DUMMY_READ)
 			goto out;
 
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 		if (sport->SCNKdata.SCNKenabled) {
 			//SCNK state machine
 			unsigned char c;
@@ -5230,9 +5259,9 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 #ifdef SCNK_USING_HRTIMER
 								ktime_t kt = ktime_set(0, sport->SCNKdata.gapTime);
 #ifdef SCNK_DEBUG
-								//								dev_dbg(sport->port.dev, "<<<<<<<<< SCNK HRTstart should call %X after %d >>>>>>>>>>\n", (unsigned int)(sport->SCNKdata.hrt.function), sport->SCNKdata.gapTime);
+//								dev_dbg(sport->port.dev, "<<<<<<<<< SCNK HRTstart should call %X after %d >>>>>>>>>>\n", (unsigned int)(sport->SCNKdata.hrt.function), sport->SCNKdata.gapTime);
 #endif
-								hrtimer_start( &sport->SCNKdata.hrt, kt, HRTIMER_MODE_REL_HARD );
+                                hrtimer_start( &sport->SCNKdata.hrt, kt, HRTIMER_MODE_REL_HARD );
 #else
 								unsigned long temp;
 								udelay(sport->SCNKdata.gapTime / 1000); /*  */
@@ -5287,6 +5316,9 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 				}	//unitID
 				sport->SCNKdata.rxLen = 0;
 				sport->SCNKdata.expectedLen = 3;
+
+                if (sport->MPIdata.MPIenabled)
+                    raw_spin_unlock_irqrestore(&sport->MPIdata.mpiLock,flags2);
 				spin_unlock_irqrestore(&sport->port.lock, flags);
 				if (bufferFull)
 					tty_flip_buffer_push(port);
@@ -5299,28 +5331,44 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 				while (readl(sport->port.membase + USR2) & USR2_RDR)	//disregard the rest
 					rx = readl(sport->port.membase + URXD0);
 				sport->MPIdata.rxCnt = 0;
-				//printk(KERN_ALERT ">>>> WRONG Char %d \n", sport->MPIdata.rxCnt);
-			}
-			else {
-				//				printk("RX:%02X\n", (unsigned char)rx);
-				if (sport->MPIdata.rxCnt < 280)
-					sport->MPIdata.mpiRxBuf[sport->MPIdata.rxCnt++] = (unsigned char)rx;
-				//else
-				//	printk("frame RX overflow\n");
+                if (sport->MPIdata.lastTMevent == EV__GAP)
+                    UltiUART1_StartTimer(&sport->MPIdata,sport->MPIdata.lastTMevent,sport->MPIdata.lastTxNunUSec); //revew the last timer
 
-				if (sport->MPIdata.UltiUart1_TxTimeout != EV__NULL && sport->MPIdata.UltiUart1_TxTimeout != EV_TOK_RUN){
-					UltiUART1_StartTimer(&sport->MPIdata, EV__GAP, 160);	//160 usec is the gap
-				}
-			}
-		}
+                //printk(KERN_ALERT ">>>> WRONG Char %d \n", sport->MPIdata.rxCnt);
+            }else {
+                //printk("RX:%02X\n", (unsigned char)rx);
+                if (sport->MPIdata.UltiUart1_TxTimeout != EV_TOK_RUN){
+                    if (sport->MPIdata.rxCnt >= 280)
+                        sport->MPIdata.rxCnt = 0;
+                    sport->MPIdata.mpiRxBuf[sport->MPIdata.rxCnt++] = (unsigned char)rx;
+#ifdef DBG_IN_KERN
+                    else
+                        printk("frame RX overflow: %d\n", sport->MPIdata.UltiUart1_TxTimeout);
+                    if (sport->MPIdata.UltiUart1_TxTimeout == EV_BRC_ACK_TIMEOUT && sport->MPIdata.mpiRxBuf[0] != D_SC && sport->MPIdata.rxCnt == 1)
+                        printk("RX:%02X while waiting for SHORT ACK\n", (unsigned char)rx);
+                    //if (sport->MPIdata.rxCnt == 1 && sport->MPIdata.mpiRxBuf[0] == D_SC)
+                    //    printk("received SHORT ACK while timeout event is %s", eventName(sport->MPIdata.UltiUart1_TxTimeout));
+                    //if (sport->MPIdata.rxCnt == 1 && sport->MPIdata.mpiRxBuf[0] == D_SC && sport->MPIdata.UltiUart1_TxTimeout != EV_BRC_ACK_TIMEOUT)
+                    //    printk("received SHORT ACK while timeout event is %s", eventName(sport->MPIdata.UltiUart1_TxTimeout));
+#endif
+                    if (sport->MPIdata.UltiUart1_TxTimeout != EV__GAP && sport->MPIdata.UltiUart1_TxTimeout != EV__NULL){
+                        sport->MPIdata.lastTMevent = sport->MPIdata.UltiUart1_TxTimeout;
+                        sport->MPIdata.lastTxNunUSec = sport->MPIdata.UltiUart1_TxNunUSec;
+                    }
+                    UltiUART1_StartTimer(&sport->MPIdata, EV__GAP, GAP_TIME);	//176 usec is the minimum gap
+                 }else
+                     sport->MPIdata.rxCnt = 0;
+            }
+        }
 #endif
 		else
-#endif
 			tty_insert_flip_char(port, rx, flg);
 	}
 
 out:
-	spin_unlock_irqrestore(&sport->port.lock, flags);
+    if (sport->MPIdata.MPIenabled)
+        raw_spin_unlock_irqrestore(&sport->MPIdata.mpiLock,flags2);
+    spin_unlock_irqrestore(&sport->port.lock, flags);
 	tty_flip_buffer_push(port);
 	return IRQ_HANDLED;
 }
@@ -5733,13 +5781,11 @@ static int imx_startup(struct uart_port *port)
 	int retval, i;
 	unsigned long flags, temp;
 
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 	sport->SCNKdata.SCNKenabled = false;
 #ifdef EXOR_MPI
 	sport->MPIdata.MPIenabled = false;
 #endif	
 	dev_info(sport->port.dev, "STARTUP UART %d\n", sport->port.line);
-#endif
 	retval = clk_prepare_enable(sport->clk_per);
 	if (retval)
 		return retval;
@@ -5820,7 +5866,6 @@ static void imx_shutdown(struct uart_port *port)
 	unsigned long temp;
 	unsigned long flags;
 	imx_rs485_stop_tx(port);
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 	sport->SCNKdata.SCNKenabled = false;
 #ifdef EXOR_MPI
 	if (sport->MPIdata.MPIenabled)
@@ -5832,7 +5877,6 @@ static void imx_shutdown(struct uart_port *port)
 	}
 #endif
 	dev_info(sport->port.dev, "SHUTDOWN UART %d\n", sport->port.line);
-#endif
 	if (sport->dma_is_enabled) {
 		int ret;
 
@@ -5992,13 +6036,8 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_lock_irqsave(&sport->port.lock, flags);
 
 	sport->port.read_status_mask = 0;
-#if defined(CONFIG_SERIAL_IMX_EXOR_UART) || defined(CONFIG_SERIAL_IMX_EXOR_UART_MODULE)
 	if (termios->c_iflag & INPCK || sport->SCNKdata.SCNKenabled || sport->MPIdata.MPIenabled)
 		sport->port.read_status_mask |= (URXD_FRMERR | URXD_PRERR);
-#else
-	if (termios->c_iflag & INPCK)
-		sport->port.read_status_mask |= (URXD_FRMERR | URXD_PRERR);
-#endif
 	if (termios->c_iflag & (BRKINT | PARMRK))
 		sport->port.read_status_mask |= URXD_BRK;
 

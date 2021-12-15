@@ -138,6 +138,12 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	phy_write(phydev, 0x15, reg);
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
 	
+	/* Set default LED cfg */
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd04);
+	reg = 0x201b;
+	phy_write(phydev, 0x10, reg);
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
+	
 	return 0;
 }
 

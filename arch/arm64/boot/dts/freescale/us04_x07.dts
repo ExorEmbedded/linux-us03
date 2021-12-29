@@ -1,0 +1,151 @@
+/*
+ * Copyright (C) 2019 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a.
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+  
+/dts-v1/;
+  
+#include "imx8mm_us04.dtsi"
+  
+/ {
+	model = "X07 i.MX8MM US04 board";
+	compatible = "fsl,imx8mm-evk", "fsl,imx8mm";
+
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm1 0 50000 0>;
+	};
+
+	working_hours {
+	  compatible = "working_hours";
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
+	  backlight = <&backlight0>;
+	  status = "okay";
+	};	
+};
+
+&backlight0 {
+    compatible = "pwm-backlight";
+    pwms = <&pwm3 0 50000 0>;
+    brightness-levels = <0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
+    default-brightness-level = <0>;
+    enable-gpios = <&gpio5 5 0>;
+    status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+	status = "okay";
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-mode = "rmii";
+	phy-handle = <&ethphy0>;
+	fsl,magic-packet;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			max-speed = <100>;
+			reg = <0>;
+		};
+	};
+};
+
+&ecspi1 {
+    fsl,spi-num-chipselects = <2>;
+    cs-gpios = <&gpio4 27 0>,  /* CS0 */
+               <&gpio5  9 0>; /* CS1 */
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi1_xs07>;
+    status = "okay";
+	
+	/delete-node/ spi0@0;
+	/delete-node/ spi0@1;
+	/delete-node/ mcp3204@2;
+	/delete-node/ at25@3;
+	/delete-node/ n25q256a@4;
+    
+    fram: at25@0 {
+        compatible = "atmel,at25", "st,m95256";
+        reg = <0>;
+        spi-max-frequency = <20000000>;
+        pagesize = <64>;
+        size = <65536>;
+        address-width = <16>;
+    };
+};
+
+&iomuxc {
+	imx8mm-evk {
+
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12      0x1c4   /* USB1 VBUS */
+				MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14      0x1c4   /* USB2 VBUS */
+				MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4   /* EN_VDD */
+			>;
+		};
+
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
+				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
+			>;
+		};
+
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ENET_MDC_ENET1_MDC		0x3
+				MX8MM_IOMUXC_ENET_MDIO_ENET1_MDIO	0x3
+				MX8MM_IOMUXC_ENET_TD2_ENET1_TX_CLK	0x4000001f
+				MX8MM_IOMUXC_ENET_TD1_ENET1_RGMII_TD1	0x56
+				MX8MM_IOMUXC_ENET_TD0_ENET1_RGMII_TD0	0x56
+				MX8MM_IOMUXC_ENET_RD1_ENET1_RGMII_RD1	0x56
+				MX8MM_IOMUXC_ENET_RD0_ENET1_RGMII_RD0	0x56
+				MX8MM_IOMUXC_ENET_RXC_ENET1_RX_ER	0x56
+				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x56
+				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x56
+			>;
+		};
+		
+		pinctrl_ecspi1_xs07: ecspi1grp_xs07 {
+			fsl,pins = <
+				MX8MM_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK    0x11
+				MX8MM_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI    0x11
+				MX8MM_IOMUXC_ECSPI1_MISO_ECSPI1_MISO    0x11
+				MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9       0x11
+				MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27       0x11
+			>;
+		};
+		
+	};
+};
+

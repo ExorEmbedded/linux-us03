@@ -149,6 +149,17 @@
 			linux,default-trigger = "none";
 		};
 	};	
+	
+	lis331dlh@18 {
+		/* Accelerometer */
+		compatible = "st,lis331dlh-accel";
+		reg = <0x18>;
+	};
+	
+	temperature:lm75b@4c {
+		compatible = "national,lm75b";
+		reg = <0x4c>;
+	};
 };
 
 &iomuxc {

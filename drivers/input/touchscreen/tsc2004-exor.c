@@ -306,14 +306,13 @@ static u32 tsc2004_calculate_pressure(struct tsc2004 *tsc, struct ts_event *tc)
 	
 	if (tc->x < TS_FUZZ_XY)
 		tc->x = 0;
-	
 
 	if (likely(tc->x && tc->z1)) {
 		/* compute touch pressure resistance using equation #1 */
 		rt = tc->z2 - tc->z1;
 		rt *= tc->x;
-		rt *= tsc->x_plate_ohms;
 		rt /= tc->z1;
+		rt *= tsc->x_plate_ohms;
 		rt = (rt + 2047) >> 12;
 	}
 
@@ -434,6 +433,10 @@ struct tsc2004_platform_data* tsc2004_get_devtree_pdata(struct i2c_client *clien
 		return NULL;
 	}
 	
+	if (!of_property_read_u32(np, "rt-th-ohms", &val32)) {
+		pdata->rt_th_ohms = val32;
+	}
+	
 	pdata->gpio = of_get_named_gpio_flags(np, "intr-gpio", 0, &pdata->irq_flags);
 
 	if (!gpio_is_valid(pdata->gpio))
@@ -518,6 +521,8 @@ static int tsc2004_probe(struct i2c_client *client,
 	ts->model             = pdata->model;
 	ts->x_plate_ohms      = pdata->x_plate_ohms;
 	ts->max_rt            = (3 * pdata->x_plate_ohms) / 2; //Assume the pressure threshold to be 1.5 times the x plate resistance.
+	if(pdata->rt_th_ohms)
+		ts->max_rt = pdata->rt_th_ohms;
 	ts->clear_penirq      = pdata->clear_penirq;
 #ifdef CONFIG_OF
 	ts->irq = gpio_to_irq(pdata->gpio);

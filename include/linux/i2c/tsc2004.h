@@ -16,6 +16,7 @@ struct tsc2004_platform_data {
 	int	(*init_platform_hw)(void);
 	void	(*exit_platform_hw)(void);
 	unsigned int irq_flags;
+	unsigned int rt_th_ohms;
 };
 
 #endif

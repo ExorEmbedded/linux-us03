@@ -160,6 +160,12 @@
 		compatible = "national,lm75b";
 		reg = <0x4c>;
 	};
+	
+	light-sensor@51 {
+		compatible = "vishay,vcnl4200";
+		reg = <0x51>;
+		proximity-near-level = <220>;
+	};	
 };
 
 &iomuxc {

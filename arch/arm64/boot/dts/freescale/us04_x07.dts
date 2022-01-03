@@ -30,6 +30,79 @@
 	  backlight = <&backlight0>;
 	  status = "okay";
 	};	
+	
+	matrix_keypad {
+		compatible = "gpio-matrix-keypad";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_keypad>;
+		debounce-delay-ms = <20>;
+		col-scan-delay-ms = <8>;
+		gpio-activelow;
+		gpio-colactivehigh;
+		engpio = <&gpio4 16 0>;
+		//shutdown-code=<0x003C003F>;	/* KEY_F2 (003C) + KEY_F5 (003F) */
+		shutdown-count=<70>;		/* 70 * 70mS = 5 secs */
+		status = "okay";
+
+		/* Output */
+		col-gpios = <
+			&gpio4 14 0
+			&gpio4 13 0
+			&gpio4 12 0
+			&gpio4 11 0
+			&gpio4 10 0
+		>;
+
+		/* Input */
+		row-gpios = <
+			&gpio1  7 0
+			&gpio1  8 0
+			&gpio1  9 0
+			&gpio4  7 0
+			&gpio4  0 0
+			&gpio4 15 0
+		>;
+
+		/* row << 24 | column << 16 | key-code */
+		linux,keymap = <
+			0x00000067	/* KEY_UP */
+			0x00010069	/* KEY_LEFT */
+			0x0002006c  /* KEY_DOWN */
+			0x0003006a	/* KEY_RIGHT */
+			0x00040041	/* KEY_F7 */
+
+			0x0100003b	/* KEY_F1 */
+			0x0101003c	/* KEY_F2 */
+			0x0102003d  /* KEY_F3 */
+			0x0103003e	/* KEY_F4 */
+			0x0104003f	/* KEY_F5 */
+
+			0x02000040	/* KEY_F6 */
+			0x020100b8	/* KEY_F14 */
+			0x02020058  /* KEY_F12 */
+			0x020300b9	/* KEY_F15 */
+			0x020400b7	/* KEY_F13 */
+
+			0x03000057	/* KEY_F11 */
+			0x03010044	/* KEY_F10 */
+			0x03020043  /* KEY_F9 */
+			0x03030042	/* KEY_F8 */
+			0x0304001c  /* KEY_ENTER */	
+
+			0x0400000b	/* KEY_0 */
+			0x04010002	/* KEY_1 */
+			0x04020003  /* KEY_2 */
+			0x04030004	/* KEY_3 */
+			0x04040005	/* KEY_4 */
+
+			0x05000006	/* KEY_5 */
+			0x05010007	/* KEY_6 */
+			0x05020008  /* KEY_7 */
+			0x05030009	/* KEY_8 */
+			0x0504000a	/* KEY_9 */
+		>;
+	};
+	
 };
 
 &backlight0 {
@@ -230,6 +303,26 @@
 			fsl,pins = <
 				MX8MM_IOMUXC_I2C3_SCL_GPIO5_IO18        0x1c4
 				MX8MM_IOMUXC_I2C3_SDA_GPIO5_IO19        0x1c4
+			>;
+		};
+		
+		pinctrl_keypad: keypadgrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14       0x184   /* COL0 */
+				MX8MM_IOMUXC_SAI1_TXD1_GPIO4_IO13       0x184   /* COL1 */
+				MX8MM_IOMUXC_SAI1_TXD0_GPIO4_IO12       0x184   /* COL2 */
+				MX8MM_IOMUXC_SAI1_TXC_GPIO4_IO11        0x184   /* COL3 */
+				MX8MM_IOMUXC_SAI1_TXFS_GPIO4_IO10       0x184   /* COL4 */
+				MX8MM_IOMUXC_SAI1_MCLK_GPIO4_IO20       0x184   /* COL5 (not used) */
+				
+				MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7       0x184   /* row0 */
+				MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8       0x184   /* row1 */
+				MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9       0x184   /* row2 */
+				MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7        0x184   /* row3 */
+				MX8MM_IOMUXC_SAI1_RXFS_GPIO4_IO0        0x184   /* row4 */
+				MX8MM_IOMUXC_SAI1_TXD3_GPIO4_IO15       0x184   /* row5 */
+				
+				MX8MM_IOMUXC_SAI1_TXD4_GPIO4_IO16       0x184   /* en_keybd */
 			>;
 		};
 	};

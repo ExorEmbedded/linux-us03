@@ -197,6 +197,9 @@ static int vcnl4200_set_power_state(struct vcnl4000_data *data, bool on)
 	if (ret < 0)
 		return ret;
 
+	if(on) 
+		val=0x0a; /* Max integration time for proximity detection */
+	
 	ret = i2c_smbus_write_word_data(data->client, VCNL4200_PS_CONF1, val);
 	if (ret < 0)
 		return ret;

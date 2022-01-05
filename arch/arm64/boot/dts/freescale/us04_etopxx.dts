@@ -148,6 +148,11 @@
 	status = "okay";
 };
 
+&ecspi3 {
+	/delete-property/dmas;
+	/delete-property/dma-names;
+};
+
 &i2c1 {
     seepromadp:seeprom0@56 {
         compatible = "atmel,24c02";

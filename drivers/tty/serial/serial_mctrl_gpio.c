@@ -37,11 +37,18 @@ static const struct {
 	unsigned int mctrl;
 	bool dir_out;
 } mctrl_gpios_desc[UART_GPIO_MAX] = {
+#if defined(CONFIG_X07_MCTRL_UART)
+	#warning Enabled X07 mctrl uart support CONFIG_X07_MCTRL_UART
+#else	
 	{ "cts", TIOCM_CTS, false, },
+#endif
 	{ "dsr", TIOCM_DSR, false, },
 	{ "dcd", TIOCM_CD, false, },
 	{ "rng", TIOCM_RNG, false, },
+#if defined(CONFIG_X07_MCTRL_UART)
+#else	
 	{ "rts", TIOCM_RTS, true, },
+#endif
 	{ "dtr", TIOCM_DTR, true, },
 };
 

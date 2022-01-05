@@ -18,6 +18,12 @@
 	model = "X07 i.MX8MM US04 board";
 	compatible = "fsl,imx8mm-evk", "fsl,imx8mm";
 
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart4;
+	};
+	
 	beeper {
 		compatible = "pwm-beeper";
 		pwms = <&pwm1 0 50000 0>;
@@ -251,6 +257,24 @@
 	};	
 };
 
+&uart1 { /* Main UART */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	rts-gpio = <&gpio1 1 0>;
+	mode-gpio = <&gpio1 0 0>;
+	rxen-gpio = <&gpio1 3 0>;
+
+	dcd-gpio = <&gpio3 16 0>;
+	rng-gpio = <&gpio3 2 0>;
+	dsr-gpio = <&gpio3 1 0>;
+	dtr-gpio = <&gpio3 3 0>;
+
+	status = "okay";
+};
+
 &iomuxc {
 	imx8mm-evk {
 
@@ -335,6 +359,18 @@
 				MX8MM_IOMUXC_SAI1_TXD4_GPIO4_IO16       0x184   /* en_keybd */
 			>;
 		};
+		
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI2_RXFS_UART1_TX	    0x140
+				MX8MM_IOMUXC_SAI2_RXC_UART1_RX	    0x140
+				MX8MM_IOMUXC_SAI2_RXD0_UART1_RTS_B	0x140
+				MX8MM_IOMUXC_SAI2_TXFS_UART1_CTS_B	0x140
+				MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3   0x11
+				MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1   0x11
+				MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0   0x11
+			>;
+		};		
 	};
 };
 

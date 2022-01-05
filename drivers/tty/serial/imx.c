@@ -52,6 +52,11 @@
 #if defined(CONFIG_LEDS_TRIGGER_PA18)
 #include <linux/leds.h>
 #endif
+
+#if defined(CONFIG_X07_MCTRL_UART)
+#include "serial_mctrl_gpio.h"
+#endif
+
 /* Register definitions */
 #define URXD0 0x0  /* Receiver Register */
 #define URTX0 0x40 /* Transmitter Register */
@@ -235,7 +240,9 @@ struct imx_port {
 	struct clk		*clk_ipg;
 	struct clk		*clk_per;
 	const struct imx_uart_data *devdata;
-
+#if defined(CONFIG_X07_MCTRL_UART)
+	struct mctrl_gpios* gpios;
+#endif
 	/* DMA fields */
 	unsigned int		dma_is_inited:1;
 	unsigned int		dma_is_enabled:1;
@@ -554,6 +561,9 @@ static void imx_enable_ms(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 
 	mod_timer(&sport->timer, jiffies);
+#if defined(CONFIG_X07_MCTRL_UART)
+	mctrl_gpio_enable_ms(sport->gpios);
+#endif	
 }
 
 static inline void imx_transmit_buffer(struct imx_port *sport)
@@ -1018,7 +1028,9 @@ static unsigned int imx_get_mctrl(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned int ret = imx_get_hwmctrl(sport);
-
+#if defined(CONFIG_X07_MCTRL_UART)
+	mctrl_gpio_get(sport->gpios, &ret);
+#endif
 	return ret;
 }
 
@@ -1044,6 +1056,9 @@ static void imx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	if (mctrl & TIOCM_LOOP)
 		temp |= UTS_LOOP;
 	writel(temp, sport->port.membase + uts_reg(sport));
+#if defined(CONFIG_X07_MCTRL_UART)
+	mctrl_gpio_set(sport->gpios, mctrl);
+#endif	
 }
 
 /*
@@ -1536,7 +1551,9 @@ static void imx_shutdown(struct uart_port *port)
 		spin_unlock_irqrestore(&sport->port.lock, flags);
 		imx_uart_dma_exit(sport);
 	}
-
+#if defined(CONFIG_X07_MCTRL_UART)
+	mctrl_gpio_disable_ms(sport->gpios);
+#endif
 	spin_lock_irqsave(&sport->port.lock, flags);
 	temp = readl(sport->port.membase + UCR2);
 	temp &= ~(UCR2_TXEN);
@@ -2413,7 +2430,11 @@ static int serial_imx_probe(struct platform_device *pdev)
 	init_timer(&sport->timer);
 	sport->timer.function = imx_timeout;
 	sport->timer.data     = (unsigned long)sport;
-
+#if defined(CONFIG_X07_MCTRL_UART)
+	sport->gpios = mctrl_gpio_init(&sport->port, 0);
+	if (IS_ERR(sport->gpios))
+		return PTR_ERR(sport->gpios);	
+#endif
 	sport->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(sport->clk_ipg)) {
 		ret = PTR_ERR(sport->clk_ipg);

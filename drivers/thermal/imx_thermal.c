@@ -143,6 +143,7 @@ static int imx_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 	unsigned int n_meas;
 	bool wait;
 	u32 val;
+	static int fprintk;
 
 	if (data->mode == THERMAL_DEVICE_ENABLED) {
 		/* Check if a measurement is currently in progress */
@@ -198,6 +199,12 @@ static int imx_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 	if (*temp != data->last_temp) {
 		dev_dbg(&tz->device, "millicelsius: %ld\n", *temp);
 		data->last_temp = *temp;
+	}
+
+	if(!fprintk)
+	{
+		printk("CPU Temperature [millicelsius]: %ld\n",*temp); 
+		fprintk=1;
 	}
 
 	/* Reenable alarm IRQ if temperature below alarm temperature */

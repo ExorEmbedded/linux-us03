@@ -55,6 +55,7 @@ static int tmu_get_temp(void *data, int *temp)
 {
 	struct imx8mm_tmu *tmu = data;
 	u32 val;
+	static int fprintk;
 
 	/* the temp sensor need about 1ms to finish the measurement */
 	msleep(1);
@@ -66,6 +67,11 @@ static int tmu_get_temp(void *data, int *temp)
 		return -EAGAIN;
 
 	*temp = (val & TEMP_VAL_MASK) * 1000;
+	if(!fprintk)
+	{
+		printk("CPU Temperature [millicelsius]: %d\n",*temp); 
+		fprintk=1;
+	}
 
 	return 0;
 }

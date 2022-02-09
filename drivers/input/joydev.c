@@ -1,3 +1,4 @@
+#error CVE-2021-3612
 /*
  * Joystick device driver for the input driver suite.
  *

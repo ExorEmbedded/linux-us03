@@ -1,3 +1,4 @@
+#error CVE-2021-42008
 /*
  * 6pack.c	This module implements the 6pack protocol for kernel-based
  *		devices like TTY. It interfaces between a raw TTY and the

@@ -1,3 +1,4 @@
+#error CVE-2021-38205
 /*
  * Xilinx EmacLite Linux driver for the Xilinx Ethernet MAC Lite device.
  *

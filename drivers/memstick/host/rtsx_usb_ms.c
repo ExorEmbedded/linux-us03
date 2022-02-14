@@ -1,3 +1,4 @@
+#error CVE-2022-0487
 /* Realtek USB Memstick Card Interface driver
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.

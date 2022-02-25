@@ -316,8 +316,6 @@
 	opt3001@44 {
 	  compatible = "ti,opt3001";
 	  reg = <0x44>;
-	  interrupt-parent = <&gpio5>;
-	  interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
 	};	
 };
 

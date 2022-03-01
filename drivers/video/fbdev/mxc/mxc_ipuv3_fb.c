@@ -2160,6 +2160,12 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			ipu_enable_irq(mxc_fbi->ipu, mxc_fbi->ipu_ch_nf_irq);
 			retval = wait_for_completion_interruptible_timeout(
 				&mxc_fbi->vsync_complete, 1 * HZ);
+			
+			if (retval < 0)
+			{
+				ipu_disable_irq(mxc_fbi->ipu, mxc_fbi->ipu_ch_nf_irq);
+			}			
+
 			if (retval == 0) {
 				dev_err(fbi->device,
 					"MXCFB_WAIT_FOR_VSYNC: timeout %d\n",

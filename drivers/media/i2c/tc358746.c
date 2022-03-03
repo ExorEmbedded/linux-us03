@@ -688,18 +688,84 @@ static int tc358746_set_fmt(struct v4l2_subdev *sd,
  */
 
 extern int adv7180_wu10_command(int command, int param1, int param2);
+static void fpga_enable_all(struct tc358746_state* state, const bool b_enable);
+static void fpga_set_width(struct tc358746_state* state);
+static void fpga_set_height(struct tc358746_state* state);
+static void fpga_set_rotation(struct tc358746_state* state);
+
+void fpga_apply_rotation(struct tc358746_state *state)
+{
+	fpga_enable_all(state, false);
+
+	state->i_fpga_control_register &= ~FPGA_ROTATION_ANGLE_MASK;
+	switch (state->i_fpga_rotation)
+	{
+	case 0: state->i_fpga_control_register |= (0x0 << 1); break;
+	case 90: state->i_fpga_control_register |= (0x1 << 1); break;
+	case 180: state->i_fpga_control_register |= (0x2 << 1); break;
+	case 270: state->i_fpga_control_register |= (0x3 << 1); break;
+	default: state->i_fpga_control_register |= (0x0 << 1); break;
+	}
+	fpga_enable_all(state, true);
+	fpga_set_width(state);
+	fpga_set_height(state);
+	fpga_set_rotation(state);
+}
 
 int tc358746_s_ctrl(struct v4l2_ctrl* ctrl)
 {
 	struct v4l2_subdev* sd = to_tc358746_sd(ctrl);
 	struct tc358746_state* state = to_state(sd);
+	int ret = 0;
 
 	if (state->controls_initialized)
 	{
-		return adv7180_wu10_command(WU10_CMD_SET_CONTROL, ctrl->id, ctrl->val);
+		/* Changing video input causes FPGA rotation core to freeze,
+		 * sometimes, for some cameras.
+		 * It's not our core so we can't fix it.
+		 * 
+		 * Here is the workaround:
+		 * 1) before changing the input, we rotate
+		 * the video to some other arbitrary setting, just to force
+		 * rotation core to really reinitialize itself later.
+		 * 2) change video input
+		 * 3) wait for at least one new video frame to arrive
+		 * (the workaround doesn't work without this, tested)
+		 * 4) change rotation back to original value
+		 * 
+		 * This all happens reasonably fast and end-user shouldn't
+		 * notice anything at all.
+		 * */
+		 
+		// save original rotation
+		int i_old_rotation = state->i_fpga_rotation;
+		// calc temporary new rotation
+		state->i_fpga_rotation += 90;
+		if (state->i_fpga_rotation == 360)
+			state->i_fpga_rotation = 0;
+			
+		// we need the workaround only on changing input
+		if (ctrl->id == V4L2_CID_ADV_SET_INPUT)
+		{
+			// set new rotation
+			fpga_apply_rotation(state);
+		}
+		
+		ret = adv7180_wu10_command(WU10_CMD_SET_CONTROL, ctrl->id, ctrl->val);
+
+		if (ctrl->id == V4L2_CID_ADV_SET_INPUT)
+		{
+			// wait 50..100 ms for some video frames
+			// (approximate worst case: 40 ms for 25 Hz video)
+			usleep_range(50*1000, 100*1000);
+			
+			// set original rotation
+			state->i_fpga_rotation = i_old_rotation;
+			fpga_apply_rotation(state);
+		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static const struct v4l2_ctrl_ops tc358746_ctrl_ops = {
@@ -1969,22 +2035,7 @@ static ssize_t exor_camera_rotation_store(
 		return -EINVAL;
 	}
 
-	fpga_enable_all(state, false);
-
-	state->i_fpga_control_register &= ~FPGA_ROTATION_ANGLE_MASK;
-	switch (state->i_fpga_rotation)
-	{
-	case 0: state->i_fpga_control_register |= (0x0 << 1); break;
-	case 90: state->i_fpga_control_register |= (0x1 << 1); break;
-	case 180: state->i_fpga_control_register |= (0x2 << 1); break;
-	case 270: state->i_fpga_control_register |= (0x3 << 1); break;
-	default: state->i_fpga_control_register |= (0x0 << 1); break;
-	}
-	
-	fpga_enable_all(state, true);
-	fpga_set_width(state);
-	fpga_set_height(state);
-	fpga_set_rotation(state);
+	fpga_apply_rotation(state);
 
 	return count;
 }

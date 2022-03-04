@@ -96,8 +96,9 @@
  *1.39			SS							11.12.2020	Changed pwm freq. for code #75: 10kHz because the DIMM is used also by the keyboard leds driven by TPS61165
  *1.40			SS							22.07.2021	Modified display code #70:HT1560EI01AC5 (eX715MG), min duty using LT3754 set to 0,08%
  *1.41			SS							27.09.2021	Changed pwm freq. for code #75: 5kHz and min duty to 1% to match datasheet minimum backlight spec and still drive keyboard leds
+ *1.42			SS							04.03.2022	Added display code #78: DMB T070102600-B3WMN-001 for DAH21 (1024x600).
  *
- * NEXT AVAILABLE DISPLAY CODE: 78
+ * NEXT AVAILABLE DISPLAY CODE: 79
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -1241,7 +1242,33 @@ static struct t_DisplayParams displayconfig[] = {
       .pwmfreq        = 10000,
       .brightness_min = 1,
       .brightness_max = 80,
-    },   
+    },  
+    /* 78: DMB T070102600-B3WMN-001 for DAH21 1024x600*/
+    {
+        .dispid    = 78,
+        .rezx      = 1024, 
+        .rezy      = 600, 
+        .bpp       = 24,
+        
+        .pclk_freq = 51000, 
+        .pclk_inv  = 1,  // inverted clock polarity due to IMX.6 bug
+        
+        .hs_fp     = 10, 
+        .hs_bp     = 300, 
+        .hs_w      = 10, 
+        .hs_inv    = 1,
+        
+        .vs_fp     = 10, 
+        .vs_bp     = 15, 
+        .vs_w      = 10, 
+        .vs_inv    = 1,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 10000,
+        .brightness_min = 1,
+        .brightness_max = 100,
+    }, 
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

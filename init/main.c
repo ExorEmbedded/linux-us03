@@ -159,6 +159,18 @@ static bool initargs_found;
 
 static char *execute_command;
 static char *ramdisk_execute_command = "/init";
+/*----------------------------------------------------------------------------------------------------------------*
+Export the hw_dispid variable, defining the display id if passed from cmdline.
+*----------------------------------------------------------------------------------------------------------------*/
+int hw_dispid = 0xFFFF; //This variable will hold the display id value, when passed from the cmdline
+EXPORT_SYMBOL(hw_dispid);
+
+static int __init getdispid(char* str)
+{
+    hw_dispid = simple_strtol(str, NULL, 0);
+    return 1;
+}
+__setup("hw_dispid=",getdispid);
 
 /*
  * Export the pcie_mac1addr and pcie_mac2addr for HSE11 carrier, where USB eth ports are used instead 

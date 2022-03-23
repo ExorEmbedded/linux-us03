@@ -18,13 +18,16 @@
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <video/displayconfig.h>
 
 struct pwm_bl_data {
 	struct pwm_device	*pwm;
 	struct device		*dev;
+	unsigned int		period;
 	unsigned int		lth_brightness;
 	unsigned int		*levels;
 	bool			enabled;
+	bool            inverted;
 	struct regulator	*power_supply;
 	struct gpio_desc	*enable_gpio;
 	unsigned int		scale;
@@ -39,6 +42,115 @@ struct pwm_bl_data {
 	void			(*exit)(struct device *);
 	char			fb_id[16];
 };
+
+/*----------------------------------------------------------------------------------------------------------------*
+Exported function which allows to get the actual backlight enable status from kernel.
+It is needed for example by the working hours driver to correctly compute the effective backlight on time.
+*----------------------------------------------------------------------------------------------------------------*/
+bool pwm_backlight_is_enabled(struct backlight_device* bl)
+{
+  struct pwm_bl_data *pb = bl_get_data(bl);
+  return pb->enabled;
+}
+EXPORT_SYMBOL(pwm_backlight_is_enabled);
+
+/*----------------------------------------------------------------------------------------------------------------*
+Helper functions to retrieve the display id value, when passed from the cmdline, and use it to set the
+backlight parameters (the contents of the DTB file are overridden, if a valid dispaly id is passed from
+cmdline.)
+*----------------------------------------------------------------------------------------------------------------*/
+extern int hw_dispid; //Exported variable which holds the display id value, when passed from the cmdline
+
+/*
+* Writes the pwm_bl_data structure according with the contents of the displayconfig.h file and the passed dispid parameter.
+* Returns 0 if success, -1 if failure (ie: no match found)
+*/
+int dispid_get_backlight(struct pwm_bl_data* pb, int dispid, int maxlevels)
+{
+  int i=0;
+  int j;
+  int step = 0;
+  unsigned short brightness_max;
+  
+  // Scan the display array to search for the required dispid
+  if(dispid == NODISPLAY)
+    return -1;
+	
+  while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
+    i++;
+  
+  if(displayconfig[i].dispid == NODISPLAY)
+    return -1;
+      
+  // If we are here, we have a valid array index pointing to the desired display
+  // Configure the backlight controller, based on a 0-100% dutycycle range.
+  pb->lth_brightness = 0;
+  pb->scale = 100;
+  
+  if(displayconfig[i].pwmfreq == 0)
+    displayconfig[i].pwmfreq = 1000;
+    
+  pb->period = 1000000000l / displayconfig[i].pwmfreq;
+  
+  //Set the inverted flag accordingly
+  if(displayconfig[i].brightness_max & 0x100)
+	  pb->inverted = true;
+  else
+	  pb->inverted = false;
+  
+  //Now override the levels based on linear interpolation between brightness_min and brightness_max
+  brightness_max = displayconfig[i].brightness_max & 0xff;
+  if(brightness_max > 100)
+    brightness_max = 100;
+  
+  if((displayconfig[i].brightness_min & 0xff) > brightness_max)
+    displayconfig[i].brightness_min = brightness_max;
+    
+  if(maxlevels > 1) 
+    step = 100 * (brightness_max - (displayconfig[i].brightness_min & 0xff)) / (maxlevels-1);
+  for(j=1; j<maxlevels; j++)
+    pb->levels[j] = (displayconfig[i].brightness_min & 0xff) + (step *(j-1))/100;
+  
+  pb->levels[1] = displayconfig[i].brightness_min;
+  pb->levels[maxlevels] = brightness_max;
+  
+  /* BSP-1559: Create brightness curve for zero dimming feature (3 segments envelope) */
+  if((displayconfig[i].brightness_min & 0xff00) && (maxlevels > 16)) 
+  {
+    int lev;
+
+    /* 1st segment m=brightness_min */
+    step = (displayconfig[i].brightness_min >> 8) & 0xff;
+    for(j=2; j<7; j++)
+    {
+      lev = j*step;
+      if(lev < 255)
+	pb->levels[j] = (lev << 8) & 0xff00;
+      else
+	pb->levels[j] = lev / 100;
+    }
+    
+    /* 2nd segment m=1 */
+    lev = (lev/100) + 1;
+    for(j=7; j<10; j++)
+      pb->levels[j] = lev++;
+    
+    lev++;
+    pb->levels[j] = lev;
+    
+    /* 3rd segment: interpolation till brightness_max */
+    step = 100 * (brightness_max - lev) / (maxlevels-j);
+    for(j=11;j<maxlevels; j++)
+      pb->levels[j] = lev + (step *(j-10))/100;
+    
+    pb->levels[maxlevels] = brightness_max;
+  }
+  
+  for(j=1; j<(maxlevels+1); j++)
+    printk("j=%d lev=%d \n",j,pb->levels[j]);
+
+  return 0;
+}
 
 static void pwm_backlight_power_on(struct pwm_bl_data *pb)
 {
@@ -99,11 +211,16 @@ static int compute_duty_cycle(struct pwm_bl_data *pb, int brightness)
 		duty_cycle = pb->levels[brightness];
 	else
 		duty_cycle = brightness;
+	
+	/* Handle special brightness dimming values (<1%) */
+	if(pb->levels)
+	  if(duty_cycle & 0xff00)
+	    {
+	      duty_cycle = ((duty_cycle >> 8) & 0xff);
+	      return ((duty_cycle * pb->period) / (pb->scale * 100));
+	    }
 
-	duty_cycle *= state.period - lth;
-	do_div(duty_cycle, pb->scale);
-
-	return duty_cycle + lth;
+	return (duty_cycle * (pb->period - lth) / pb->scale) + lth;
 }
 
 static int pwm_backlight_update_status(struct backlight_device *bl)
@@ -111,7 +228,16 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = backlight_get_brightness(bl);
 	struct pwm_state state;
-
+	
+	/* Invert pwm output if required */
+	if(pb->inverted)
+	{
+		struct pwm_state state;
+		pwm_get_state(pb->pwm, &state);
+		state.polarity = PWM_POLARITY_INVERSED;
+		pwm_apply_state(pb->pwm, &state);
+	}
+		
 	if (pb->notify)
 		brightness = pb->notify(pb->dev, brightness);
 
@@ -623,6 +749,16 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	pb->lth_brightness = data->lth_brightness * (div_u64(state.period,
 				pb->scale));
+	
+	/* Update backlight parameters accordingly if a valid hw_dispid is passed
+	 * */
+	if(0 == dispid_get_backlight(pb, hw_dispid, data->max_brightness))
+	{
+		/* Update the PWM period (in nanoseconds) */
+		pwm_get_state(pb->pwm, &state);
+		state.period = pb->period;
+		pwm_apply_state(pb->pwm, &state);		
+	}
 
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = data->max_brightness;

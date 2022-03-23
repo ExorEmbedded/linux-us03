@@ -155,7 +155,6 @@
 	/delete-property/dma-names;
 };
 
-#if 0
 &i2c1 {
     seepromadp:seeprom0@56 {
         compatible = "atmel,24c02";
@@ -172,7 +171,7 @@
 		reg = <0x41>;
 	};    
 };
-#endif
+
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;

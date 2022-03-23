@@ -294,6 +294,9 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 		}
 	}
 
+	/* Set default LED cfg */
+	phy_modify_paged(phydev, 0xd04, 0x201b, 0xffff, 0x10);	
+	
 	return genphy_soft_reset(phydev);
 }
 

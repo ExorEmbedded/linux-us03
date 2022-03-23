@@ -63,6 +63,9 @@ struct smsc95xx_priv {
 	struct phy_device *phydev;
 };
 
+extern unsigned char pcie_mac1addr[];
+extern unsigned char pcie_mac2addr[];
+
 static bool turbo_mode = true;
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
@@ -775,6 +778,28 @@ static void smsc95xx_init_mac_address(struct usbnet *dev)
 		}
 	}
 
+	/* No valid MAC address, so it is not a USB dongle but it should be the eth chip of our HSE11 board
+	 * If so, assign the specific MAC address and eth interface name
+	 */
+	if(dev->udev->descriptor.idProduct == 0xec00)
+	{
+	  if (dev->udev->bus->busnum==1)
+	    if (is_valid_ether_addr(pcie_mac1addr))
+	    {
+	      memcpy(dev->net->dev_addr, pcie_mac1addr, ETH_ALEN);
+	      strcpy (dev->net->name, "eth1");
+	      return;
+	    }
+
+	  if (dev->udev->bus->busnum==2)
+	    if (is_valid_ether_addr(pcie_mac2addr))
+	    {
+	      memcpy(dev->net->dev_addr, pcie_mac2addr, ETH_ALEN);
+	      strcpy (dev->net->name, "eth2");
+	      return;
+	    }
+	}
+	
 	/* no useful static MAC address found. generate a random one */
 	eth_hw_addr_random(dev->net);
 	netif_dbg(dev, ifup, dev->net, "MAC address set to eth_random_addr\n");
@@ -1973,6 +1998,19 @@ static const struct driver_info smsc95xx_info = {
 	.flags		= FLAG_ETHER | FLAG_SEND_ZLP | FLAG_LINK_INTR,
 };
 
+static const struct driver_info smsc9512_info = {
+	.description	= "smsc9512 USB 2.0 Ethernet",
+	.bind		= smsc95xx_bind,
+	.unbind		= smsc95xx_unbind,
+	.link_reset	= smsc95xx_link_reset,
+	.reset		= smsc95xx_reset,
+	.rx_fixup	= smsc95xx_rx_fixup,
+	.tx_fixup	= smsc95xx_tx_fixup,
+	.status		= smsc95xx_status,
+	.manage_power	= smsc95xx_manage_power,
+	.flags		= FLAG_SEND_ZLP | FLAG_LINK_INTR,
+};
+
 static const struct usb_device_id products[] = {
 	{
 		/* SMSC9500 USB Ethernet Device */
@@ -1997,7 +2035,7 @@ static const struct usb_device_id products[] = {
 	{
 		/* SMSC9512/9514 USB Hub & Ethernet Device */
 		USB_DEVICE(0x0424, 0xec00),
-		.driver_info = (unsigned long) &smsc95xx_info,
+		.driver_info = (unsigned long) &smsc9512_info,
 	},
 	{
 		/* SMSC9500 USB Ethernet Device (SAL10) */

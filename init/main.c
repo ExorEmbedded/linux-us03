@@ -161,6 +161,30 @@ static char *execute_command;
 static char *ramdisk_execute_command = "/init";
 
 /*
+ * Export the pcie_mac1addr and pcie_mac2addr for HSE11 carrier, where USB eth ports are used instead 
+ * of pcie eth ports: we will use the same MAC address
+ */
+unsigned char pcie_mac1addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+unsigned char pcie_mac2addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+EXPORT_SYMBOL(pcie_mac1addr);
+EXPORT_SYMBOL(pcie_mac2addr);
+
+static int __init getpciemac1addr(char* str)
+{
+  sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &pcie_mac1addr[0], &pcie_mac1addr[1], &pcie_mac1addr[2], &pcie_mac1addr[3], &pcie_mac1addr[4], &pcie_mac1addr[5]);
+  return 1;
+}
+
+static int __init getpciemac2addr(char* str)
+{
+  sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &pcie_mac2addr[0], &pcie_mac2addr[1], &pcie_mac2addr[2], &pcie_mac2addr[3], &pcie_mac2addr[4], &pcie_mac2addr[5]);
+  return 1;
+}
+
+__setup("pcie_tse1addr=",getpciemac1addr);
+__setup("pcie_tse2addr=",getpciemac2addr);
+
+/*
  * Used to generate warnings if static_key manipulation functions are used
  * before jump_label_init is called.
  */

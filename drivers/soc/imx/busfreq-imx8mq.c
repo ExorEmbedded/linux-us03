@@ -552,7 +552,22 @@ static int busfreq_probe(struct platform_device *pdev)
 	struct arm_smccc_res res;
 
 	busfreq_dev = &pdev->dev;
+	
+	/* Disable busfreq driver on US04 and NS04 targets due to ATF compatibility issues
+	 * we assume by default to disable any DVFS scaling
+	 */
+	if(of_machine_is_compatible("us04,imx8mm"))
+	{
+		dev_err(busfreq_dev, "busfreq driver not supported on US04 target\n");
+		return -EINVAL;
+	}
 
+	if(of_machine_is_compatible("ns04,imx8mm"))
+	{
+		dev_err(busfreq_dev, "busfreq driver not supported on NS04 target\n");
+		return -EINVAL;
+	}
+	
 	/* get the clock for DDRC */
 	if (of_machine_is_compatible("fsl,imx8mq"))
 		err = imx8mq_init_busfreq_clk(pdev);
@@ -610,7 +625,8 @@ static int busfreq_probe(struct platform_device *pdev)
 	audio_bus_freq_mode = 0;
 	cur_bus_freq_mode = BUS_FREQ_HIGH;
 
-	bus_freq_scaling_is_active = 1;
+	/* Bus freq. scaling disabled by default: we assume by default to disable any DVFS scaling */
+	bus_freq_scaling_is_active = 0;
 	bus_freq_scaling_initialized = 1;
 
 	INIT_DELAYED_WORK(&low_bus_freq_handler, reduce_bus_freq_handler);

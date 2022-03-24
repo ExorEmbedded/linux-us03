@@ -462,7 +462,7 @@ static void panel_simple_parse_panel_timing_node(struct device *dev,
 {
 	const struct panel_desc *desc = panel->desc;
 	struct videomode vm;
-	unsigned int i;
+	//unsigned int i;
 
 	if (WARN_ON(desc->num_modes)) {
 		dev_err(dev, "Reject override mode: panel has a fixed mode\n");
@@ -472,7 +472,7 @@ static void panel_simple_parse_panel_timing_node(struct device *dev,
 		dev_err(dev, "Reject override mode: no timings specified\n");
 		return;
 	}
-
+#if 0
 	for (i = 0; i < panel->desc->num_timings; i++) {
 		const struct display_timing *dt = &panel->desc->timings[i];
 
@@ -495,7 +495,13 @@ static void panel_simple_parse_panel_timing_node(struct device *dev,
 					     DRM_MODE_TYPE_PREFERRED;
 		break;
 	}
-
+#else
+	/* Do not check the override mode against the fallback mode: the ovveride mode, if defined, always takes the precedence
+	 */ 
+	videomode_from_timing(ot, &vm);
+	drm_display_mode_from_videomode(&vm, &panel->override_mode);
+ 	panel->override_mode.type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+#endif
 	if (WARN_ON(!panel->override_mode.type))
 		dev_err(dev, "Reject override mode: No display_timing found\n");
 }
@@ -658,6 +664,34 @@ static void panel_simple_shutdown(struct device *dev)
 	drm_panel_disable(&panel->base);
 	drm_panel_unprepare(&panel->base);
 }
+
+
+
+static const struct display_timing ex_lvds_panel_fallback_timing = {
+	.pixelclock = { 33200000, 33200000, 33200000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 28, 28, 28 },
+	.hback_porch = { 28, 28, 28 },
+	.hsync_len = { 200, 200, 200 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 10, 10, 10 },
+	.vback_porch = { 10, 10, 10 },
+	.vsync_len = { 25, 25, 25 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		DISPLAY_FLAGS_DE_LOW
+};
+
+static const struct panel_desc ex_lvds_panel = {
+	.timings = &ex_lvds_panel_fallback_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 800,
+		.height = 480,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
 
 static const struct drm_display_mode ampire_am_1280800n3tzqw_t00h_mode = {
 	.clock = 71100,
@@ -3939,6 +3973,9 @@ static const struct panel_desc arm_rtsm = {
 
 static const struct of_device_id platform_of_match[] = {
 	{
+		.compatible = "ex,lvds-panel",
+		.data = &ex_lvds_panel,
+	}, {
 		.compatible = "ampire,am-1280800n3tzqw-t00h",
 		.data = &ampire_am_1280800n3tzqw_t00h,
 	}, {

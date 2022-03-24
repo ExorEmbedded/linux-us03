@@ -117,6 +117,41 @@
 			enable-active-low;
 		};
 	};
+	
+	lvdspanel {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ex,lvds-panel", "simple-panel";
+
+		status = "okay";
+
+		de_pol = <1>;
+		hsync_pol = <1>;
+		vsync_pol = <1>;
+		lvds-use-jeida;
+		//lvds-is-two-channel;
+		//lvds-use-18bpp;
+		panel-timing {
+			clock-frequency = <71100000>;
+			hactive = <1280>;
+			vactive = <800>;
+			hsync-len = <100>;
+			hfront-porch = <30>;
+			hback-porch = <30>;
+			vsync-len = <10>;
+			vfront-porch = <3>;
+			vback-porch = <10>;
+		};
+
+		port@0 {
+			reg = <0>;
+
+			lvds_panel_in: endpoint {
+				remote-endpoint = <&lvds_bridge_out>;
+			};
+		};
+	};
+	
 };
 
 &iomuxc {
@@ -374,49 +409,36 @@
         reg = <0x21>;
         restart-if-fails;
     };
-#if 0
-	dsi_lvds_bridge: sn65dsi84@2c {
-		compatible = "ti,sn65dsi83";
-		reg = <0x2c>;
-		ti,dsi-lanes = <4>;
-		ti,lvds-format = <2>; 
-		ti,lvds-bpp = <24>;
-		ti,width-mm = <218>;
-		ti,height-mm = <136>;
-		enable-gpios = <&tca6408 1 GPIO_ACTIVE_HIGH>;
-		envdd-gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		status = "okay";
-		backlight = <&backlight0>;
 
-		display-timings {
-			lvds {
-				clock-frequency = <33000000>;
-				hactive = <800>;
-				vactive = <480>;
-				hback-porch = <40>;
-				hfront-porch = <40>;
-				vback-porch = <29>;
-				vfront-porch = <13>;
-				hsync-len = <48>;
-				vsync-len = <3>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <1>;
-				pixelclk-active = <0>;
-			};
-		};
+        bridge@2c {
+            compatible = "ti,sn65dsi83";
+            reg = <0x2c>;
 
-		port {
-			lvds_from_dsi: endpoint {
-				remote-endpoint = <&dsi_to_lvds>;
-			};
-		};
-	};
-#endif
+			enable-gpios = <&tca6408 1 GPIO_ACTIVE_HIGH>;
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+
+                    lvds_bridge_in: endpoint {
+                        remote-endpoint = <&dsim_to_lvds_bridge>;
+                        data-lanes = <1 2 3 4>;
+                    };
+                };
+
+                port@2 {
+                    reg = <2>;
+
+                    lvds_bridge_out: endpoint {
+                        remote-endpoint = <&lvds_panel_in>;
+                    };
+                };
+            };
+        };
 };
 
-#if 0
 &lcdif {
 	status = "okay";
 };
@@ -425,12 +447,13 @@
 	status = "okay";
 
 	port@1 {
-		dsi_to_lvds: endpoint {
-			remote-endpoint = <&lvds_from_dsi>;
+		dsim_to_lvds_bridge: endpoint {
+			remote-endpoint = <&lvds_bridge_in>;
+			attach-bridge;
 		};
 	};
 };
-#endif
+
 &mu {
 	status = "okay";
 };

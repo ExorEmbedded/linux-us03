@@ -146,6 +146,7 @@ struct sn65dsi83 {
 	int				dsi_lanes;
 	bool				lvds_dual_link;
 	bool				lvds_dual_link_even_odd_swap;
+	struct gpio_desc		*envdd_gpio;
 };
 
 static const struct regmap_range sn65dsi83_readable_ranges[] = {
@@ -293,15 +294,12 @@ static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 
-	/*
-	 * Reset the chip, pull EN line low for t_reset=10ms,
-	 * then high for t_en=1ms.
-	 */
 	regcache_mark_dirty(ctx->regmap);
 	gpiod_set_value_cansleep(ctx->enable_gpio, 0);
-	usleep_range(10000, 11000);
+	gpiod_set_value_cansleep(ctx->envdd_gpio, 1);
+	usleep_range(20000, 22000);
 	gpiod_set_value_cansleep(ctx->enable_gpio, 1);
-	usleep_range(1000, 1100);
+	usleep_range(20000, 22000);
 }
 
 static u8 sn65dsi83_get_lvds_range(struct sn65dsi83 *ctx,
@@ -539,6 +537,9 @@ static void sn65dsi83_atomic_post_disable(struct drm_bridge *bridge,
 
 	/* Put the chip in reset, pull EN line low. */
 	gpiod_set_value_cansleep(ctx->enable_gpio, 0);
+	usleep_range(10000, 11000);
+	gpiod_set_value_cansleep(ctx->envdd_gpio, 0);
+	usleep_range(100000, 110000);
 }
 
 static enum drm_mode_status
@@ -675,6 +676,10 @@ static int sn65dsi83_probe(struct i2c_client *client,
 	if (IS_ERR(ctx->enable_gpio))
 		return PTR_ERR(ctx->enable_gpio);
 
+	ctx->envdd_gpio = devm_gpiod_get(ctx->dev, "envdd", GPIOD_OUT_LOW);
+	if (IS_ERR(ctx->envdd_gpio))
+		return PTR_ERR(ctx->envdd_gpio);
+	
 	ret = sn65dsi83_parse_dt(ctx, model);
 	if (ret)
 		return ret;

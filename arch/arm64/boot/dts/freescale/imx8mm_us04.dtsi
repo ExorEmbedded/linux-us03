@@ -415,6 +415,7 @@
             reg = <0x2c>;
 
 			enable-gpios = <&tca6408 1 GPIO_ACTIVE_HIGH>;
+			envdd-gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
             ports {
                 #address-cells = <1>;
                 #size-cells = <0>;

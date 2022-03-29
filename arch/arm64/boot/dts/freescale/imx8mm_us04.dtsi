@@ -129,17 +129,15 @@
 		hsync_pol = <1>;
 		vsync_pol = <1>;
 		lvds-use-jeida;
-		//lvds-is-two-channel;
-		//lvds-use-18bpp;
 		panel-timing {
-			clock-frequency = <71100000>;
-			hactive = <1280>;
-			vactive = <800>;
-			hsync-len = <100>;
-			hfront-porch = <30>;
-			hback-porch = <30>;
-			vsync-len = <10>;
-			vfront-porch = <3>;
+			clock-frequency = <33200000>;
+			hactive = <800>;
+			vactive = <480>;
+			hsync-len = <200>;
+			hfront-porch = <28>;
+			hback-porch = <28>;
+			vsync-len = <25>;
+			vfront-porch = <10>;
 			vback-porch = <10>;
 		};
 

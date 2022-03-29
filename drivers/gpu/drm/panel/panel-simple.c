@@ -689,7 +689,7 @@ static const struct panel_desc ex_lvds_panel = {
 		.width = 800,
 		.height = 480,
 	},
-	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 

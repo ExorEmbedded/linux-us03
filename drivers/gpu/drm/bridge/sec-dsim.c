@@ -1081,8 +1081,8 @@ static void sec_mipi_dsim_config_clkctrl(struct sec_mipi_dsim *dsim)
 
 	clkctrl |= CLKCTRL_TXREQUESTHSCLK;
 
-	/* using 1.5Gbps PHY */
-	clkctrl |= CLKCTRL_DPHY_SEL_1P5G;
+	/* using 1.0Gbps PHY */
+	clkctrl |= CLKCTRL_DPHY_SEL_1G;
 
 	clkctrl |= CLKCTRL_ESCCLKEN;
 

@@ -151,7 +151,10 @@ static inline void imx2_wdt_setup(struct watchdog_device *wdog)
 	/* Keep Watchdog Disabled */
 	val &= ~IMX2_WDT_WCR_WDE;
 	/* Set the watchdog's Time-Out value */
-	val |= WDOG_SEC_TO_COUNT(wdog->timeout);
+	if(wdog->timeout > 0)
+		val |= WDOG_SEC_TO_COUNT(wdog->timeout);
+	else 
+		val |= 0;	
 
 	regmap_write(wdev->regmap, IMX2_WDT_WCR, val);
 
@@ -182,9 +185,11 @@ static void __imx2_wdt_set_timeout(struct watchdog_device *wdog,
 				   unsigned int new_timeout)
 {
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
+	unsigned int timeout = 0;
 
-	regmap_update_bits(wdev->regmap, IMX2_WDT_WCR, IMX2_WDT_WCR_WT,
-			   WDOG_SEC_TO_COUNT(new_timeout));
+	if(new_timeout > 0) /*0 correspond to 500 ms*/
+		timeout = WDOG_SEC_TO_COUNT(new_timeout);
+	regmap_update_bits(wdev->regmap, IMX2_WDT_WCR, IMX2_WDT_WCR_WT, timeout);
 }
 
 static int imx2_wdt_set_timeout(struct watchdog_device *wdog,

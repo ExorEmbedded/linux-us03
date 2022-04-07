@@ -125,7 +125,7 @@
 			fsl,pins = <
                 MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12      0x1c4
                 MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14      0x1c4
-                MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4
+                MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x0c4
 			>;
 		};
 

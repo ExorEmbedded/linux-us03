@@ -114,7 +114,6 @@ static void sn65dsi83_brg_power_off(struct sn65dsi83_brg *brg)
     dev_info(&brg->client->dev,"%s\n",__func__);
     gpiod_set_value_cansleep(brg->gpio_enable, 0);
     msleep(1);
-    gpiod_set_value_cansleep(brg->gpio_envdd, 0);
     msleep(10);
 }
 

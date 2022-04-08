@@ -264,8 +264,8 @@
 
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
-				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
-				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x0c4
+				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x0c4
 			>;
 		};
 

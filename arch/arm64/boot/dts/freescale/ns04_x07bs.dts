@@ -1,0 +1,174 @@
+/*
+ * Copyright (C) 2019 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a.
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+  
+/dts-v1/;
+  
+#include "imx8mm_ns04.dtsi"
+  
+/ {
+	model = "ECO2xx i.MX8MM NS04 board";
+	compatible = "fsl,imx8mm-evk", "fsl,imx8mm";
+
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm1 0 50000 0>;
+	};
+
+	working_hours {
+	  compatible = "working_hours";
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
+	  status = "okay";
+	};	
+	
+	usbaux@32e40000 {
+		compatible = "fsl,imx8mm-usb", "fsl,imx7d-usb", "fsl,imx27-usb";
+		reg = <0x0 0x32e40000 0x0 0x200>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clk IMX8MM_CLK_USB1_CTRL_ROOT>;
+		clock-names = "usb1_ctrl_root_clk";
+		assigned-clocks = <&clk IMX8MM_CLK_USB_BUS_SRC>,
+				  <&clk IMX8MM_CLK_USB_CORE_REF_SRC>;
+		assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_500M>,
+					 <&clk IMX8MM_SYS_PLL1_100M>;
+		fsl,usbphy = <&usbphynop1>;
+		fsl,usbmisc = <&usbmisc1 0>;
+		power-domains = <&usb_otg1_pd>;
+		dr_mode = "host";
+		vbus-supply = <&reg_usb1_otg_vbus>;
+		picophy,pre-emp-curr-control = <3>;
+		picophy,dc-vol-level-adjust = <7>;
+		status = "okay";
+	};		
+};
+
+/delete-node/&usbotg1;
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&i2c1 {
+	
+	temperature:lm75b@4c {
+		compatible = "national,lm75b";
+		reg = <0x4c>;
+	};
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-mode = "rmii";
+	phy-handle = <&ethphy0>;
+	fsl,magic-packet;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			max-speed = <100>;
+			reg = <0>;
+		};
+	};
+};
+
+&pcie0{
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie0>;
+	reset-gpio = <&gpio3 15 0>;
+	ext_osc = <1>;
+	fsl,max-link-speed = <1>;
+	status = "okay";
+};
+
+&mipi_dsi {
+	status = "disabled";
+};
+
+&dsi_lvds_bridge{
+		/delete-property/enable-gpios;
+		status = "disabled";
+};
+
+&ecspi3 {
+    fsl,spi-num-chipselects = <1>;
+    cs-gpios = <&gpio5 25 0>;  /* CS0 */
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi3>;
+    status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
+
+	fram: at25@3 {
+        compatible = "atmel,at25", "st,m95256";
+        reg = <0>;
+        spi-max-frequency = <20000000>;
+        pagesize = <64>;
+        size = <65536>;
+        address-width = <16>;
+    };
+};
+
+&iomuxc {
+	imx8mm-evk {
+
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_NAND_CE2_B_GPIO3_IO3       0x1c4   /* eco2xx Wifi Reset */
+				MX8MM_IOMUXC_NAND_CE3_B_GPIO3_IO4       0x1c4   /* eco2xx LVDS ena */	
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
+			>;
+		};
+
+		pinctrl_pcie0: pcie0grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_NAND_RE_B_GPIO3_IO15         0x1c4
+			>;
+		};
+
+		pinctrl_ecspi3: ecspi3grp {
+			fsl,pins = <
+                MX8MM_IOMUXC_UART1_RXD_ECSPI3_SCLK      0x11
+                MX8MM_IOMUXC_UART1_TXD_ECSPI3_MOSI      0x11
+                MX8MM_IOMUXC_UART2_RXD_ECSPI3_MISO      0x11
+                MX8MM_IOMUXC_UART2_TXD_GPIO5_IO25       0x11
+			>;
+		};
+		
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ENET_MDC_ENET1_MDC		0x3
+				MX8MM_IOMUXC_ENET_MDIO_ENET1_MDIO	0x3
+				MX8MM_IOMUXC_ENET_TD2_ENET1_TX_CLK	0x4000001f
+				MX8MM_IOMUXC_ENET_TD1_ENET1_RGMII_TD1	0x56
+				MX8MM_IOMUXC_ENET_TD0_ENET1_RGMII_TD0	0x56
+				MX8MM_IOMUXC_ENET_RD1_ENET1_RGMII_RD1	0x56
+				MX8MM_IOMUXC_ENET_RD0_ENET1_RGMII_RD0	0x56
+				MX8MM_IOMUXC_ENET_RXC_ENET1_RX_ER	0x56
+				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x56
+				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x56
+			>;
+		};
+	};
+};
+

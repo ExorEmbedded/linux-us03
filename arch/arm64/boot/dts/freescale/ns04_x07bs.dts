@@ -70,6 +70,11 @@
 		compatible = "national,lm75b";
 		reg = <0x4c>;
 	};
+	
+	seepromuid:seepromuid@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+	};	
 };
 
 &fec1 {

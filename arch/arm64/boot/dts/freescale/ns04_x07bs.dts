@@ -147,6 +147,15 @@
 	status = "okay";
 };
 
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
+};
+
 &iomuxc {
 	imx8mm-evk {
 
@@ -173,6 +182,15 @@
 			>;
 		};	
 
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI3_TXFS_UART2_RX     0x140
+				MX8MM_IOMUXC_SAI3_RXD_UART2_RTS_B   0x140
+				MX8MM_IOMUXC_SAI3_RXC_UART2_CTS_B   0x140
+				MX8MM_IOMUXC_SAI3_TXC_UART2_TX      0x140
+			>;
+		};
+		
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4

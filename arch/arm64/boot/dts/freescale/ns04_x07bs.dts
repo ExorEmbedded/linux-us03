@@ -115,25 +115,6 @@
 		status = "disabled";
 };
 
-&ecspi3 {
-    fsl,spi-num-chipselects = <1>;
-    cs-gpios = <&gpio5 25 0>;  /* CS0 */
-    pinctrl-names = "default";
-    pinctrl-0 = <&pinctrl_ecspi3>;
-    status = "okay";
-	/delete-property/dmas;
-	/delete-property/dma-names;
-
-	fram: at25@3 {
-        compatible = "atmel,at25", "st,m95256";
-        reg = <0>;
-        spi-max-frequency = <20000000>;
-        pagesize = <64>;
-        size = <65536>;
-        address-width = <16>;
-    };
-};
-
 &uart1 { /* Main UART */
 	/delete-property/dmas;
 	/delete-property/dma-names;
@@ -161,16 +142,51 @@
 	/delete-property/dma-names;
 };
 
+&ecspi1 { /* For the xsafety module */
+    fsl,spi-num-chipselects = <2>;
+    cs-gpios = <&gpio5 9 0>,  /* CS0 */
+               <&gpio5 17 0>; /* CS1 */
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi1>;
+    status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
+  
+    spidev0: spi0@0 {
+        compatible = "generic,spidev";
+        reg = <0>;
+        spi-max-frequency = <10000000>;
+    };
+
+    spidev1: spi0@1 {
+        compatible = "generic,spidev";
+        reg = <1>;
+        spi-max-frequency = <10000000>;
+    };
+};
+
 &iomuxc {
 	imx8mm-evk {
 
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX8MM_IOMUXC_NAND_CE2_B_GPIO3_IO3       0x1c4   /* eco2xx Wifi Reset */
-				MX8MM_IOMUXC_NAND_CE3_B_GPIO3_IO4       0x1c4   /* eco2xx LVDS ena */	
+				MX8MM_IOMUXC_NAND_CE2_B_GPIO3_IO3       0x1c4   
+				MX8MM_IOMUXC_NAND_CE3_B_GPIO3_IO4       0x1c4   	
 			>;
 		};
 
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK    0x11
+				MX8MM_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI    0x11
+				MX8MM_IOMUXC_ECSPI1_MISO_ECSPI1_MISO    0x11
+				MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9       0x11 /* cs0 */ 
+				MX8MM_IOMUXC_I2C2_SDA_GPIO5_IO17        0x11 /* cs1 */
+				MX8MM_IOMUXC_UART3_TXD_GPIO5_IO27       0x11 /* spigo_1 */
+				MX8MM_IOMUXC_UART3_RXD_GPIO5_IO26       0x11 /* spigo_2 */
+			>;
+		};
+		
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_SAI2_RXFS_UART1_TX	    0x140
@@ -208,15 +224,6 @@
 			>;
 		};
 
-		pinctrl_ecspi3: ecspi3grp {
-			fsl,pins = <
-                MX8MM_IOMUXC_UART1_RXD_ECSPI3_SCLK      0x11
-                MX8MM_IOMUXC_UART1_TXD_ECSPI3_MOSI      0x11
-                MX8MM_IOMUXC_UART2_RXD_ECSPI3_MISO      0x11
-                MX8MM_IOMUXC_UART2_TXD_GPIO5_IO25       0x11
-			>;
-		};
-		
 		pinctrl_fec1: fec1grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_ENET_MDC_ENET1_MDC		0x3

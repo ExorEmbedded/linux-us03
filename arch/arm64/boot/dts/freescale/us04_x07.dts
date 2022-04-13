@@ -285,6 +285,8 @@
 				MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4   /* EN_VDD */
 				MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5        0x1c4   /* Touch reset*/
 				MX8MM_IOMUXC_SAI1_TXD7_GPIO4_IO19       0x1c4   /* Touch intr */
+				MX8MM_IOMUXC_SAI5_RXC_GPIO3_IO20        0x1c4   /* spigo1 */
+				MX8MM_IOMUXC_SAI5_RXFS_GPIO3_IO19       0x1c4   /* spigo2 */
 			>;
 		};
 

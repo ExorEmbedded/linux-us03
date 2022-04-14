@@ -184,6 +184,8 @@
 				MX8MM_IOMUXC_I2C2_SDA_GPIO5_IO17        0x11 /* cs1 */
 				MX8MM_IOMUXC_UART3_TXD_GPIO5_IO27       0x11 /* spigo_1 */
 				MX8MM_IOMUXC_UART3_RXD_GPIO5_IO26       0x11 /* spigo_2 */
+				MX8MM_IOMUXC_GPIO1_IO05_GPIO1_IO5       0x11 /* force unpair */
+				MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7       0x11 /* Lamp */
 			>;
 		};
 		

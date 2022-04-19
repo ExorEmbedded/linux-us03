@@ -899,6 +899,11 @@ static void sec_mipi_dsim_set_main_mode(struct sec_mipi_dsim *dsim)
 		hfp_wc = dsim->hpar->hfp_wc;
 		hbp_wc = dsim->hpar->hbp_wc;
 	}
+	
+#ifdef CONFIG_DRM_TI_SN65DSI83	
+			hfp_wc = 1;
+			hbp_wc = 1;
+#endif
 
 	mhporch |= MHPORCH_SET_MAINHFP(hfp_wc) |
 		   MHPORCH_SET_MAINHBP(hbp_wc);
@@ -913,7 +918,10 @@ static void sec_mipi_dsim_set_main_mode(struct sec_mipi_dsim *dsim)
 			 wc - MIPI_HSA_PKT_OVERHEAD : vmode->hsync_len;
 	} else
 		hsa_wc = dsim->hpar->hsa_wc;
-
+#ifdef CONFIG_DRM_TI_SN65DSI83	
+	hsa_wc = 1;
+#endif	
+	
 	msync |= MSYNC_SET_MAINVSA(vmode->vsync_len) |
 		 MSYNC_SET_MAINHSA(hsa_wc);
 

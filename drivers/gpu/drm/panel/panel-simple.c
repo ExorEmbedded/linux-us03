@@ -37,6 +37,89 @@
 #include <drm/drm_device.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
+#include <video/displayconfig.h>
+
+/*----------------------------------------------------------------------------------------------------------------*
+   Helper functions to retrieve the display id value, when passed from the cmdline, and use it to set the
+   display parameters/timings (the contents of the DTB file are overridden, if a valid dispaly id is passed from
+   cmdline.
+ *----------------------------------------------------------------------------------------------------------------*/
+extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+
+static const unsigned long avail_pclk_Khz[] = { //List of available LVDS pixel clock frequencies 
+	145000, 88500, 76000, 75000, 66600, 62600, 51000, 33200, 30000
+};
+
+int dispid_get_videomode(struct videomode* vm, int dispid)
+{
+	int i=0;
+	unsigned long min_err, err;
+	unsigned long target_pclk;
+	unsigned long eff_pclk;
+	
+	// Scan the display array to search for the required dispid
+	if(dispid == NODISPLAY)
+		return -1;
+	
+	while((displayconfig[i].dispid != NODISPLAY) && (displayconfig[i].dispid != dispid))
+		i++;
+	
+	if(displayconfig[i].dispid == NODISPLAY)
+		return -1;
+	
+	// If we are here, we have a valid array index pointing to the desired display
+	vm->hactive         = displayconfig[i].rezx;
+	vm->hback_porch  = displayconfig[i].hs_bp;
+	vm->hfront_porch = displayconfig[i].hs_fp;
+	vm->hsync_len    = displayconfig[i].hs_w;
+
+	vm->vactive         = displayconfig[i].rezy;
+	vm->vback_porch = displayconfig[i].vs_bp;
+	vm->vfront_porch = displayconfig[i].vs_fp;
+	vm->vsync_len    = displayconfig[i].vs_w;
+	
+	//Search the nearest available pixel clock frequency value
+	min_err = 999999;
+	target_pclk = displayconfig[i].pclk_freq;
+	for (i = 0; i < ARRAY_SIZE(avail_pclk_Khz); i++)
+	{
+		err = abs(avail_pclk_Khz[i] - target_pclk);
+		if(err < min_err)
+		{
+			min_err=err;
+			eff_pclk = avail_pclk_Khz[i];
+		}
+	}
+	
+	vm->pixelclock = 1000 * eff_pclk;
+	
+	// Clamp min val of hsync_len 
+	if(vm->hsync_len < 8)
+		vm->hsync_len = 8;
+
+	vm->flags = 0;
+	if(displayconfig[i].hs_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_HSYNC_LOW;
+
+	if(displayconfig[i].vs_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_VSYNC_LOW;
+
+	if(displayconfig[i].blank_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_DE_LOW;
+
+	if(displayconfig[i].pclk_inv == 0)
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+	else
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+
+	return 0;
+}
 
 /**
  * @modes: Pointer to array of fixed modes appropriate for this panel.  If
@@ -499,6 +582,11 @@ static void panel_simple_parse_panel_timing_node(struct device *dev,
 	/* Do not check the override mode against the fallback mode: the ovveride mode, if defined, always takes the precedence
 	 */ 
 	videomode_from_timing(ot, &vm);
+	
+	//In case of LVDS display, if a valid hw_dispid is passed from cmdline, the corresponding video mode takes the precedence over the devicetree.
+	if((desc->num_timings==1) && (desc->connector_type == DRM_MODE_CONNECTOR_LVDS))
+		dispid_get_videomode(&vm, hw_dispid);
+	
 	drm_display_mode_from_videomode(&vm, &panel->override_mode);
  	panel->override_mode.type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 #endif

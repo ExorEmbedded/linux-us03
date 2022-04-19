@@ -56,6 +56,10 @@ int dispid_get_videomode(struct videomode* vm, int dispid)
 	unsigned long min_err, err;
 	unsigned long target_pclk;
 	unsigned long eff_pclk;
+#ifdef CONFIG_DRM_TI_SN65DSI83	
+	extern int volatile f_sn65dsi84_dual_lvds;
+	unsigned long frefresh;
+#endif
 	
 	// Scan the display array to search for the required dispid
 	if(dispid == NODISPLAY)
@@ -81,6 +85,15 @@ int dispid_get_videomode(struct videomode* vm, int dispid)
 	//Search the nearest available pixel clock frequency value
 	min_err = 999999;
 	target_pclk = displayconfig[i].pclk_freq;
+#ifdef CONFIG_DRM_TI_SN65DSI83	
+	//Check for dual LVDS link, based on frefresh
+	frefresh = (1000 * target_pclk) / ((vm->hactive)*(vm->vactive));
+	if(frefresh < 40)
+	{
+		f_sn65dsi84_dual_lvds = 1;
+		target_pclk *= 2;
+	}
+#endif	
 	for (i = 0; i < ARRAY_SIZE(avail_pclk_Khz); i++)
 	{
 		err = abs(avail_pclk_Khz[i] - target_pclk);
@@ -90,7 +103,6 @@ int dispid_get_videomode(struct videomode* vm, int dispid)
 			eff_pclk = avail_pclk_Khz[i];
 		}
 	}
-	
 	vm->pixelclock = 1000 * eff_pclk;
 	
 	// Clamp min val of hsync_len 

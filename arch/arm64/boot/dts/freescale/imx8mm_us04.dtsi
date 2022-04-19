@@ -409,7 +409,7 @@
     };
 
         bridge@2c {
-            compatible = "ti,sn65dsi83";
+            compatible = "ti,sn65dsi84";
             reg = <0x2c>;
 
 			enable-gpios = <&tca6408 1 GPIO_ACTIVE_HIGH>;

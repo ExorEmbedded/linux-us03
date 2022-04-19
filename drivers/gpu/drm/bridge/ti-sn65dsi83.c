@@ -130,6 +130,9 @@
 #define  REG_IRQ_STAT_CHA_SOT_BIT_ERR		BIT(2)
 #define  REG_IRQ_STAT_CHA_PLL_UNLOCK		BIT(0)
 
+int volatile f_sn65dsi84_dual_lvds = 0;
+EXPORT_SYMBOL(f_sn65dsi84_dual_lvds);
+
 enum sn65dsi83_model {
 	MODEL_SN65DSI83,
 	MODEL_SN65DSI84,
@@ -619,7 +622,7 @@ static int sn65dsi83_parse_dt(struct sn65dsi83 *ctx, enum sn65dsi83_model model)
 	if (model != MODEL_SN65DSI83) {
 		struct device_node *port2, *port3;
 		int dual_link;
-
+		
 		port2 = of_graph_get_port_by_id(dev->of_node, 2);
 		port3 = of_graph_get_port_by_id(dev->of_node, 3);
 		dual_link = drm_of_lvds_get_dual_link_pixel_order(port2, port3);
@@ -634,6 +637,13 @@ static int sn65dsi83_parse_dt(struct sn65dsi83 *ctx, enum sn65dsi83_model model)
 			ctx->lvds_dual_link = true;
 			/* Even pixels to LVDS Channel A, odd pixels to B */
 			ctx->lvds_dual_link_even_odd_swap = true;
+		}
+		
+		if(f_sn65dsi84_dual_lvds)
+		{
+			printk("DUAL LVDS mode detected\n");
+			ctx->lvds_dual_link = true;
+			ctx->lvds_dual_link_even_odd_swap = false;
 		}
 	}
 

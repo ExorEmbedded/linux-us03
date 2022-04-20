@@ -47,7 +47,7 @@
 extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
 
 static const unsigned long avail_pclk_Khz[] = { //List of available LVDS pixel clock frequencies 
-	145000, 88500, 76000, 75000, 66600, 62600, 51000, 33200, 30000
+	133200, 88500, 76000, 75000, 66600, 62600, 51000, 33200, 30000
 };
 
 int dispid_get_videomode(struct videomode* vm, int dispid)

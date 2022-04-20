@@ -541,8 +541,6 @@ static void sn65dsi83_atomic_post_disable(struct drm_bridge *bridge,
 	/* Put the chip in reset, pull EN line low. */
 	gpiod_set_value_cansleep(ctx->enable_gpio, 0);
 	usleep_range(10000, 11000);
-	gpiod_set_value_cansleep(ctx->envdd_gpio, 0);
-	usleep_range(100000, 110000);
 }
 
 static enum drm_mode_status

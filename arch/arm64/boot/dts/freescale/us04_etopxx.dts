@@ -65,7 +65,7 @@
 	  backlight = <&backlight0>;
 	  status = "okay";
 	};	
-#if 0	
+
 	plxx0: plugin0 {
 	  compatible = "exor,plxx_manager";
 	  nvmem-names = "eeprom", "ioexp";
@@ -101,8 +101,6 @@
 	  index = <3>;
 	  status = "okay";
 	};	
-#endif	
-	
 };
 
 &aips4 {

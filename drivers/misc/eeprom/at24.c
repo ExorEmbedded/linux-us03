@@ -597,7 +597,6 @@ static int at24_probe(struct i2c_client *client)
 	struct at24_data *at24;
 	struct regmap *regmap;
 	bool writable;
-	u8 test_byte;
 	int err;
 
 	i2c_fn_i2c = i2c_check_functionality(client->adapter, I2C_FUNC_I2C);
@@ -763,18 +762,6 @@ static int at24_probe(struct i2c_client *client)
 		if (!pm_runtime_status_suspended(dev))
 			regulator_disable(at24->vcc_reg);
 		return PTR_ERR(at24->nvmem);
-	}
-
-	/*
-	 * Perform a one-byte test read to verify that the
-	 * chip is functional.
-	 */
-	err = at24_read(at24, 0, &test_byte, 1);
-	if (err) {
-		pm_runtime_disable(dev);
-		if (!pm_runtime_status_suspended(dev))
-			regulator_disable(at24->vcc_reg);
-		return -ENODEV;
 	}
 
 	pm_runtime_idle(dev);

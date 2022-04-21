@@ -57,7 +57,7 @@
 		compatible = "pwm-beeper";
 		pwms = <&pwm1 0 50000 0>;
 	};
-#if 0	
+
 	working_hours {
 	  compatible = "working_hours";
 	  nvmem-names = "eeprom", "rtcnvram";
@@ -65,7 +65,7 @@
 	  backlight = <&backlight0>;
 	  status = "okay";
 	};	
-
+#if 0	
 	plxx0: plugin0 {
 	  compatible = "exor,plxx_manager";
 	  nvmem-names = "eeprom", "ioexp";

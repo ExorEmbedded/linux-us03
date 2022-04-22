@@ -189,7 +189,7 @@
 		};
 	};
 };
-#if 0
+
 &pcie0{
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie0>;
@@ -198,7 +198,7 @@
 	fsl,max-link-speed = <1>;
 	status = "okay";
 };
-#endif
+
 &uart1 { /* Main UART */
 	/delete-property/dmas;
 	/delete-property/dma-names;

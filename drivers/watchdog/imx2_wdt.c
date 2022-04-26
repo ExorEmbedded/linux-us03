@@ -294,7 +294,7 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 	wdog			= &wdev->wdog;
 	wdog->info		= &imx2_wdt_info;
 	wdog->ops		= &imx2_wdt_ops;
-	wdog->min_timeout	= 1;
+	wdog->min_timeout	= 0;
 	wdog->max_hw_heartbeat_ms = IMX2_WDT_MAX_TIME * 1000;
 	wdog->parent		= &pdev->dev;
 

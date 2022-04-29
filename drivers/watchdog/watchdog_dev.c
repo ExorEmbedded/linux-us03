@@ -721,11 +721,14 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			break;
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
+#if 0		
+		// BSP-3134: Allow timeout value=0 as special case, meaning t.o.=500ms
 		/* timeout == 0 means that we don't know the timeout */
 		if (wdd->timeout == 0) {
 			err = -EOPNOTSUPP;
 			break;
 		}
+#endif
 		err = put_user(wdd->timeout, p);
 		break;
 	case WDIOC_GETTIMELEFT:

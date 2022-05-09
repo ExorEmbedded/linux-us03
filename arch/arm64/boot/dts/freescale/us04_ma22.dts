@@ -15,7 +15,7 @@
 #include "imx8mm_us04.dtsi"
   
 / {
-	model = "eTOPxx i.MX8MM US04 board";
+	model = "MA22 i.MX8MM US04 board";
 
 	aliases {
 		serial0 = &uart1;
@@ -57,6 +57,14 @@
 		compatible = "pwm-beeper";
 		pwms = <&pwm1 0 50000 0>;
 	};
+};
+
+&leds{
+        rsthub@9 {
+            label = "rst_hub";
+            gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+            default-state = "on";
+        };
 };
 
 &backlight0 {
@@ -121,6 +129,16 @@
 	status = "okay";
 };
 
+&usbotg1{
+ //over-current-active-low;
+ disable-over-current;
+};
+
+&usbotg2{
+ //over-current-active-low;
+ disable-over-current;
+};
+
 &uart1 { /* Main UART */
 	/delete-property/dmas;
 	/delete-property/dma-names;
@@ -166,6 +184,7 @@
 				MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4      0x1c4
 				MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8      0x1c4
 				MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7       0x1c4
+				MX8MM_IOMUXC_SAI1_TXD1_GPIO4_IO13      0x0c4
 			>;
 		};
 

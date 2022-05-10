@@ -759,6 +759,12 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		state.period = pb->period;
 		pwm_apply_state(pb->pwm, &state);		
 	}
+	else
+	{
+		/* No valid hw_dispid found, get the pwm period from devicetree */
+		pwm_get_state(pb->pwm, &state); //!!!
+		pb->period = state.period;
+	}
 
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = data->max_brightness;

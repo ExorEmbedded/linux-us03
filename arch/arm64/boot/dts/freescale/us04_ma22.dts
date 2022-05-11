@@ -116,6 +116,19 @@
         compatible = "atmel,24c02";
         reg = <0x56>;
     };
+    
+	tsc@24 {
+		compatible = "cypress,tt21000";
+		reg = <0x24>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touch>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		touchscreen-size-x = <1280>;
+		touchscreen-size-y = <800>;
+	};    
 };
 
 &fec1 {
@@ -200,9 +213,15 @@
 			fsl,pins = <
 				MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7      0x1c4
 				MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4      0x1c4
-				MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8      0x1c4
 				MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7       0x1c4
 				MX8MM_IOMUXC_SAI1_TXD1_GPIO4_IO13      0x0c4
+			>;
+		};
+		
+		pinctrl_touch: touchgrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8      0x0c4 /* touch_reset*/
+				MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9      0x0c4 /* touch irq*/
 			>;
 		};
 

@@ -58,11 +58,6 @@
 		};
 	};
 	
-	beeper {
-		compatible = "pwm-beeper";
-		pwms = <&pwm1 0 50000 0>;
-	};
-	
 	lvdspanel {
 		de_pol = <1>;
 		hsync_pol = <1>;
@@ -97,12 +92,6 @@
     default-brightness-level = <25>;
     enable-gpios = <&gpio5 5 0>;
     status = "okay";
-};
-
-&pwm1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm1>;
-	status = "okay";
 };
 
 &pwm3 {
@@ -146,6 +135,30 @@
     };	
 };
 
+&i2c3 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	scl-gpios = <&gpio5 18 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&i2c4 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	pinctrl-1 = <&pinctrl_i2c4_gpio>;
+	scl-gpios = <&gpio5 20 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio5 21 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+    
+    seeprom_i2c4:seeprom_i2c4@54 {
+        compatible = "atmel,24c02";
+        reg = <0x54>;
+    };	
+};
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
@@ -250,16 +263,38 @@
 				MX8MM_IOMUXC_I2C2_SDA_GPIO5_IO17        0x1c4
 			>;
 		};
+
+        pinctrl_i2c3: i2c3grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C3_SCL_I2C3_SCL			0x400001c3
+				MX8MM_IOMUXC_I2C3_SDA_I2C3_SDA			0x400001c3
+			>;
+		};
+
+		pinctrl_i2c3_gpio: i2c3grpgpio {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C3_SCL_GPIO5_IO18        0x1c4
+				MX8MM_IOMUXC_I2C3_SDA_GPIO5_IO19        0x1c4
+			>;
+		};
+
+        pinctrl_i2c4: i2c4grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SCL_I2C4_SCL			0x400001c3
+				MX8MM_IOMUXC_I2C4_SDA_I2C4_SDA			0x400001c3
+			>;
+		};
+
+		pinctrl_i2c4_gpio: i2c4grpgpio {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SCL_GPIO5_IO20        0x1c4
+				MX8MM_IOMUXC_I2C4_SDA_GPIO5_IO21        0x1c4
+			>;
+		};
 		
 		pinctrl_pcie0: pcie0grp {
 			fsl,pins = <
 				MX8MM_IOMUXC_SAI1_TXD6_GPIO4_IO18	0x1c4
-			>;
-		};
-
-		pinctrl_pwm1: pwm1grp {
-			fsl,pins = <
-				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
 			>;
 		};
 

@@ -75,6 +75,20 @@
 			vback-porch = <40>;
 		};
 	};	
+	
+	i2cgpio@5 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tca6408 3 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tca6408 2 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <40>;	
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		seeprom_i2c5:seeprom_i2c5@54 {
+			compatible = "atmel,24c02";
+			reg = <0x54>;
+		};	
+	};	
 };
 
 &leds{

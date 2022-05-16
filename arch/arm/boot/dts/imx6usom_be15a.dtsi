@@ -183,6 +183,8 @@
 		#size-cells = <0>;
 		ethphy: ethernet-phy1 {
 			reg = <1>;
+			max-speed = <100>;
+			fsl,disable-gigabit;
 		};
 	};
 };

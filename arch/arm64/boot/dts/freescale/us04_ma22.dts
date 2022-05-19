@@ -97,6 +97,12 @@
             gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
             default-state = "on";
         };
+        
+        eth0_green@10 {
+            label = "eth0_green";
+            gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+            default-state = "off";
+        };
 };
 
 &backlight0 {
@@ -271,6 +277,7 @@
 				MX8MM_IOMUXC_GPIO1_IO04_GPIO1_IO4      0x1c4
 				MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7       0x1c4
 				MX8MM_IOMUXC_SAI1_TXD1_GPIO4_IO13      0x0c4
+				MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1      0x0c4
 			>;
 		};
 		

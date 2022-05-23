@@ -3577,6 +3577,7 @@ void console_sysfs_notify(void)
  */
 int __init tty_init(void)
 {
+	tty_buffer_init_kthread();
 	tty_sysctl_init();
 	cdev_init(&tty_cdev, &tty_fops);
 	if (cdev_add(&tty_cdev, MKDEV(TTYAUX_MAJOR, 0), 1) ||

@@ -44,14 +44,10 @@ struct pwm_bl_data {
 };
 
 /*----------------------------------------------------------------------------------------------------------------*
-Exported function which allows to get the actual backlight enable status from kernel.
+Exported var to get the actual backlight enable status from kernel. Only 1 backlight device is assumed.
 It is needed for example by the working hours driver to correctly compute the effective backlight on time.
 *----------------------------------------------------------------------------------------------------------------*/
-bool pwm_backlight_is_enabled(struct backlight_device* bl)
-{
-  struct pwm_bl_data *pb = bl_get_data(bl);
-  return pb->enabled;
-}
+bool pwm_backlight_is_enabled = false;
 EXPORT_SYMBOL(pwm_backlight_is_enabled);
 
 /*----------------------------------------------------------------------------------------------------------------*
@@ -175,6 +171,7 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb)
 		gpiod_set_value_cansleep(pb->enable_gpio, 1);
 
 	pb->enabled = true;
+	pwm_backlight_is_enabled = true;
 }
 
 static void pwm_backlight_power_off(struct pwm_bl_data *pb)
@@ -197,6 +194,7 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 
 	regulator_disable(pb->power_supply);
 	pb->enabled = false;
+	pwm_backlight_is_enabled = false;
 }
 
 static int compute_duty_cycle(struct pwm_bl_data *pb, int brightness)

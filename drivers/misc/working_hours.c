@@ -44,7 +44,7 @@
 #define BLIGHTMINS_OFF          0x03
 
 /* Function prototype to retrieve the pwm_backlight status */
-bool pwm_backlight_is_enabled(struct backlight_device* bl);
+extern bool pwm_backlight_is_enabled;
 
 struct hrs_data 
 {
@@ -59,7 +59,7 @@ struct hrs_data
     u32                      sys_hours;
     u32                      blight_hours;
     // Backlight related stuff
-    struct backlight_device* backlight;
+    bool                     has_blight;
     bool                     bl_enabled;
     // I2C rtc-nvram accessor
     struct nvmem_device *    rtcnvram_device;
@@ -263,7 +263,6 @@ static int get_mins_from_rtcnvram(struct hrs_data* data)
 #ifdef CONFIG_OF
 static int hrs_parse_dt(struct device *dev, struct hrs_data *data)
 {
-    struct device_node*   backlight_node;
     struct nvmem_device*  nvmem;
 
     /* Parse the DT to find the I2C SEEPROM bindings*/
@@ -285,18 +284,14 @@ static int hrs_parse_dt(struct device *dev, struct hrs_data *data)
     data->rtcnvram_device = nvmem;
     
     /* parse the DT to get the backlight references */
-    backlight_node = of_parse_phandle(dev->of_node, "backlight", 0);
-    if (backlight_node)
+	if (of_get_property(dev->of_node, "has-blight", NULL))
     {
-        data->backlight = of_find_backlight_by_node(backlight_node);
-        of_node_put(backlight_node);
-        if (!data->backlight)
-            return -EPROBE_DEFER;
+		data->has_blight = true;
     }
     else
     {
         dev_err(dev, "Missing backlight node\n");
-	data->backlight = NULL;
+		data->has_blight = false;
     }
 
     return 0;
@@ -318,8 +313,8 @@ static int update_thread(void *p)
     while (!kthread_should_stop())
     {
         mutex_lock(&data->lock);
-	if(data->backlight)
-	  data->bl_enabled = pwm_backlight_is_enabled(data->backlight);
+	if(data->has_blight)
+	  data->bl_enabled = pwm_backlight_is_enabled;
 	else
 	  data->bl_enabled = false;
 	  

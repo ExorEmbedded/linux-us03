@@ -76,9 +76,15 @@ static int imx8mm_tmu_get_temp(void *data, int *temp)
 	struct tmu_sensor *sensor = data;
 	struct imx8mm_tmu *tmu = sensor->priv;
 	u32 val;
+	static int fprintk;
 
 	val = readl_relaxed(tmu->base + TRITSR) & TRITSR_TEMP0_VAL_MASK;
 	*temp = val * 1000;
+	if(!fprintk)
+	{
+		printk("CPU Temperature [millicelsius]: %d\n",*temp); 
+		fprintk=1;
+	}
 	if (*temp < VER1_TEMP_LOW_LIMIT)
 		return -EAGAIN;
 

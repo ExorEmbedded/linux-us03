@@ -257,6 +257,7 @@ static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 	unsigned int n_meas;
 	bool wait, run_measurement;
 	u32 val;
+	static int fprintk;
 
 	regmap_read(map, soc_data->sensor_ctrl, &val);
 	run_measurement = val & soc_data->power_down_mask;
@@ -325,6 +326,12 @@ static int imx_get_temp(struct thermal_zone_device *tz, int *temp)
 		dev_dbg(&tz->device, "millicelsius: %d\n", *temp);
 		data->last_temp = *temp;
 	}
+	
+	if(!fprintk)
+	{
+		printk("CPU Temperature [millicelsius]: %d\n",*temp); 
+		fprintk=1;
+	}	
 
 	/* Reenable alarm IRQ if temperature below alarm temperature */
 	if (!data->irq_enabled && *temp < data->alarm_temp) {

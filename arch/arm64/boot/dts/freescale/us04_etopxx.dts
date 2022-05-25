@@ -210,7 +210,7 @@
 	rxen-gpio = <&gpio1 3 0>;
 	status = "okay";
 };
-#if 0
+
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
@@ -234,7 +234,6 @@
 	/delete-property/dmas;
 	/delete-property/dma-names;
 };
-#endif
 
 &iomuxc {
 	pinctrl-names = "default";
@@ -294,9 +293,9 @@
 				MX8MM_IOMUXC_SAI2_RXC_UART1_DCE_RX      0x140
 				MX8MM_IOMUXC_SAI2_RXD0_UART1_DCE_RTS_B	0x140
 				MX8MM_IOMUXC_SAI2_TXFS_UART1_DCE_CTS_B	0x140
-			//	MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3       0x11
-			//	MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1       0x11
-			//	MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0       0x11
+				MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3       0x11
+				MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1       0x11
+				MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0       0x11
 			>;
 		};
 		

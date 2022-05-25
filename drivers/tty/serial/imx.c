@@ -2249,6 +2249,9 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	//Get rts-gpio line (used for tx enable 1=active)
 	sport->rts_gpio = -EINVAL;
 	ret = of_get_named_gpio(np, "rts-gpio", 0);
+	if(ret == -EPROBE_DEFER)
+		return ret;
+	
 	if (ret >= 0 && gpio_is_valid(ret))
 	{
 		printk("Setting UART /dev/ttymxc%d with the pin %d as rts-gpio\n", sport->port.line, ret);

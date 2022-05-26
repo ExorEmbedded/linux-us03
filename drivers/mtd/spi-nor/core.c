@@ -24,6 +24,9 @@
 
 #include "core.h"
 
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+
 /* Define max times to check status register before we give up. */
 
 /*
@@ -3448,10 +3451,28 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	int ret;
 	int i;
 
+	int enable_gpio;
+	enum of_gpio_flags flags;
+	
 	ret = spi_nor_check(nor);
 	if (ret)
 		return ret;
 
+	//Enable pin handling (if defined)
+	enable_gpio = of_get_named_gpio_flags(np, "enable-gpios", 0, &flags);
+	if (enable_gpio == -EPROBE_DEFER)
+	  return -EPROBE_DEFER;
+	
+	if (gpio_is_valid(enable_gpio))
+	{
+	  ret = gpio_request(enable_gpio, "enable_gpio");
+	  if(ret < 0)
+	    return ret;
+	  
+	  gpio_direction_output(enable_gpio,1);
+	  udelay(10);
+	}
+	
 	/* Reset SPI protocol for all commands. */
 	nor->reg_proto = SNOR_PROTO_1_1_1;
 	nor->read_proto = SNOR_PROTO_1_1_1;

@@ -526,7 +526,6 @@
 		compatible = "m25p80";
 		reg = <4>;      /* chip select */
 		spi-max-frequency = <20000000>;
-		m25p,fast-read;
 		enable-gpios = <&gpio4 3 0>;
 		page-size = <256>; 
 		block-size = <16>; /* 2^16, 64KB */

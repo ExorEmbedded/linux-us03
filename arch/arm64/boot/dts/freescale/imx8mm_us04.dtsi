@@ -31,9 +31,9 @@
 		can1 = &can1;
 	};
 
-	chosen {
-        stdout-path = &uart1;
-    };
+//	chosen {
+//        stdout-path = &uart1;
+//    };
 	clkcan20m: clk20m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

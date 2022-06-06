@@ -1,0 +1,383 @@
+/*
+ * Copyright (C) 2019 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a.
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+  
+/dts-v1/;
+  
+#include "imx8mm_us04.dtsi"
+  
+/ {
+	model = "X07 i.MX8MM US04 board";
+
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart4;
+	};
+	
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm1 0 50000 0>;
+	};
+
+	working_hours {
+	  compatible = "working_hours";
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
+	  has-blight;
+	  status = "okay";
+	};	
+	
+	matrix_keypad {
+		compatible = "gpio-matrix-keypad";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_keypad>;
+		debounce-delay-ms = <20>;
+		col-scan-delay-ms = <8>;
+		gpio-activelow;
+		gpio-colactivehigh;
+		engpio = <&gpio4 16 0>;
+		//shutdown-code=<0x003C003F>;	/* KEY_F2 (003C) + KEY_F5 (003F) */
+		shutdown-count=<70>;		/* 70 * 70mS = 5 secs */
+		status = "okay";
+
+		/* Output */
+		col-gpios = <
+			&gpio4 14 0
+			&gpio4 13 0
+			&gpio4 12 0
+			&gpio4 11 0
+			&gpio4 10 0
+		>;
+
+		/* Input */
+		row-gpios = <
+			&gpio1  7 0
+			&gpio1  8 0
+			&gpio1  9 0
+			&gpio4  7 0
+			&gpio4  0 0
+			&gpio4 15 0
+		>;
+
+		/* row << 24 | column << 16 | key-code */
+		linux,keymap = <
+			0x00000067	/* KEY_UP */
+			0x00010069	/* KEY_LEFT */
+			0x0002006c  /* KEY_DOWN */
+			0x0003006a	/* KEY_RIGHT */
+			0x00040041	/* KEY_F7 */
+
+			0x0100003b	/* KEY_F1 */
+			0x0101003c	/* KEY_F2 */
+			0x0102003d  /* KEY_F3 */
+			0x0103003e	/* KEY_F4 */
+			0x0104003f	/* KEY_F5 */
+
+			0x02000040	/* KEY_F6 */
+			0x020100b8	/* KEY_F14 */
+			0x02020058  /* KEY_F12 */
+			0x020300b9	/* KEY_F15 */
+			0x020400b7	/* KEY_F13 */
+
+			0x03000057	/* KEY_F11 */
+			0x03010044	/* KEY_F10 */
+			0x03020043  /* KEY_F9 */
+			0x03030042	/* KEY_F8 */
+			0x0304001c  /* KEY_ENTER */	
+
+			0x0400000b	/* KEY_0 */
+			0x04010002	/* KEY_1 */
+			0x04020003  /* KEY_2 */
+			0x04030004	/* KEY_3 */
+			0x04040005	/* KEY_4 */
+
+			0x05000006	/* KEY_5 */
+			0x05010007	/* KEY_6 */
+			0x05020008  /* KEY_7 */
+			0x05030009	/* KEY_8 */
+			0x0504000a	/* KEY_9 */
+		>;
+	};
+	
+};
+
+&backlight0 {
+    compatible = "pwm-backlight";
+    pwms = <&pwm3 0 50000 0>;
+    brightness-levels = <0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
+    default-brightness-level = <0>;
+    enable-gpios = <&gpio5 5 0>;
+    status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+	status = "okay";
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-mode = "rmii";
+	phy-handle = <&ethphy0>;
+	fsl,magic-packet;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			max-speed = <100>;
+			reg = <0>;
+		};
+	};
+};
+
+&ecspi1 {
+    fsl,spi-num-chipselects = <2>;
+    cs-gpios = <&gpio4 27 0>,  /* CS0 */
+               <&gpio5  9 0>; /* CS1 */
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi1_xs07>;
+    status = "okay";
+	
+	/delete-node/ spi0@0;
+	/delete-node/ spi0@1;
+	/delete-node/ mcp3204@2;
+	/delete-node/ at25@3;
+	/delete-node/ n25q256a@4;
+    
+    fram: at25@0 {
+        compatible = "atmel,at25", "st,m95256";
+        reg = <0>;
+        spi-max-frequency = <20000000>;
+        pagesize = <64>;
+        size = <65536>;
+        address-width = <16>;
+    };
+    
+    aux_fram: mb85rs4mt@1 {
+        compatible = "jedec,spi-nor";
+        reg = <1>;
+        spi-max-frequency = <20000000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        m25p,fast-read;
+        status = "okay";
+    };    
+};
+
+&ecspi3 {
+	/delete-property/dmas;
+	/delete-property/dma-names;
+};
+
+&i2c3 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	scl-gpios = <&gpio5 18 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	touch: touch@4b {
+	  compatible = "tsc2004-exor";
+	  reg = <0x4b>;
+	  x-plate-ohms = <400>;
+	  rt-th-ohms = <1500>;
+	  intr-gpio = <&gpio4 19 0>; /* intr pin input */
+	  reset-gpio = <&gpio4 5 0>; /* HW reset output */
+	  
+	  touchscreen-fuzz-x = <4>;
+	  touchscreen-fuzz-y = <4>;
+	  touchscreen-fuzz-pressure = <2>;
+	  touchscreen-size-x = <4096>;
+	  touchscreen-size-y = <4096>;
+	  touchscreen-max-pressure = <2048>;
+	};
+	
+	pca9633@62 {
+		compatible = "nxp,pca9633";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x62>;
+		
+		red@0 {
+			label = "red";
+			reg = <0>;
+			linux,default-trigger = "none";
+		};
+		green@1 {
+			label = "green";
+			reg = <1>;
+			linux,default-trigger = "none";
+		};
+		blue@2 {
+			label = "blue";
+			reg = <2>;
+			linux,default-trigger = "none";
+		};
+		unused@3 {
+			label = "unused";
+			reg = <3>;
+			linux,default-trigger = "none";
+		};
+	};	
+	
+	lis331dlh@18 {
+		/* Accelerometer */
+		compatible = "st,lis331dlh-accel";
+		reg = <0x18>;
+	};
+	
+	temperature:lm75b@4c {
+		compatible = "national,lm75b";
+		reg = <0x4c>;
+	};
+	
+	light-sensor@51 {
+		compatible = "vishay,vcnl4200";
+		reg = <0x51>;
+		proximity-near-level = <220>;
+	};	
+};
+
+&uart1 { /* Main UART */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	rts-gpio = <&gpio1 1 0>;
+	mode-gpio = <&gpio1 0 0>;
+	rxen-gpio = <&gpio1 3 0>;
+
+	dcd-gpio = <&gpio3 16 0>;
+	rng-gpio = <&gpio3 2 0>;
+	dsr-gpio = <&gpio3 1 0>;
+	dtr-gpio = <&gpio3 3 0>;
+
+	status = "okay";
+};
+
+&iomuxc {
+	imx8mm-evk {
+
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12      0x1c4   /* USB1 VBUS */
+				MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14      0x1c4   /* USB2 VBUS */
+				MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4         0x1c4   /* EN_VDD */
+				MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5        0x1c4   /* Touch reset*/
+				MX8MM_IOMUXC_SAI1_TXD7_GPIO4_IO19       0x1c4   /* Touch intr */
+				MX8MM_IOMUXC_SAI5_RXC_GPIO3_IO20        0x1c4   /* spigo1 */
+				MX8MM_IOMUXC_SAI5_RXFS_GPIO3_IO19       0x1c4   /* spigo2 */
+			>;
+		};
+
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
+				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
+			>;
+		};
+
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ENET_MDC_ENET1_MDC		0x3
+				MX8MM_IOMUXC_ENET_MDIO_ENET1_MDIO	0x3
+				MX8MM_IOMUXC_ENET_TD2_ENET1_TX_CLK	0x4000001f
+				MX8MM_IOMUXC_ENET_TD1_ENET1_RGMII_TD1	0x56
+				MX8MM_IOMUXC_ENET_TD0_ENET1_RGMII_TD0	0x56
+				MX8MM_IOMUXC_ENET_RD1_ENET1_RGMII_RD1	0x56
+				MX8MM_IOMUXC_ENET_RD0_ENET1_RGMII_RD0	0x56
+				MX8MM_IOMUXC_ENET_RXC_ENET1_RX_ER	0x56
+				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x56
+				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x56
+			>;
+		};
+		
+		pinctrl_ecspi1_xs07: ecspi1grp_xs07 {
+			fsl,pins = <
+				MX8MM_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK    0x11
+				MX8MM_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI    0x11
+				MX8MM_IOMUXC_ECSPI1_MISO_ECSPI1_MISO    0x11
+				MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9       0x11
+				MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27       0x11
+			>;
+		};
+		
+        pinctrl_i2c3: i2c3grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C3_SCL_I2C3_SCL			0x400001c3
+				MX8MM_IOMUXC_I2C3_SDA_I2C3_SDA			0x400001c3
+			>;
+		};
+
+		pinctrl_i2c3_gpio: i2c3grpgpio {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C3_SCL_GPIO5_IO18        0x1c4
+				MX8MM_IOMUXC_I2C3_SDA_GPIO5_IO19        0x1c4
+			>;
+		};
+		
+		pinctrl_keypad: keypadgrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI1_TXD2_GPIO4_IO14       0x184   /* COL0 */
+				MX8MM_IOMUXC_SAI1_TXD1_GPIO4_IO13       0x184   /* COL1 */
+				MX8MM_IOMUXC_SAI1_TXD0_GPIO4_IO12       0x184   /* COL2 */
+				MX8MM_IOMUXC_SAI1_TXC_GPIO4_IO11        0x184   /* COL3 */
+				MX8MM_IOMUXC_SAI1_TXFS_GPIO4_IO10       0x184   /* COL4 */
+				MX8MM_IOMUXC_SAI1_MCLK_GPIO4_IO20       0x184   /* COL5 (not used) */
+				
+				MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7       0x184   /* row0 */
+				MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8       0x184   /* row1 */
+				MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9       0x184   /* row2 */
+				MX8MM_IOMUXC_SAI1_RXD5_GPIO4_IO7        0x184   /* row3 */
+				MX8MM_IOMUXC_SAI1_RXFS_GPIO4_IO0        0x184   /* row4 */
+				MX8MM_IOMUXC_SAI1_TXD3_GPIO4_IO15       0x184   /* row5 */
+				
+				MX8MM_IOMUXC_SAI1_TXD4_GPIO4_IO16       0x184   /* en_keybd */
+			>;
+		};
+		
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SAI2_RXFS_UART1_DCE_TX     0x140
+				MX8MM_IOMUXC_SAI2_RXC_UART1_DCE_RX      0x140
+				MX8MM_IOMUXC_SAI2_RXD0_UART1_DCE_RTS_B	0x140
+				MX8MM_IOMUXC_SAI2_TXFS_UART1_DCE_CTS_B	0x140
+				
+				MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3   0x11
+				MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1   0x11
+				MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0   0x11
+			>;
+		};		
+	};
+};
+

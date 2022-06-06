@@ -1,0 +1,417 @@
+/*
+ * Copyright (C) 2019 Exor S.p.a
+ * 
+ * Written by: G. Pavoni Exor S.p.a.
+ * 
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+  
+/dts-v1/;
+  
+#include "imx8mm_ns04.dtsi"
+  
+/ {
+	model = "DAH21 i.MX8MM NS04 board";
+
+	beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm1 0 50000 0>;
+	};
+
+	working_hours {
+	  compatible = "working_hours";
+	  nvmem-names = "eeprom", "rtcnvram";
+	  nvmem = <&seeprom0>, <&m41t83>;
+	  has-blight;
+	  status = "okay";
+	};	
+	
+	regulators {
+        reg_en_i2c: i2c_regulator {
+            compatible = "regulator-fixed";
+            reg = <4>;
+            regulator-name = "i2c_regulator";
+            regulator-min-microvolt = <3300000>;
+            regulator-max-microvolt = <3300000>;
+            gpio = <&gpio1 3 0>;
+            enable-active-high;
+            regulator-boot-on;
+            regulator-always-on;
+        };	
+	};
+};
+
+&backlight0 {
+    compatible = "pwm-backlight";
+    pwms = <&pwm3 0 50000 0>;
+    brightness-levels = <0 4 8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
+    default-brightness-level = <0>;
+    enable-gpios = <&gpio5 5 0>;
+    status = "okay";
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+	status = "okay";
+};
+
+&i2c1 {
+
+	tlc59116@60 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x60>;
+
+		led1_r@0 {
+			label = "led1_r";
+			reg = <0x0>;
+		};
+		led1_g@1 {
+			label = "led1_g";
+			reg = <0x1>;
+		};
+		led1_y@2 {
+			label = "led1_y";
+			reg = <0x2>;
+		};
+
+		led2_r@4 {
+			label = "led2_r";
+			reg = <0x4>;
+		};
+		led2_g@5 {
+			label = "led2_g";
+			reg = <0x5>;
+		};
+		led2_y@6 {
+			label = "led2_y";
+			reg = <0x6>;
+		};
+
+		led3_r@8 {
+			label = "led3_r";
+			reg = <0x8>;
+		};
+		led3_g@9 {
+			label = "led3_g";
+			reg = <0x9>;
+		};
+		led3_y@a {
+			label = "led3_y";
+			reg = <0xa>;
+		};
+
+		led4_r@c {
+			label = "led4_r";
+			reg = <0xc>;
+		};
+		led4_g@d {
+			label = "led4_g";
+			reg = <0xd>;
+		};
+		led4_y@e {
+			label = "led4_y";
+			reg = <0xe>;
+		};	
+	};
+	
+	tlc59116@61 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x61>;
+
+		led5_r@0 {
+			label = "led5_r";
+			reg = <0x0>;
+		};
+		led5_g@1 {
+			label = "led5_g";
+			reg = <0x1>;
+		};
+		led5_y@2 {
+			label = "led5_y";
+			reg = <0x2>;
+		};
+
+		led6_r@4 {
+			label = "led6_r";
+			reg = <0x4>;
+		};
+		led6_g@5 {
+			label = "led6_g";
+			reg = <0x5>;
+		};
+		led6_y@6 {
+			label = "led6_y";
+			reg = <0x6>;
+		};
+
+		led7_r@8 {
+			label = "led7_r";
+			reg = <0x8>;
+		};
+		led7_g@9 {
+			label = "led7_g";
+			reg = <0x9>;
+		};
+		led7_y@a {
+			label = "led7_y";
+			reg = <0xa>;
+		};
+
+		led8_r@c {
+			label = "led8_r";
+			reg = <0xc>;
+		};
+		led8_g@d {
+			label = "led8_g";
+			reg = <0xd>;
+		};
+		led8_y@e {
+			label = "led8_y";
+			reg = <0xe>;
+		};	
+	};	
+	
+	tlc59116@62 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x62>;
+
+		led9_r@0 {
+			label = "led9_r";
+			reg = <0x0>;
+		};
+		led9_g@1 {
+			label = "led9_g";
+			reg = <0x1>;
+		};
+		led9_y@2 {
+			label = "led9_y";
+			reg = <0x2>;
+		};
+
+		led10_r@4 {
+			label = "led10_r";
+			reg = <0x4>;
+		};
+		led10_g@5 {
+			label = "led10_g";
+			reg = <0x5>;
+		};
+		led10_y@6 {
+			label = "led10_y";
+			reg = <0x6>;
+		};
+
+		led11_r@8 {
+			label = "led11_r";
+			reg = <0x8>;
+		};
+		led11_g@9 {
+			label = "led11_g";
+			reg = <0x9>;
+		};
+		led11_y@a {
+			label = "led11_y";
+			reg = <0xa>;
+		};
+
+		led12_r@c {
+			label = "led12_r";
+			reg = <0xc>;
+		};
+		led12_g@d {
+			label = "led12_g";
+			reg = <0xd>;
+		};
+		led12_y@e {
+			label = "led12_y";
+			reg = <0xe>;
+		};	
+	};	
+	
+	tlc59116@63 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x63>;
+
+		led13_r@0 {
+			label = "led13_r";
+			reg = <0x0>;
+		};
+		led13_g@1 {
+			label = "led13_g";
+			reg = <0x1>;
+		};
+		led13_y@2 {
+			label = "led13_y";
+			reg = <0x2>;
+		};
+
+		led14_r@4 {
+			label = "led14_r";
+			reg = <0x4>;
+		};
+		led14_g@5 {
+			label = "led14_g";
+			reg = <0x5>;
+		};
+		led14_y@6 {
+			label = "led14_y";
+			reg = <0x6>;
+		};
+
+		led15_r@8 {
+			label = "led15_r";
+			reg = <0x8>;
+		};
+		led15_g@9 {
+			label = "led15_g";
+			reg = <0x9>;
+		};
+		led15_y@a {
+			label = "led15_y";
+			reg = <0xa>;
+		};
+
+		led16_r@c {
+			label = "led16_r";
+			reg = <0xc>;
+		};
+		led16_g@d {
+			label = "led16_g";
+			reg = <0xd>;
+		};
+		led16_y@e {
+			label = "led16_y";
+			reg = <0xe>;
+		};	
+	};		
+	
+	tlc59116@64 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,tlc59116";
+		reg = <0x64>;
+
+		led17_r@4 {
+			label = "led17_r";
+			reg = <0x4>;
+		};
+		led17_g@5 {
+			label = "led17_g";
+			reg = <0x5>;
+		};
+		led17_y@6 {
+			label = "led17_y";
+			reg = <0x6>;
+		};
+
+		led18_r@8 {
+			label = "led18_r";
+			reg = <0x8>;
+		};
+		led18_g@9 {
+			label = "led18_g";
+			reg = <0x9>;
+		};
+		led18_y@a {
+			label = "led18_y";
+			reg = <0xa>;
+		};
+	};			
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-mode = "rmii";
+	phy-handle = <&ethphy0>;
+	fsl,magic-packet;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			max-speed = <100>;
+			reg = <0>;
+		};
+	};
+};
+
+&dsi_lvds_bridge{
+		enable-gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>;
+};
+
+&iomuxc {
+	imx8mm-evk {
+
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX8MM_IOMUXC_NAND_CE2_B_GPIO3_IO3       0x1c4   /* eco2xx Wifi Reset */
+				MX8MM_IOMUXC_NAND_CE3_B_GPIO3_IO4       0x1c4   /* eco2xx LVDS ena */	
+			>;
+		};
+
+        pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3			0x1c4
+				MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1			0x1c4
+			>;
+		};		
+		
+		pinctrl_pwm3: pwm3grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT            0x1c4
+				MX8MM_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5      0x1c4
+			>;
+		};
+
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_I2C4_SDA_PWM1_OUT            0x1c4
+			>;
+		};
+
+		pinctrl_pcie0: pcie0grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_NAND_RE_B_GPIO3_IO15         0x1c4
+			>;
+		};
+
+		pinctrl_fec1: fec1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ENET_MDC_ENET1_MDC		0x3
+				MX8MM_IOMUXC_ENET_MDIO_ENET1_MDIO	0x3
+				MX8MM_IOMUXC_ENET_TD2_ENET1_TX_CLK	0x4000001f
+				MX8MM_IOMUXC_ENET_TD1_ENET1_RGMII_TD1	0x56
+				MX8MM_IOMUXC_ENET_TD0_ENET1_RGMII_TD0	0x56
+				MX8MM_IOMUXC_ENET_RD1_ENET1_RGMII_RD1	0x56
+				MX8MM_IOMUXC_ENET_RD0_ENET1_RGMII_RD0	0x56
+				MX8MM_IOMUXC_ENET_RXC_ENET1_RX_ER	0x56
+				MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x56
+				MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x56
+			>;
+		};
+	};
+};
+

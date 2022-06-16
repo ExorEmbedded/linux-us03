@@ -754,6 +754,7 @@ static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_regs	= smsc95xx_ethtool_getregs,
 	.get_wol	= smsc95xx_ethtool_get_wol,
 	.set_wol	= smsc95xx_ethtool_set_wol,
+	.get_ts_info	= ethtool_op_get_ts_info,
 };
 
 static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)

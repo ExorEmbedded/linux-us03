@@ -267,6 +267,7 @@ static const struct ethtool_ops tse_ethtool_ops = {
 	.get_ethtool_stats = tse_fill_stats,
 	.get_msglevel = tse_get_msglevel,
 	.set_msglevel = tse_set_msglevel,
+	.get_ts_info	= ethtool_op_get_ts_info,		
 };
 
 void altera_tse_set_ethtool_ops(struct net_device *netdev)

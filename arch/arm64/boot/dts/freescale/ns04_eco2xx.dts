@@ -226,6 +226,28 @@
 		enable-gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>;
 };
 
+&ecspi1 { /* TCAN4550 SPI2CAN device */
+    fsl,spi-num-chipselects = <1>;
+    cs-gpios = <&gpio5 9 0>;  /* CS0 */
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_ecspi1>;
+    status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
+  
+    tcan4x5x: tcan4x5x@0 {
+		compatible = "ti,tcan4x5x";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <10000000>;
+		bosch,mram-cfg = <0x0 0 0 32 0 0 1 1>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+		tcan,ext-phy;
+	};    
+};
+
 &ecspi3 {
     fsl,spi-num-chipselects = <1>;
     cs-gpios = <&gpio5 25 0>;  /* CS0 */
@@ -268,6 +290,16 @@
 			>;
 		};
 
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX8MM_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK    0x11
+				MX8MM_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI    0x11
+				MX8MM_IOMUXC_ECSPI1_MISO_ECSPI1_MISO    0x11
+				MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9       0x11 /* cs0 */ 
+				MX8MM_IOMUXC_I2C2_SDA_GPIO5_IO17        0x11 /* CAN irq */
+			>;
+		};
+		
 		pinctrl_ecspi3: ecspi3grp {
 			fsl,pins = <
                 MX8MM_IOMUXC_UART1_RXD_ECSPI3_SCLK      0x11

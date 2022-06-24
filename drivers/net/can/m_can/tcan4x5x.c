@@ -100,6 +100,7 @@
 #define TCAN4X5X_MODE_SLEEP 0x00
 #define TCAN4X5X_MODE_STANDBY BIT(6)
 #define TCAN4X5X_MODE_NORMAL BIT(7)
+#define TCAN4X5X_MODE_TESTMODE_MASK (BIT(21) | BIT(0))
 
 #define TCAN4X5X_DISABLE_WAKE_MSK	(BIT(31) | BIT(30))
 #define TCAN4X5X_DISABLE_INH_MSK	BIT(9)
@@ -127,6 +128,8 @@ struct tcan4x5x_priv {
 	/* Register based ip */
 	int mram_start;
 	int reg_offset;
+	/* Chip operating mode: 0=normal 1=testmode_core */
+	int testmode;
 };
 
 static void tcan4x5x_check_wake(struct tcan4x5x_priv *priv)
@@ -335,6 +338,14 @@ static int tcan4x5x_init(struct m_can_classdev *cdev)
 				 TCAN4X5X_MODE_SEL_MASK, TCAN4X5X_MODE_NORMAL);
 	if (ret)
 		return ret;
+	
+	/* Set chip testmode if we want to use an external phy */
+	if(tcan4x5x->testmode == 1)
+	{
+		ret = regmap_update_bits(tcan4x5x->regmap, TCAN4X5X_CONFIG, TCAN4X5X_MODE_TESTMODE_MASK , TCAN4X5X_MODE_TESTMODE_MASK);
+		if (ret)
+			return ret;
+	}
 
 	return ret;
 }
@@ -449,6 +460,7 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 	priv->mram_start = TCAN4X5X_MRAM_START;
 	priv->spi = spi;
 	priv->mcan_dev = mcan_class;
+	priv->testmode=0;
 
 	mcan_class->pm_clock_support = 0;
 	mcan_class->can.clock.freq = freq;
@@ -487,6 +499,12 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 	ret = m_can_class_register(mcan_class);
 	if (ret)
 		goto out_power;
+	
+	if (device_property_present(&spi->dev, "tcan,ext-phy"))
+	{
+		netdev_info(mcan_class->net, "TCAN4X5X using external phy.\n");
+		priv->testmode=1;
+	}
 
 	netdev_info(mcan_class->net, "TCAN4X5X successfully initialized.\n");
 	return 0;

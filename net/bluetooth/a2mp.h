@@ -1,3 +1,4 @@
+#error CVE-2021-3640
 #error CVE-2020-26558
 #error CVE-2021-3752
 #error CVE-2022-26878

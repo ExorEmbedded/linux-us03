@@ -1,3 +1,6 @@
+#error CVE-2020-26558
+#error CVE-2021-3752
+#error CVE-2022-26878
 /*
    Copyright (c) 2010,2011 Code Aurora Forum.  All rights reserved.
    Copyright (c) 2011,2012 Intel Corp.

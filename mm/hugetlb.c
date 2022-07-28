@@ -1,3 +1,4 @@
+#error CVE-2021-4002
 /*
  * Generic hugetlb support.
  * (C) Nadia Yvette Chambers, April 2004

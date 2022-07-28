@@ -1,3 +1,4 @@
+#error CVE-2022-1419
 /*
  * Copyright 2011 Red Hat, Inc.
  * Copyright © 2014 The Chromium OS Authors

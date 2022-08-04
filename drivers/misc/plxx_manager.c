@@ -1178,7 +1178,11 @@ void AssignPlcmVersion(struct plxx_data* data)
     return;
 
   hwcode = data->eeprom[SEE_CODE_OFF];
-  funcarea = data->eeprom[SEE_FUNCT_AREA_OFF] + (data->eeprom[SEE_FUNCT_AREA_OFF+1] << 8);
+
+  // Note: currently maps up to max 3B/24b
+  funcarea = data->eeprom[SEE_FUNCT_AREA_OFF] +
+      (data->eeprom[SEE_FUNCT_AREA_OFF+1] << 8) +
+      (data->eeprom[SEE_FUNCT_AREA_OFF+2] << 16);
 
   if (funcarea & (0x01 << FFA_PLCM09))
     data->plcmversion = PLCMxx_VERSION_09;

@@ -71,7 +71,7 @@ struct plxx_data
 #define PLCMxx_VERSION_10 10
 #define PLCMxx_VERSION_11 11 // PLCM10 ONLY 4G
 #define PLCMxx_VERSION_12 12 // PLCM10 ONLY WIFI
-
+#define PLCMxx_VERSION_10B 8 // PLCM10 ONLY 4G - 1 ANTENNA - NO GPS
 
 /* -------------------------------------------------------------------------------------------------------------- *
  *
@@ -142,6 +142,7 @@ static char* plcm10_get_devName( int plcmversion )
     case PLCMxx_VERSION_10 : return "PLCM10";
     case PLCMxx_VERSION_11 : return "PLCM11";
     case PLCMxx_VERSION_12 : return "PLCM12";
+    case PLCMxx_VERSION_10B: return "PLCM10B";
     default : return "PLCM??";
   }
 }
@@ -392,6 +393,7 @@ static ssize_t plcmxx_led1_get(struct device *dev, struct device_attribute *attr
   mutex_lock(&plxx_lock);
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_LED1)==0) tmp = 0; 
@@ -415,6 +417,7 @@ static ssize_t plcmxx_led1_set(struct device *dev, struct device_attribute *attr
     tmp = 0;
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_LED1, tmp); 
@@ -435,6 +438,7 @@ static ssize_t plcmxx_led2_get(struct device *dev, struct device_attribute *attr
   mutex_lock(&plxx_lock);
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_LED2)==0) tmp = 0; 
@@ -459,6 +463,7 @@ static ssize_t plcmxx_led2_set(struct device *dev, struct device_attribute *attr
   
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 :
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_LED2, tmp); 
@@ -511,6 +516,7 @@ static ssize_t plcmxx_xo1_get(struct device *dev, struct device_attribute *attr,
   mutex_lock(&plxx_lock);
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XO1)==0) tmp = 1; 
@@ -535,6 +541,7 @@ static ssize_t plcmxx_xo1_set(struct device *dev, struct device_attribute *attr,
   
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_XO1, tmp); 
@@ -555,6 +562,7 @@ static ssize_t plcmxx_xo2_get(struct device *dev, struct device_attribute *attr,
   mutex_lock(&plxx_lock);
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 :
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XO2)==0) tmp = 1; 
@@ -577,6 +585,7 @@ static ssize_t plcmxx_xo2_set(struct device *dev, struct device_attribute *attr,
     tmp = 1;
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : plcmxx_set_out(data, PLCM10_XO2, tmp); 
@@ -598,6 +607,7 @@ static ssize_t plcmxx_xi1_get(struct device *dev, struct device_attribute *attr,
   mutex_lock(&plxx_lock);  
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 :
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XI1)>0) tmp = 1; 
@@ -618,6 +628,7 @@ static ssize_t plcmxx_xi2_get(struct device *dev, struct device_attribute *attr,
 
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 :
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_XI2)>0) tmp = 1; 
@@ -649,6 +660,7 @@ static ssize_t plcmxx_status_get(struct device *dev, struct device_attribute *at
   mutex_lock(&plxx_lock);  
   switch (data->plcmversion)
   {
+    case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 : 
     case PLCMxx_VERSION_11 : 
     case PLCMxx_VERSION_12 : if (plcmxx_get_in(data,PLCM10_STATUS_IN)==0) tmp = 1; 
@@ -718,6 +730,7 @@ static ssize_t plcmxx_power_set(struct device *dev, struct device_attribute *att
   struct plxx_data *data = dev_get_drvdata(dev);
   switch (data->plcmversion)
   {
+      case PLCMxx_VERSION_10B :
     case PLCMxx_VERSION_10 : 
       case PLCMxx_VERSION_11 : 
       case PLCMxx_VERSION_12 : return plcm10_power_set(dev,attr,buf,size,plcm10_get_devName(data->plcmversion));
@@ -1142,6 +1155,8 @@ void AssignPlcmVersion(struct plxx_data* data)
       data->plcmversion =  PLCMxx_VERSION_11;
   else if (funcarea & (0x01 << FFA_PLCM12))
       data->plcmversion =  PLCMxx_VERSION_12;
+  else if (funcarea & (0x01 << FFA_PLCM10B))
+      data->plcmversion =  PLCMxx_VERSION_10B;
   else // bits are zero
   {
     data->plcmversion =  PLCMxx_VERSION_INVALID;
@@ -1439,6 +1454,8 @@ static int plxx_probe(struct platform_device *pdev)
     printk("plxx plugin module detected; index=%d; version=%d\n",data->index,version);
     switch (version)
     {
+      case PLCMxx_VERSION_10B: res = sysfs_create_group(&pdev->dev.kobj, &plcm11_attr_group);
+                               break;
       case PLCMxx_VERSION_10 : res = sysfs_create_group(&pdev->dev.kobj, &plcm10_attr_group);
                                break;
       case PLCMxx_VERSION_11 : res = sysfs_create_group(&pdev->dev.kobj, &plcm11_attr_group);

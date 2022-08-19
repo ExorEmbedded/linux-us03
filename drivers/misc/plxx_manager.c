@@ -207,11 +207,12 @@ init_end:
 
 /* Checks the PLCM10 presence and, if present, initializes the gpio expanders
  */
-static int plcm10_init(struct plxx_data *data)
+static int plcm10_init(struct plxx_data *data,bool* wifiport)
 {
   struct i2c_msg msg;
   int ret = 0;
   unsigned char buf[2];
+  *wifiport = false;
 
   struct i2c_adapter* adapter = i2c_get_adapter(CONFIG_PLXX_I2C_BUS);
   if(!adapter)
@@ -271,9 +272,8 @@ static int plcm10_init(struct plxx_data *data)
   buf[1] = 0x00; //All outs = 0
   ret = i2c_transfer(adapter, &msg, 1);
   if(ret < 0)
-  {
-    return ret;
-  }
+    return 0; // PLCM10B does not have U23 (wifiport = false)
+
   buf[0] = PLCMxx_CFGREG;
   buf[1] = 0;
   ret = i2c_transfer(adapter, &msg, 1);
@@ -281,6 +281,8 @@ static int plcm10_init(struct plxx_data *data)
   {
     return ret;
   }
+  *wifiport = true;
+  
   return 0;
 }
 
@@ -1413,6 +1415,7 @@ static int UpdatePluginData(struct plxx_data *data)
  */
 static int plxx_probe(struct platform_device *pdev)
 {
+  bool wifiport = false;
   int res = 0;
   int version;
   struct plxx_data *data;
@@ -1449,7 +1452,7 @@ static int plxx_probe(struct platform_device *pdev)
   version = PLCMxx_VERSION_INVALID;
   if(plcm09_init(data) >= 0)
     version = PLCMxx_VERSION_09;
-  else if (plcm10_init(data)>=0)
+  else if (plcm10_init(data,&wifiport)>=0)
     version = PLCMxx_VERSION_10;
 
   if (version!=PLCMxx_VERSION_INVALID)

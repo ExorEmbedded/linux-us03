@@ -97,8 +97,9 @@
  *1.40			SS							22.07.2021	Modified display code #70:HT1560EI01AC5 (eX715MG), min duty using LT3754 set to 0,08%
  *1.41			SS							27.09.2021	Changed pwm freq. for code #75: 5kHz and min duty to 1% to match datasheet minimum backlight spec and still drive keyboard leds
  *1.42			SS							04.03.2022	Added display code #78: DMB T070102600-B3WMN-001 for DAH21 (1024x600).
+ *1.43			SS							22.08.2022	Added display code #79: Futurelabs FLC070DML02 (800x480 serie700).
  *
- * NEXT AVAILABLE DISPLAY CODE: 79
+ * NEXT AVAILABLE DISPLAY CODE: 80
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -1267,6 +1268,32 @@ static struct t_DisplayParams displayconfig[] = {
         
         .pwmfreq        = 10000,
         .brightness_min = 1,
+        .brightness_max = 100,
+    },
+    /* 79: FutureLabs  FLC070DML02 800x480 ex707 IMX.6 ONLY*/
+    {
+        .dispid    = 79,
+        .rezx      = 800, 
+        .rezy      = 480, 
+        .bpp       = 24,
+        
+        .pclk_freq = 29000, 
+        .pclk_inv  = 1,	//21.11.2017 inverted clock polarity due to IMX.6 bug; 
+        
+        .hs_fp     = 60, 
+        .hs_bp     = 32, 
+        .hs_w      = 10, 
+        .hs_inv    = 1,
+        
+        .vs_fp     = 60, 
+        .vs_bp     = 5, 
+        .vs_w      = 10, 
+        .vs_inv    = 1,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,  
+        .brightness_min = 0x6400, 		/* BSP-1559 : Brightness min=1% */
         .brightness_max = 100,
     }, 
     /* END OF LIST */

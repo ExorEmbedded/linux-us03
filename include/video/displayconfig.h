@@ -88,8 +88,9 @@
  *1.32			GP							17.07.2019	Added display code #72: FutureLabs FLC-070DMTK000SA1 800x480 for ex707-HB. Changed max brightness for code #69
  *1.33			GP							09.01.2020	Changed pwm freq. and min brightness for code #69
  *1.34			SS							17.01.2020	Changed pwm freq. for code #57
+ *1.43			SS							22.08.2022	Added display code #79: Futurelabs FLC070DML02 (800x480 serie700).
  *
- * NEXT AVAILABLE DISPLAY CODE: 73
+ * NEXT AVAILABLE DISPLAY CODE: 80
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -1104,6 +1105,32 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 0x0800, 		/* BSP-1559 : Brightness min=0.08% */
         .brightness_max = 90,
     },   
+    /* 79: FutureLabs  FLC070DML02 800x480 ex707 IMX.6 ONLY*/
+    {
+        .dispid    = 79,
+        .rezx      = 800, 
+        .rezy      = 480, 
+        .bpp       = 24,
+        
+        .pclk_freq = 29000, 
+        .pclk_inv  = 1,	//21.11.2017 inverted clock polarity due to IMX.6 bug; 
+        
+        .hs_fp     = 60, 
+        .hs_bp     = 32, 
+        .hs_w      = 10, 
+        .hs_inv    = 1,
+        
+        .vs_fp     = 60, 
+        .vs_bp     = 5, 
+        .vs_w      = 10, 
+        .vs_inv    = 1,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,  
+        .brightness_min = 0x6400, 		/* BSP-1559 : Brightness min=1% */
+        .brightness_max = 100,
+    }, 
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

@@ -1,3 +1,4 @@
+#error CVE-2022-0382
 /*
  * net/tipc/socket.c: TIPC socket API
  *

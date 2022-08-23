@@ -549,6 +549,10 @@ __read_extent_tree_block(const char *function, unsigned int line,
 			ext4_lblk_t lblk = le32_to_cpu(ex->ee_block);
 			int len = ext4_ext_get_actual_len(ex);
 
+			/* Corrupted extent tree? Stop caching... */
+			if (lblk + len < lblk || lblk + len > EXT4_MAX_LOGICAL_BLOCK)
+				return;
+
 			if (prev && (prev != lblk))
 				ext4_es_cache_extent(inode, prev,
 						     lblk - prev, ~0,

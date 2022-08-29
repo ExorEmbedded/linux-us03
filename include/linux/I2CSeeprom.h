@@ -164,5 +164,6 @@
 #define FFA_PLCM09           13
 #define FFA_PLCM11           14 //PLCM10 ONLY 4G
 #define FFA_PLCM12           15 //PLCM10 ONLY WIFI
+#define FFA_PLCM10B          16 //PLCM10 NO WIFI NO GPS
 
 #endif /* _I2CSEEPROMFACTORY */

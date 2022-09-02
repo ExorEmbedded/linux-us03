@@ -1,6 +1,3 @@
-#error CVE-2022-34495
-#error CVE-2022-34494
-
 /*
  * Virtio-based remote processor messaging bus
  *

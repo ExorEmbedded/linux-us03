@@ -130,6 +130,7 @@ dtb-$(CONFIG_ARCH_FSL_IMX8MM) += fsl-imx8mm-evk.dtb \
 				 ns04_eco2xx.dtb \
 				 ns04_x07bs.dtb \
 				 ns04_dah21.dtb \
+				 ns04_da22.dtb \
 				 us04_jsmart.dtb \
 				 us04_wu10.dtb \
 				 us04_ex705m.dtb \

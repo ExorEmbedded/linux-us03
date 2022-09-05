@@ -52,6 +52,42 @@
 	  nvmem = <&seeprom0>, <&m41t83>;
 	  status = "okay";
 	};	
+
+	plxx0: plugin0 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio3 15 0>;
+	  index = <0>;
+	  status = "okay";
+	};	
+	
+	plxx1: plugin1 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio3 3 0>;
+	  index = <1>;
+	  status = "okay";
+	};	
+	
+	plxx2: plugin2 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio3 4 0>;
+	  index = <2>;
+	  status = "okay";
+	};	
+	
+	plxx3: plugin3 {
+	  compatible = "exor,plxx_manager";
+	  nvmem-names = "eeprom", "ioexp";
+	  nvmem = <&plxxseeprom>, <&plxxioexp>;
+	  sel-gpio = <&gpio3 5 0>;
+	  index = <3>;
+	  status = "okay";
+	};	
 	
 	usbaux@32e40000 {
 		compatible = "fsl,imx8mm-usb", "fsl,imx7d-usb", "fsl,imx27-usb";
@@ -276,8 +312,10 @@
 
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX8MM_IOMUXC_NAND_CE2_B_GPIO3_IO3       0x1c4   
-				MX8MM_IOMUXC_NAND_CE3_B_GPIO3_IO4       0x1c4   	
+				MX8MM_IOMUXC_NAND_RE_B_GPIO3_IO15       0x1c4 /* plugin sel #0 */
+				MX8MM_IOMUXC_NAND_CE2_B_GPIO3_IO3       0x1c4 /* plugin sel #1 */  
+				MX8MM_IOMUXC_NAND_CE3_B_GPIO3_IO4       0x1c4 /* plugin sel #2 */  
+				MX8MM_IOMUXC_NAND_CLE_GPIO3_IO5         0x1c4 /* plugin sel #3 */
 			>;
 		};
 

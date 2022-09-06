@@ -269,15 +269,25 @@
 	/delete-property/dma-names;
   
     can1: spi1@0 {
-        compatible = "generic,spidev";
-        reg = <0>;
-        spi-max-frequency = <8000000>;
-    };
+		compatible = "ti,tcan4x5x";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <8000000>;
+		bosch,mram-cfg = <0x0 0 0 32 0 0 1 1>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+	};
 
     can2: spi1@1 {
-        compatible = "generic,spidev";
-        reg = <1>;
-        spi-max-frequency = <8000000>;
+		compatible = "ti,tcan4x5x";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <8000000>;
+		bosch,mram-cfg = <0x0 0 0 32 0 0 1 1>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
     };
 };
 
@@ -292,10 +302,15 @@
 	/delete-property/dma-names;
 
     can0: spi3@0 {
-        compatible = "generic,spidev";
-        reg = <0>;
-        spi-max-frequency = <8000000>;
-    };
+		compatible = "ti,tcan4x5x";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <8000000>;
+		bosch,mram-cfg = <0x0 0 0 32 0 0 1 1>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+	};    
 	
 	fram: at25@1 {
         compatible = "atmel,at25", "st,m95256";
@@ -339,7 +354,7 @@
 				MX8MM_IOMUXC_ECSPI2_SS0_GPIO5_IO13      0x11 /* cs0 */ 
 				MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7       0x11 /* cs1 */
 				MX8MM_IOMUXC_NAND_DATA04_GPIO3_IO10     0x11 /* spi2_cs0_int */
-				MX8MM_IOMUXC_NAND_DATA05_GPIO3_IO11     0x11 /* spi2_cs0_int */
+				MX8MM_IOMUXC_NAND_DATA05_GPIO3_IO11     0x11 /* spi2_cs1_int */
 			>;
 		};
 

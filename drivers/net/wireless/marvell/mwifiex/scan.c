@@ -1,3 +1,4 @@
+#error CVE-2019-3846
 /*
  * Marvell Wireless LAN device driver: scan ioctl and command handling
  *

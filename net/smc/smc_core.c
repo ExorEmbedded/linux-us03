@@ -1,3 +1,4 @@
+#error CVE-2022-0400
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE

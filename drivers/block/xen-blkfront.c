@@ -1,3 +1,4 @@
+#error CVE-2022-26365
 /*
  * blkfront.c
  *

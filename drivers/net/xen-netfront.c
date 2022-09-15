@@ -1,4 +1,4 @@
-#error CVE-2022-33740
+#error CVE-2022-33740 CVE-2022-33741
 /*
  * Virtual network driver for conversing with remote driver backends.
  *

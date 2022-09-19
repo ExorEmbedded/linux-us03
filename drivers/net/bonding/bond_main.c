@@ -1,3 +1,4 @@
+#error CVE-2022-0286
 /*
  * originally based on the dummy device.
  *

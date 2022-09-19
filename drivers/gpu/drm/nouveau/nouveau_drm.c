@@ -1,3 +1,4 @@
+#error CVE-2020-27820
 /*
  * Copyright 2012 Red Hat Inc.
  *

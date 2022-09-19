@@ -35,6 +35,29 @@
 	};	
 };
 
+&leds{
+        gpio_out1@11 {
+            label = "gpio_out1";
+            gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+        gpio_out2@12 {
+            label = "gpio_out2";
+            gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+        gpio_out3@13 {
+            label = "gpio_out3";
+            gpios = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+        gpio_out4@14 {
+            label = "gpio_out4";
+            gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+};
+
 &aips4 {
 	usbaux@32e40000 {
 		compatible = "fsl,imx8mm-usb", "fsl,imx7d-usb";
@@ -171,7 +194,11 @@
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX8MM_IOMUXC_NAND_CE2_B_GPIO3_IO3       0x1c4   
-				MX8MM_IOMUXC_NAND_CE3_B_GPIO3_IO4       0x1c4   	
+				MX8MM_IOMUXC_NAND_CE3_B_GPIO3_IO4       0x1c4   
+				MX8MM_IOMUXC_SAI3_MCLK_GPIO5_IO2        0x1c4
+				MX8MM_IOMUXC_SAI3_TXD_GPIO5_IO1         0x1c4
+				MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27       0x1c4
+				MX8MM_IOMUXC_SAI2_TXD0_GPIO4_IO26       0x1c4
 			>;
 		};
 

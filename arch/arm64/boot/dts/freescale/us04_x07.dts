@@ -110,6 +110,14 @@
 	
 };
 
+&leds{
+        en_vibr@11 {
+            label = "en_vibr";
+            gpios = <&gpio3 8 GPIO_ACTIVE_HIGH>;
+            default-state = "off";
+        };
+};
+        
 &backlight0 {
     compatible = "pwm-backlight";
     pwms = <&pwm3 0 50000 0>;
@@ -300,6 +308,7 @@
 				MX8MM_IOMUXC_SAI1_TXD7_GPIO4_IO19       0x1c4   /* Touch intr */
 				MX8MM_IOMUXC_SAI5_RXC_GPIO3_IO20        0x1c4   /* spigo1 */
 				MX8MM_IOMUXC_SAI5_RXFS_GPIO3_IO19       0x1c4   /* spigo2 */
+				MX8MM_IOMUXC_NAND_DATA02_GPIO3_IO8      0x1c4   /* en_vibr */
 			>;
 		};
 

@@ -1,3 +1,4 @@
+#error CVE-2021-3764
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *

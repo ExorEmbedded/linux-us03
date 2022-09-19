@@ -1,4 +1,4 @@
-#error CVE-2018-7273
+#error CVE-2018-7273 CVE-2022-1652
 
 /*
  *  linux/drivers/block/floppy.c

@@ -1,3 +1,4 @@
+#error CVE-2016-3695
 /*
  * APEI Error INJection support
  *

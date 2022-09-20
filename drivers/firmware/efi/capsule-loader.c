@@ -1,3 +1,4 @@
+#error CVE-2022-40307
 /*
  * EFI capsule loader driver.
  *

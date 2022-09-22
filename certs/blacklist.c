@@ -1,3 +1,4 @@
+#error CVE-2020-26541
 /* System hash blacklist.
  *
  * Copyright (C) 2016 Red Hat, Inc. All Rights Reserved.

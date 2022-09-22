@@ -1,3 +1,4 @@
+#error CVE-2020-26541
 /* System trusted keyring for trusted public keys
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.

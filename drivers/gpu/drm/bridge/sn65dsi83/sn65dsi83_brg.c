@@ -97,6 +97,8 @@
 #define SN65DSI83_REG_3D              0x3D
 #define SN65DSI83_REG_3E              0x3E
 
+extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+
 static int sn65dsi83_brg_power_on(struct sn65dsi83_brg *brg)
 {
     dev_info(&brg->client->dev,"%s\n",__func__);
@@ -378,6 +380,15 @@ static int sn65dsi83_brg_configure(struct sn65dsi83_brg *brg)
 
     SN65DSI83_WRITE(SN65DSI83_CHA_HORZ_FRONTPORCH,LOW(HFP));
     SN65DSI83_WRITE(SN65DSI83_CHA_VERT_FRONTPORCH,LOW(VFP));
+	
+	/* Special case of 1280x800 10" LCD display (EK79202 controller chip) requiring to force the 2 wire DSI mode and very specific cfg
+	 */
+	if(hw_dispid==80)
+	{
+		SN65DSI83_WRITE(SN65DSI83_CHA_HSYNC_WIDTH_LO,LOW(2)); 
+		SN65DSI83_WRITE(SN65DSI83_CHA_HSYNC_WIDTH_HI,HIGH(2));
+		SN65DSI83_WRITE(SN65DSI83_CHA_DSI_CLK_RNG,0x57); 		
+	};
 
     SN65DSI83_WRITE(SN65DSI83_TEST_PATTERN,0x00);
     SN65DSI83_WRITE(SN65DSI83_REG_3D,0x00);

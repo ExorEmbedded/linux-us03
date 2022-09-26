@@ -24,6 +24,8 @@
 #include "sn65dsi83_timing.h"
 #include "sn65dsi83_brg.h"
 
+extern int hw_dispid; //This is an exported variable holding the display id value, if passed from cmdline
+
 struct sn65dsi83 {
     u8 channel_id;
     enum drm_connector_status status;
@@ -248,6 +250,11 @@ static int sn65dsi83_parse_dt(struct device_node *np,
     of_property_read_u32(np, "ti,lvds-bpp", &bpp);
     of_property_read_u32(np, "ti,width-mm", &width);
     of_property_read_u32(np, "ti,height-mm", &height);
+	
+	/* Special case of 1280x800 10" LCD display (EK79202 controller chip) requiring to force the 2 wire DSI mode
+	 */
+	if(hw_dispid==80)
+		num_lanes=2;
 
     if (num_lanes < 1 || num_lanes > 4) {
         dev_err(dev, "Invalid dsi-lanes: %d\n", num_lanes);

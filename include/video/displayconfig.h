@@ -1319,8 +1319,8 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 5000,	//27.09.2021 keyboard led dimming driven by TPS61165
-        .brightness_min = 1,		//27.09.2021 min duty cycle as per new datasheet by Futurelabs
+        .pwmfreq        = 6500,	//27.09.2021 keyboard led dimming driven by TPS61165
+        .brightness_min = 0x3200,		//27.09.2021 min duty cycle as per new datasheet by Futurelabs
         .brightness_max = 40,
     },    
     /* END OF LIST */

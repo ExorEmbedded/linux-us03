@@ -99,8 +99,10 @@
  *1.42			SS							04.03.2022	Added display code #78: DMB T070102600-B3WMN-001 for DAH21 (1024x600).
  *1.43			SS							22.08.2022	Added display code #79: Futurelabs FLC070DML02 (800x480 serie700).
  *1.44			SS							26.09.2022	Added display code #80: Futurelabs FLR-101HML00PUFA2#02 (1280x800 WE20-10).
+ *1.45			SS							27.09.2022	Added display code #81: same as display #76 but dimming positive (new carrier WU10A1)
+ *			 								27.09.2022	Added display code #82: Futurelabs FLD-121GML20PC001#00 (Innolux G121XCE-L01) for GE22 (1024x768) 
  *
- * NEXT AVAILABLE DISPLAY CODE: 81
+ * NEXT AVAILABLE DISPLAY CODE: 83
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -1297,7 +1299,7 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 0x6400, 		/* BSP-1559 : Brightness min=1% */
         .brightness_max = 100,
     }, 
-    /* 80: Futurelabs  FLR-101HML00PUFA2#02 1280x800 for WE20-10inch new */
+    /* 80: Futurelabs  FLR-101HML00PUFA2#02 1280x800 for WE20-10inch new carrier (WU10A1) */
     {
         .dispid    = 80,
         .rezx      = 1280, 
@@ -1319,9 +1321,61 @@ static struct t_DisplayParams displayconfig[] = {
         
         .blank_inv      = 0,
         
-        .pwmfreq        = 6500,	//27.09.2021 keyboard led dimming driven by TPS61165
-        .brightness_min = 0x3200,		//27.09.2021 min duty cycle as per new datasheet by Futurelabs
+        .pwmfreq        = 6500,			//27.09.2022 keyboard led dimming driven by TPS61165 (avoid EasyScale min freq)
+        .brightness_min = 0x3200,		//27.09.2022 min duty cycle 0.5%
         .brightness_max = 40,
+    },    
+    /* 81: Innolux  G121ICE-L01 1280x800 for WE20-12 PWM polarity=positive, new carrier (WU10A1) */
+    {
+        .dispid    = 81,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 71000,     //US04 supporta un numero limitato di freq (fare sempre check con tabella PLL)   
+        .pclk_inv  = 1,					//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 70,            
+        .hs_bp     = 70,            
+        .hs_w      = 20,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 10,             
+        .vs_bp     = 10,            
+        .vs_w      = 3,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 5,
+        .brightness_max = 70, 	//polarità PWM dimming positiva
+    },
+    /* 82: Futurelabs FLD-121GML20PC001#00 (Innolux G121XCE-L01) for GE22 */
+    {
+        .dispid    = 82,
+        .rezx      = 1024, 
+        .rezy      = 768, 
+        .bpp       = 24,
+        
+        .pclk_freq = 71000,         //US04 supporta un numero limitato di freq (fare sempre check con tabella PLL)
+        .pclk_inv  = 1,							//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 150,            
+        .hs_bp     = 150,            
+        .hs_w      = 20,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 15,             
+        .vs_bp     = 15,            
+        .vs_w      = 8,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,			
+        .brightness_min = 1,		
+        .brightness_max = 100,
     },    
     /* END OF LIST */
     {

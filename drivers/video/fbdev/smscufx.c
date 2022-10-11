@@ -1,3 +1,4 @@
+#error CVE-2022-41849
 /*
  * smscufx.c -- Framebuffer driver for SMSC UFX USB controller
  *

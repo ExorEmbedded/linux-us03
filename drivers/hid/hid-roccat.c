@@ -1,3 +1,4 @@
+#error CVE-2022-41850
 /*
  * Roccat driver for Linux
  *

@@ -1,3 +1,4 @@
+#error CVE-2022-41848
 /*
  * linux/drivers/char/pcmcia/synclink_cs.c
  *

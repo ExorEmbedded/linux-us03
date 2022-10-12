@@ -1,3 +1,4 @@
+#error CVE-2022-40768
 /*
  * SuperTrak EX Series Storage Controller driver for Linux
  *

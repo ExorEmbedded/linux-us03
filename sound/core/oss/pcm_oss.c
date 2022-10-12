@@ -1,3 +1,4 @@
+#error CVE-2022-3303
 /*
  *  Digital Audio (PCM) abstract layer / OSS compatible
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>

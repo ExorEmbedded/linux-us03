@@ -270,6 +270,7 @@ static int wu10cam_write_reg32_device(
 		 * */
 		ret = i2c_transfer(client->adapter, &msg, 1);
 		if (ret < 0) {
+			sensor->controls_initialized = false;
 			dev_err(&client->dev, "%s: error: reg=%x, val=%x\n",
 				__func__, reg, val);
 			return ret;
@@ -315,6 +316,7 @@ static int wu10cam_read_reg32_device(
 		 * */
 		ret = i2c_transfer(client->adapter, &msg[0], 2);
 		if (ret < 0) {
+			sensor->controls_initialized = false;
 			dev_err(&client->dev, "%s: error: reg=%x, val=%x\n",
 				__func__, reg, *val);
 			return ret;

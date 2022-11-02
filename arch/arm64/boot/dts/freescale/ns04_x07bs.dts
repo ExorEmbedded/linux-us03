@@ -148,10 +148,10 @@
 	mode-gpio = <&gpio1 1 0>;
 	rxen-gpio = <&gpio3 5 0>;
 
-	dcd-gpio = <&gpio3 24 0>;
-	rng-gpio = <&gpio3 22 0>;
-	dsr-gpio = <&gpio3 21 0>;
-	dtr-gpio = <&gpio3 23 0>;
+	dcd-gpios = <&gpio3 24 0>;
+	rng-gpios = <&gpio3 22 0>;
+	dsr-gpios = <&gpio3 21 0>;
+	dtr-gpios = <&gpio3 23 0>;
 
 	status = "okay";
 };

@@ -99,6 +99,14 @@ static const struct mmc_fixup __maybe_unused mmc_blk_fixups[] = {
 	MMC_FIXUP("V10016", CID_MANFID_KINGSTON, CID_OEMID_ANY, add_quirk_mmc,
 		  MMC_QUIRK_TRIM_BROKEN),
 
+	/*
+	 * On some Sandisk/WD EMMC devices SW restart issues were randomly
+	 * noticed: the fix consists in sending an MMC GO PRE IDLE cmd
+	 * just before resetting the CPU
+	 */
+	MMC_FIXUP("DG4008", CID_MANFID_SANDISKWD, CID_OEMID_ANY, add_quirk_mmc,
+		  MMC_QUIRK_SWRESTART),		  
+		  
 	END_FIXUP
 };
 

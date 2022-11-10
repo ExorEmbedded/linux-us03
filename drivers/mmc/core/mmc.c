@@ -2039,6 +2039,19 @@ static bool _mmc_cache_enabled(struct mmc_host *host)
 	       host->card->ext_csd.cache_ctrl & 1;
 }
 
+static int _mmc_go_pre_idle(struct mmc_host *host)
+{
+	struct mmc_command cmd = {};
+	int err;
+
+	cmd.opcode = MMC_GO_IDLE_STATE;
+	cmd.arg = 0xf0f0f0f0;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_NONE | MMC_CMD_BC;
+	err = mmc_wait_for_cmd(host, &cmd, 0);
+	mmc_delay(50);
+	return err;	
+}
+
 static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 {
 	int err = 0;
@@ -2064,7 +2077,10 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 		err = mmc_deselect_cards(host);
 
 	if (!err) {
-		mmc_power_off(host);
+		if((!is_suspend) && (host->card->quirks & MMC_QUIRK_SWRESTART))
+			_mmc_go_pre_idle(host);
+		else
+			mmc_power_off(host);
 		mmc_card_set_suspended(host->card);
 	}
 out:

@@ -13,6 +13,7 @@
 /dts-v1/;
   
 #include "imx8mm_us04.dtsi"
+#include <dt-bindings/leds/common.h>
   
 / {
 	model = "X07 i.MX8MM US04 board";
@@ -222,7 +223,47 @@
 	  touchscreen-size-y = <4096>;
 	  touchscreen-max-pressure = <2048>;
 	};
-	
+
+	led-controller@30 {
+		compatible = "ti,lp5562";
+		reg = <0x30>;
+		clock-mode = /bits/ 8 <1>;
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		chan@0 {
+			chan-name = "R";
+			led-cur = /bits/ 8 <0x3C>;
+			max-cur = /bits/ 8 <0x60>;
+            color = <LED_COLOR_ID_RED>;
+			reg = <0>;
+		};
+
+		chan@1 {
+			chan-name = "G";
+			led-cur = /bits/ 8 <0x20>;
+			max-cur = /bits/ 8 <0x60>;
+            color = <LED_COLOR_ID_GREEN>;
+			reg = <1>;
+		};
+
+		chan@2 {
+			chan-name = "B";
+			led-cur = /bits/ 8 <0x60>;
+			max-cur = /bits/ 8 <0x60>;
+            color = <LED_COLOR_ID_BLUE>;
+			reg = <2>;
+		};
+
+		chan@3 {
+			chan-name = "W";
+			led-cur = /bits/ 8 <0x0>;
+			max-cur = /bits/ 8 <0x0>;
+            color = <LED_COLOR_ID_WHITE>;
+			reg = <3>;
+		};
+	};	
 	pca9633@62 {
 		compatible = "nxp,pca9633";
 		#address-cells = <1>;

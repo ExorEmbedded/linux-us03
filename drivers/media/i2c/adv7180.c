@@ -1543,6 +1543,18 @@ int adv7180_wu10_command(int command, int param1, int param2)
 		}
 		break;
 
+        case WU10_CMD_QUERY_VIDEO_LOCK:
+        {
+            u32 status = 0;
+            int err = mutex_lock_interruptible(&gp_state->mutex);
+            if (err)
+                    return 0;
+            __adv7180_status(gp_state, &status, NULL);
+            mutex_unlock(&gp_state->mutex);
+            return (int)status;
+        }
+        break;
+
 		default:
 			return -ENXIO;
 		}

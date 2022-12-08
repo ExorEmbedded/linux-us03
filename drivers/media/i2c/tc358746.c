@@ -123,6 +123,7 @@ struct tc358746_state {
 
 	bool controls_initialized;
 	struct device* dev_folder;
+	struct timer_list poll_timer;
 
 	u32 i_fpga_control_register;
 	u32 i_fpga_width;
@@ -269,6 +270,7 @@ static int wu10cam_write_reg32_device(
 		 * */
 		ret = i2c_transfer(client->adapter, &msg, 1);
 		if (ret < 0) {
+			sensor->controls_initialized = false;
 			dev_err(&client->dev, "%s: error: reg=%x, val=%x\n",
 				__func__, reg, val);
 			return ret;
@@ -314,6 +316,7 @@ static int wu10cam_read_reg32_device(
 		 * */
 		ret = i2c_transfer(client->adapter, &msg[0], 2);
 		if (ret < 0) {
+			sensor->controls_initialized = false;
 			dev_err(&client->dev, "%s: error: reg=%x, val=%x\n",
 				__func__, reg, *val);
 			return ret;
@@ -711,6 +714,38 @@ void fpga_apply_rotation(struct tc358746_state *state)
 	fpga_set_height(state);
 	fpga_set_rotation(state);
 }
+
+static int fpga_smart_reset(struct tc358746_state *state, bool b_long_delay)
+{
+       // save original rotation
+       int i_old_rotation = state->i_fpga_rotation;
+       // calc temporary new rotation
+       state->i_fpga_rotation += 90;
+       if (state->i_fpga_rotation == 360)
+               state->i_fpga_rotation = 0;
+
+       // set new rotation
+       fpga_apply_rotation(state);
+
+       // Wait 50..100 ms for some video frames
+       // (approximate worst case: 40 ms for 25 Hz video)
+       // Un-freezing doesn't work reliably without this.
+       // Empirical delays; shorter ones don't work reliably.
+       
+       if (b_long_delay)
+               usleep_range(25*1000, 35*1000);
+//               usleep_range(1000*1000, 1200*1000);
+       else
+               usleep_range(25*1000, 35*1000);
+//               usleep_range(50*1000, 100*1000);
+       
+       // set original rotation
+       state->i_fpga_rotation = i_old_rotation;
+       fpga_apply_rotation(state);
+       
+       return 0;
+}
+
 
 int tc358746_s_ctrl(struct v4l2_ctrl* ctrl)
 {
@@ -1456,24 +1491,24 @@ const struct reg_data
 	{ 0x040E, "CSI_CONTROL", 16, "CSI2TXControl Register2" },
 	{ 0x0410, "CSI_STATUS", 16, "CSI2TXStatus Register" },
 	{ 0x0412, "CSI_STATUS", 16, "CSI2TXStatus Register2" },
-	{ 0x0414, "CSI_INT ", 16, "CSI2TX – Presents interrupts currently being held" },
-	{ 0x0416, "CSI_INT ", 16, "CSI2TX – Presents interrupts currently being held2" },
-	{ 0x0418, "CSI_INT_ENA", 16, "CSI2TX – Enables CSI_INT interrupt source" },
-	{ 0x041A, "CSI_INT_ENA", 16, "CSI2TX – Enables CSI_INT interrupt source2" },
-	{ 0x044C, "CSI_ERR", 16, "CSI2TX – transfer general errors" },
-	{ 0x044E, "CSI_ERR", 16, "CSI2TX – transfer general errors2" },
-	{ 0x0450, "CSI_ERR_INTENA", 16, "CSI2TX – interrupt enable bits of the CSI_ERR register" },
-	{ 0x0452, "CSI_ERR_INTENA", 16, "CSI2TX – interrupt enable bits of the CSI_ERR register2" },
-	{ 0x0454, "CSI_ERR_HALT", 16, "CSI2TX – stop on error bit set in the CSI_ERR register" },
-	{ 0x0456, "CSI_ERR_HALT", 16, "CSI2TX – stop on error bit set in the CSI_ERR register2" },
+	{ 0x0414, "CSI_INT ", 16, "CSI2TX ï¿½ Presents interrupts currently being held" },
+	{ 0x0416, "CSI_INT ", 16, "CSI2TX ï¿½ Presents interrupts currently being held2" },
+	{ 0x0418, "CSI_INT_ENA", 16, "CSI2TX ï¿½ Enables CSI_INT interrupt source" },
+	{ 0x041A, "CSI_INT_ENA", 16, "CSI2TX ï¿½ Enables CSI_INT interrupt source2" },
+	{ 0x044C, "CSI_ERR", 16, "CSI2TX ï¿½ transfer general errors" },
+	{ 0x044E, "CSI_ERR", 16, "CSI2TX ï¿½ transfer general errors2" },
+	{ 0x0450, "CSI_ERR_INTENA", 16, "CSI2TX ï¿½ interrupt enable bits of the CSI_ERR register" },
+	{ 0x0452, "CSI_ERR_INTENA", 16, "CSI2TX ï¿½ interrupt enable bits of the CSI_ERR register2" },
+	{ 0x0454, "CSI_ERR_HALT", 16, "CSI2TX ï¿½ stop on error bit set in the CSI_ERR register" },
+	{ 0x0456, "CSI_ERR_HALT", 16, "CSI2TX ï¿½ stop on error bit set in the CSI_ERR register2" },
 	{ 0x0500, "CSI_CONFW", 16, "CSI TX Configure Write Register" },
 	{ 0x0502, "CSI_CONFW", 16, "CSI TX Configure Write Register2" },
-	{ 0x0504, "CSI_RESET", 16, "CSI2TX – reset he module and the Receive FIFO content" },
-	{ 0x0506, "CSI_RESET", 16, "CSI2TX – reset he module and the Receive FIFO content2" },
-	{ 0x050C, "CSI_INT_CLR", 16, "CSI2TX – Clears particular bits of the CSI_INT register" },
-	{ 0x050E, "CSI_INT_CLR", 16, "CSI2TX – Clears particular bits of the CSI_INT register2" },
-	{ 0x0518, "CSI_START", 16, "CSI2 - TX – Starts CSI - 2 - TX operation" },
-	{ 0x051A, "CSI_START", 16, "CSI2 - TX – Starts CSI - 2 - TX operation2" },
+	{ 0x0504, "CSI_RESET", 16, "CSI2TX ï¿½ reset he module and the Receive FIFO content" },
+	{ 0x0506, "CSI_RESET", 16, "CSI2TX ï¿½ reset he module and the Receive FIFO content2" },
+	{ 0x050C, "CSI_INT_CLR", 16, "CSI2TX ï¿½ Clears particular bits of the CSI_INT register" },
+	{ 0x050E, "CSI_INT_CLR", 16, "CSI2TX ï¿½ Clears particular bits of the CSI_INT register2" },
+	{ 0x0518, "CSI_START", 16, "CSI2 - TX ï¿½ Starts CSI - 2 - TX operation" },
+	{ 0x051A, "CSI_START", 16, "CSI2 - TX ï¿½ Starts CSI - 2 - TX operation2" },
 
 	// Debug Tx (Color Bar, 16 - bit Address))
 	{ 0x00e0, "DBG_LCNT", 16, "Color Bar Generation Setting for Line Count" },
@@ -2170,6 +2205,47 @@ static struct attribute_group wu10cam_group =
 	.attrs = wu10cam_attrs,
 };
 
+/* timer **************************************************************/
+
+#define POLL_ADV_TIMEOUT       50      // ms
+
+struct tc358746_state *g_state = NULL;
+
+void poll_workqueue(struct work_struct *p_work)
+{
+       static int old_video_lock = -1;
+       int video_lock = adv7180_wu10_command(WU10_CMD_QUERY_VIDEO_LOCK, 0, 0);
+
+       if (video_lock != old_video_lock)
+       {
+               /* We just got video signal? FPGA might get locked up.
+                * We just lost video signal? FPGA might get locked up.
+                * */
+               if (video_lock == 0)
+               {       // got lock
+                       fpga_smart_reset(g_state, false);
+               }
+               else
+               {       // lost lock
+                       fpga_smart_reset(g_state, true);
+               }
+               
+               old_video_lock = video_lock;
+       }
+       
+}
+
+DECLARE_WORK(poll_wq, poll_workqueue);
+
+void poll_timer_callback(struct timer_list* p_timer)
+{
+       struct tc358746_state *state = from_timer(state, p_timer, poll_timer);
+       g_state = state;
+       schedule_work(&poll_wq);
+       mod_timer(&state->poll_timer, jiffies + msecs_to_jiffies(POLL_ADV_TIMEOUT));
+}
+
+
 // needed to make our controls accessible through /dev/video0
 extern struct v4l2_ctrl_handler* g_mx6s_ctrl_hdl;
 extern int (*g_mx6s_s_ctrl)(struct v4l2_ctrl* ctrl);
@@ -2358,6 +2434,9 @@ static int tc358746_probe(struct i2c_client *client,
 		v4l_err(client, "Error %d writing fpga i2c\n", err);
 		// not a fatal error - there are devices without FPGA module
 	}
+
+	timer_setup(&state->poll_timer, poll_timer_callback, 0);
+	mod_timer(&state->poll_timer, jiffies + msecs_to_jiffies(POLL_ADV_TIMEOUT));
 
 	return 0;
 

@@ -74,55 +74,55 @@
 		compatible = "ti,tlc59116";
 		reg = <0x60>;
 
-		led1_r@0 {
-			label = "led1_r";
+		led1_g@0 {
+			label = "led1_g";
 			reg = <0x0>;
 		};
-		led1_g@1 {
-			label = "led1_g";
+		led1_y@1 {
+			label = "led1_y";
 			reg = <0x1>;
 		};
-		led1_y@2 {
-			label = "led1_y";
+		led1_r@2 {
+			label = "led1_r";
 			reg = <0x2>;
 		};
 
-		led2_r@4 {
-			label = "led2_r";
+		led2_g@4 {
+			label = "led2_g";
 			reg = <0x4>;
 		};
-		led2_g@5 {
-			label = "led2_g";
+		led2_y@5 {
+			label = "led2_y";
 			reg = <0x5>;
 		};
-		led2_y@6 {
-			label = "led2_y";
+		led2_r@6 {
+			label = "led2_r";
 			reg = <0x6>;
 		};
 
-		led3_r@8 {
-			label = "led3_r";
+		led3_g@8 {
+			label = "led3_g";
 			reg = <0x8>;
 		};
-		led3_g@9 {
-			label = "led3_g";
+		led3_y@9 {
+			label = "led3_y";
 			reg = <0x9>;
 		};
-		led3_y@a {
-			label = "led3_y";
+		led3_r@a {
+			label = "led3_r";
 			reg = <0xa>;
 		};
 
-		led4_r@c {
-			label = "led4_r";
+		led4_g@c {
+			label = "led4_g";
 			reg = <0xc>;
 		};
-		led4_g@d {
-			label = "led4_g";
+		led4_y@d {
+			label = "led4_y";
 			reg = <0xd>;
 		};
-		led4_y@e {
-			label = "led4_y";
+		led4_r@e {
+			label = "led4_r";
 			reg = <0xe>;
 		};	
 	};
@@ -133,55 +133,55 @@
 		compatible = "ti,tlc59116";
 		reg = <0x61>;
 
-		led5_r@0 {
-			label = "led5_r";
+		led5_g@0 {
+			label = "led5_g";
 			reg = <0x0>;
 		};
-		led5_g@1 {
-			label = "led5_g";
+		led5_y@1 {
+			label = "led5_y";
 			reg = <0x1>;
 		};
-		led5_y@2 {
-			label = "led5_y";
+		led5_r@2 {
+			label = "led5_r";
 			reg = <0x2>;
 		};
 
-		led6_r@4 {
-			label = "led6_r";
+		led6_g@4 {
+			label = "led6_g";
 			reg = <0x4>;
 		};
-		led6_g@5 {
-			label = "led6_g";
+		led6_y@5 {
+			label = "led6_y";
 			reg = <0x5>;
 		};
-		led6_y@6 {
-			label = "led6_y";
+		led6_r@6 {
+			label = "led6_r";
 			reg = <0x6>;
 		};
 
-		led7_r@8 {
-			label = "led7_r";
+		led7_g@8 {
+			label = "led7_g";
 			reg = <0x8>;
 		};
-		led7_g@9 {
-			label = "led7_g";
+		led7_y@9 {
+			label = "led7_y";
 			reg = <0x9>;
 		};
-		led7_y@a {
-			label = "led7_y";
+		led7_r@a {
+			label = "led7_r";
 			reg = <0xa>;
 		};
 
-		led8_r@c {
-			label = "led8_r";
+		led8_g@c {
+			label = "led8_g";
 			reg = <0xc>;
 		};
-		led8_g@d {
-			label = "led8_g";
+		led8_y@d {
+			label = "led8_y";
 			reg = <0xd>;
 		};
-		led8_y@e {
-			label = "led8_y";
+		led8_r@e {
+			label = "led8_r";
 			reg = <0xe>;
 		};	
 	};	
@@ -192,55 +192,55 @@
 		compatible = "ti,tlc59116";
 		reg = <0x62>;
 
-		led9_r@0 {
-			label = "led9_r";
+		led9_g@0 {
+			label = "led9_g";
 			reg = <0x0>;
 		};
-		led9_g@1 {
-			label = "led9_g";
+		led9_y@1 {
+			label = "led9_y";
 			reg = <0x1>;
 		};
-		led9_y@2 {
-			label = "led9_y";
+		led9_r@2 {
+			label = "led9_r";
 			reg = <0x2>;
 		};
 
-		led10_r@4 {
-			label = "led10_r";
+		led10_g@4 {
+			label = "led10_g";
 			reg = <0x4>;
 		};
-		led10_g@5 {
-			label = "led10_g";
+		led10_y@5 {
+			label = "led10_y";
 			reg = <0x5>;
 		};
-		led10_y@6 {
-			label = "led10_y";
+		led10_r@6 {
+			label = "led10_r";
 			reg = <0x6>;
 		};
 
-		led11_r@8 {
-			label = "led11_r";
+		led11_g@8 {
+			label = "led11_g";
 			reg = <0x8>;
 		};
-		led11_g@9 {
-			label = "led11_g";
+		led11_y@9 {
+			label = "led11_y";
 			reg = <0x9>;
 		};
-		led11_y@a {
-			label = "led11_y";
+		led11_r@a {
+			label = "led11_r";
 			reg = <0xa>;
 		};
 
-		led12_r@c {
-			label = "led12_r";
+		led12_g@c {
+			label = "led12_g";
 			reg = <0xc>;
 		};
-		led12_g@d {
-			label = "led12_g";
+		led12_y@d {
+			label = "led12_y";
 			reg = <0xd>;
 		};
-		led12_y@e {
-			label = "led12_y";
+		led12_r@e {
+			label = "led12_r";
 			reg = <0xe>;
 		};	
 	};	
@@ -251,55 +251,55 @@
 		compatible = "ti,tlc59116";
 		reg = <0x63>;
 
-		led13_r@0 {
-			label = "led13_r";
+		led13_g@0 {
+			label = "led13_g";
 			reg = <0x0>;
 		};
-		led13_g@1 {
-			label = "led13_g";
+		led13_y@1 {
+			label = "led13_y";
 			reg = <0x1>;
 		};
-		led13_y@2 {
-			label = "led13_y";
+		led13_r@2 {
+			label = "led13_r";
 			reg = <0x2>;
 		};
 
-		led14_r@4 {
-			label = "led14_r";
+		led14_g@4 {
+			label = "led14_g";
 			reg = <0x4>;
 		};
-		led14_g@5 {
-			label = "led14_g";
+		led14_y@5 {
+			label = "led14_y";
 			reg = <0x5>;
 		};
-		led14_y@6 {
-			label = "led14_y";
+		led14_r@6 {
+			label = "led14_r";
 			reg = <0x6>;
 		};
 
-		led15_r@8 {
-			label = "led15_r";
+		led15_g@8 {
+			label = "led15_g";
 			reg = <0x8>;
 		};
-		led15_g@9 {
-			label = "led15_g";
+		led15_y@9 {
+			label = "led15_y";
 			reg = <0x9>;
 		};
-		led15_y@a {
-			label = "led15_y";
+		led15_r@a {
+			label = "led15_r";
 			reg = <0xa>;
 		};
 
-		led16_r@c {
-			label = "led16_r";
+		led16_g@c {
+			label = "led16_g";
 			reg = <0xc>;
 		};
-		led16_g@d {
-			label = "led16_g";
+		led16_y@d {
+			label = "led16_y";
 			reg = <0xd>;
 		};
-		led16_y@e {
-			label = "led16_y";
+		led16_r@e {
+			label = "led16_r";
 			reg = <0xe>;
 		};	
 	};		
@@ -310,29 +310,29 @@
 		compatible = "ti,tlc59116";
 		reg = <0x64>;
 
-		led17_r@4 {
-			label = "led17_r";
+		led17_g@4 {
+			label = "led17_g";
 			reg = <0x4>;
 		};
-		led17_g@5 {
-			label = "led17_g";
+		led17_y@5 {
+			label = "led17_y";
 			reg = <0x5>;
 		};
-		led17_y@6 {
-			label = "led17_y";
+		led17_r@6 {
+			label = "led17_r";
 			reg = <0x6>;
 		};
 
-		led18_r@8 {
-			label = "led18_r";
+		led18_g@8 {
+			label = "led18_g";
 			reg = <0x8>;
 		};
-		led18_g@9 {
-			label = "led18_g";
+		led18_y@9 {
+			label = "led18_y";
 			reg = <0x9>;
 		};
-		led18_y@a {
-			label = "led18_y";
+		led18_r@a {
+			label = "led18_r";
 			reg = <0xa>;
 		};
 	};			

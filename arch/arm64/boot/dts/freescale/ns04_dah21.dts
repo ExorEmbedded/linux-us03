@@ -68,7 +68,11 @@
 };
 
 &i2c1 {
-
+    seeprom3:seeprom3@56 {
+        compatible = "atmel,24c04";
+        reg = <0x56>;
+    };
+    
 	tlc59116@60 {
 		#address-cells = <1>;
 		#size-cells = <0>;

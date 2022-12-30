@@ -1023,6 +1023,7 @@ static void mx6s_csi_frame_done(struct mx6s_csi_dev *csi_dev,
 	unsigned long phys;
 	unsigned int phys_fb1;
 	unsigned int phys_fb2;
+
 	// dvm debug stuff
 #if 0
 	unsigned char* p_virt;
@@ -1214,6 +1215,8 @@ static irqreturn_t mx6s_csi_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static volatile int mx6s_open_count = 0;
+
 /*
  * File operations for the device
  */
@@ -1238,16 +1241,20 @@ static int mx6s_csi_open(struct file *file)
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &csi_dev->lock;
 
-	ret = vb2_queue_init(q);
-	if (ret < 0)
-		goto unlock;
+	++mx6s_open_count;
+	if (mx6s_open_count == 1)
+	{
+		ret = vb2_queue_init(q);
+		if (ret < 0)
+			goto unlock;
 
-	pm_runtime_get_sync(csi_dev->dev);
+		pm_runtime_get_sync(csi_dev->dev);
 
-	request_bus_freq(BUS_FREQ_HIGH);
+		request_bus_freq(BUS_FREQ_HIGH);
 
-	v4l2_subdev_call(sd, core, s_power, 1);
-	mx6s_csi_init(csi_dev);
+		v4l2_subdev_call(sd, core, s_power, 1);
+		mx6s_csi_init(csi_dev);
+	}
 
 	mutex_unlock(&csi_dev->lock);
 
@@ -1263,19 +1270,27 @@ static int mx6s_csi_close(struct file *file)
 	struct v4l2_subdev *sd = csi_dev->sd;
 
 	mutex_lock(&csi_dev->lock);
+	--mx6s_open_count;
 
-	vb2_queue_release(&csi_dev->vb2_vidq);
+	if (mx6s_open_count == 0)
+	{
+		vb2_queue_release(&csi_dev->vb2_vidq);
 
-	mx6s_csi_deinit(csi_dev);
-	v4l2_subdev_call(sd, core, s_power, 0);
+		mx6s_csi_deinit(csi_dev);
+		v4l2_subdev_call(sd, core, s_power, 0);
+	}
 
 	mutex_unlock(&csi_dev->lock);
 
 	file->private_data = NULL;
 
-	release_bus_freq(BUS_FREQ_HIGH);
+	if (mx6s_open_count == 0)
+	{
+		release_bus_freq(BUS_FREQ_HIGH);
 
-	pm_runtime_put_sync_suspend(csi_dev->dev);
+		pm_runtime_put_sync_suspend(csi_dev->dev);
+	}
+
 	return 0;
 }
 
@@ -1517,6 +1532,9 @@ static int mx6s_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	csi_dev->pix.height    = f->fmt.pix.height;
 	csi_dev->pix.sizeimage = f->fmt.pix.sizeimage;
 	csi_dev->pix.field     = f->fmt.pix.field;
+	// allegedly may fix some issues, that we don't seem to be having
+//	csi_dev->pix = f->fmt.pix;
+
 	csi_dev->type          = f->type;
 	dev_dbg(csi_dev->dev, "set to pixelformat '%4.6s'\n",
 			(char *)&csi_dev->fmt->name);

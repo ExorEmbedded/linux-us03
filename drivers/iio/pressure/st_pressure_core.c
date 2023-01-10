@@ -95,10 +95,7 @@
 
 /* Default pressure sensitivity */
 #define ST_PRESS_LSB_PER_MBAR			4096UL
-#define ST_PRESS_KPASCAL_NANO_SCALE		(100000000UL / \
-						 ST_PRESS_LSB_PER_MBAR)
-
-/* Default temperature sensitivity */
+#define ST_PRESS_KPASCAL_NANO_SCALE		(1000000000UL / ST_PRESS_LSB_PER_MBAR)
 #define ST_PRESS_LSB_PER_CELSIUS		480UL
 #define ST_PRESS_MILLI_CELSIUS_OFFSET		42500UL
 

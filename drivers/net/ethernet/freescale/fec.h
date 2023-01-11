@@ -22,6 +22,10 @@
 #include <dt-bindings/firmware/imx/rsrc.h>
 #include <linux/firmware/imx/sci.h>
 
+#ifdef CONFIG_SOC_IMX6Q
+#define HAVE_AG_RING
+#endif
+
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
     defined(CONFIG_ARM64) || defined(CONFIG_COMPILE_TEST)
@@ -317,6 +321,12 @@ struct bufdesc_ex {
 #define FEC_R_BUFF_SIZE(X)	(((X) == 1) ? FEC_R_BUFF_SIZE_1 : \
 				(((X) == 2) ? \
 					FEC_R_BUFF_SIZE_2 : FEC_R_BUFF_SIZE_0))
+#define FEC_X_DES_ACTIVE(X)	((X == 1) ? FEC_X_DES_ACTIVE_1 : \
+				((X == 2) ? \
+				   FEC_X_DES_ACTIVE_2 : FEC_X_DES_ACTIVE_0))
+#define FEC_R_DES_ACTIVE(X)	((X == 1) ? FEC_R_DES_ACTIVE_1 : \
+				((X == 2) ? \
+				   FEC_R_DES_ACTIVE_2 : FEC_R_DES_ACTIVE_0))
 
 #define FEC_DMA_CFG(X)		(((X) == 2) ? FEC_DMA_CFG_2 : FEC_DMA_CFG_1)
 
@@ -381,6 +391,10 @@ struct bufdesc_ex {
 #define FEC_ENET_TS_AVAIL       ((uint)0x00010000)
 #define FEC_ENET_TS_TIMER       ((uint)0x00008000)
 
+#ifdef HAVE_AG_RING
+#define FEC_AGRING_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII | FEC_ENET_TS_TIMER)
+#endif
+
 #define FEC_DEFAULT_IMASK (FEC_ENET_TXF | FEC_ENET_RXF)
 #define FEC_RX_DISABLED_IMASK (FEC_DEFAULT_IMASK & (~FEC_ENET_RXF))
 
@@ -393,8 +407,8 @@ struct bufdesc_ex {
 #define FEC_ITR_EN		(0x1 << 31)
 #define FEC_ITR_ICFT(X)		(((X) & 0xff) << 20)
 #define FEC_ITR_ICTT(X)		((X) & 0xffff)
-#define FEC_ITR_ICFT_DEFAULT	200  /* Set 200 frame count threshold */
-#define FEC_ITR_ICTT_DEFAULT	1000 /* Set 1000us timer threshold */
+#define FEC_ITR_ICFT_DEFAULT	20  /* Set 20 frame count threshold */
+#define FEC_ITR_ICTT_DEFAULT	100 /* Set 100us timer threshold */
 
 #define FEC_VLAN_TAG_LEN	0x04
 #define FEC_ETHTYPE_LEN		0x02
@@ -625,7 +639,40 @@ struct fec_enet_private {
 	unsigned int next_counter;
 
 	struct imx_sc_ipc *ipc_handle;
+#ifdef HAVE_AG_RING
+	struct agring_private {
+		bool inited;
+		atomic_t usage_counter;
 
+		unsigned int tx_len[TX_RING_SIZE];
+
+		unsigned int num_buffers;
+
+		u_char** tx_buffers;
+		u_char* tx_curr_buffer;
+		u_int64_t tx_mem_size;
+		u32* tx_lens;
+
+		u_char** rx_buffers;
+		u_char* rx_curr_buffer;
+		u_int64_t rx_mem_size;
+		u32* rx_lens;
+		u32* prx_curr_len;
+
+		atomic_t op_pending;
+
+		atomic_t suspended;
+		struct mutex link_mutex;
+		struct timer_list link_timer;
+
+		struct timer_list rx_to_timer;
+		struct task_struct* defer_thread;
+		struct mutex tx_mutex;
+
+		u_char* tx_ptr;
+		u_char* rx_ptr;
+	} agring;
+#endif	
 	u64 ethtool_stats[];
 };
 

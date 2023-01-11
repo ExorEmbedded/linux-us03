@@ -733,8 +733,8 @@ static int fpga_smart_reset(struct tc358746_state *state, bool b_long_delay)
        // Empirical delays; shorter ones don't work reliably.
        
        if (b_long_delay)
-               usleep_range(25*1000, 35*1000);
-//               usleep_range(1000*1000, 1200*1000);
+//               usleep_range(25*1000, 35*1000);
+               usleep_range(1000*1000, 1200*1000);
        else
                usleep_range(25*1000, 35*1000);
 //               usleep_range(50*1000, 100*1000);

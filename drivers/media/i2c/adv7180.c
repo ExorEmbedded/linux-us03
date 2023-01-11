@@ -608,6 +608,8 @@ static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 		{
 			adv7180_write(state, 0x0D, 0x7C);
 		}
+		// at this point, we did everything (or tried to)
+		ret = 0;
 		break;
 	default:
 		ret = -EINVAL;

@@ -1799,6 +1799,17 @@ static int mx6s_vidioc_s_ctrl(struct file* file, void* priv, struct v4l2_control
 		return -ENODEV;
 }
 
+static int mx6s_vidioc_s_ext_ctrls(struct file* file, void* priv, struct v4l2_ext_controls* vcs)
+{
+	if (g_mx6s_ctrl_hdl)
+	{
+		struct v4l2_fh *fh = file->private_data;
+		return v4l2_s_ext_ctrls(fh, g_mx6s_ctrl_hdl, vcs);
+	}
+	else
+		return -ENODEV;
+}
+
 static const struct v4l2_ioctl_ops mx6s_csi_ioctl_ops = {
 	.vidioc_querycap          = mx6s_vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = mx6s_vidioc_enum_fmt_vid_cap,
@@ -1829,6 +1840,7 @@ static const struct v4l2_ioctl_ops mx6s_csi_ioctl_ops = {
 	.vidioc_queryctrl =	mx6s_vidioc_query_ctrl,
 	.vidioc_g_ctrl =	mx6s_vidioc_g_ctrl,
 	.vidioc_s_ctrl =	mx6s_vidioc_s_ctrl,
+	.vidioc_s_ext_ctrls =	mx6s_vidioc_s_ext_ctrls	,
 };
 
 static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,

@@ -432,13 +432,13 @@
     };
 
     tsc2004@4b {
-        compatible = "ti,tsc2004";
+        compatible = "tsc2004-exor";
         reg = <0x4B>;
         vio-supply = <&dummy_reg>;
 
         //MX6UL_PAD_UART2_CTS_B__GPIO1_IO22
-        //reset-gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>;
-        interrupts-extended = <&gpio1 22 IRQ_TYPE_EDGE_RISING>;
+        //reset-gpio = <&gpio4 8 GPIO_ACTIVE_HIGH>;
+        intr-gpio = <&gpio1 22 IRQ_TYPE_EDGE_RISING>;
 
         touchscreen-fuzz-x = <4>;
         touchscreen-fuzz-y = <7>;
@@ -447,7 +447,7 @@
         touchscreen-size-y = <4096>;
         touchscreen-max-pressure = <2048>;
 
-        ti,x-plate-ohms = <280>;
+        x-plate-ohms = <280>;
         ti,esd-recovery-timeout-ms = <8000>;
     };
 

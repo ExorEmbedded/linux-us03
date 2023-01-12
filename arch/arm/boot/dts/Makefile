@@ -504,6 +504,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	usom_jsmart.dtb \
 	usom_jsmartq.dtb \
 	usom_jsmartttl.dtb \
+	usom_be15a.dtb \
+	usom_be15b.dtb \
 	imx6q-apalis-eval.dtb \
 	imx6q-apalis-ixora.dtb \
 	imx6q-apalis-ixora-v1.1.dtb \

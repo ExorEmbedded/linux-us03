@@ -1,3 +1,4 @@
+#error CVE-2022-3239
 /*
    em28xx-cards.c - driver for Empia EM2800/EM2820/2840 USB
 		    video capture devices

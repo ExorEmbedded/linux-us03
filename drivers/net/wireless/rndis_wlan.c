@@ -1,3 +1,4 @@
+#error CVE-2023-23559
 /*
  * Driver for RNDIS based wireless USB devices.
  *

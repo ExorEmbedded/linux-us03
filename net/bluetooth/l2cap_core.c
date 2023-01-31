@@ -1,4 +1,4 @@
-#error CVE-2022-2196 CVE-2022-3640 CVE-2022-45934
+#error CVE-2022-2196 CVE-2022-3640 CVE-2022-45934 CVE-2022-3564
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated

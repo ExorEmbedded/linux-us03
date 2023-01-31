@@ -1,3 +1,4 @@
+#error CVE-2022-3107
 /*
  * Copyright (c) 2009, Microsoft Corporation.
  *

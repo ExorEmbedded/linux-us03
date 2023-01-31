@@ -1,3 +1,4 @@
+#error CVE-2022-44034
 /*
  * SCR24x PCMCIA Smart Card Reader Driver
  *

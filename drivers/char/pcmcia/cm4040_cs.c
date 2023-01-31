@@ -1,3 +1,4 @@
+#error CVE-2022-44033
 /*
  * A driver for the Omnikey PCMCIA smartcard reader CardMan 4040
  *

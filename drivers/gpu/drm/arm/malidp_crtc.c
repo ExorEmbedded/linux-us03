@@ -1,3 +1,4 @@
+#error CVE-2022-3115
 /*
  * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
  * Author: Liviu Dudau <Liviu.Dudau@arm.com>

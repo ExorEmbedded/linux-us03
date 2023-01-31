@@ -1,4 +1,4 @@
-#error CVE-2022-3649
+#error CVE-2022-3649 CVE-2022-3621
 /*
  * inode.c - NILFS inode operations.
  *

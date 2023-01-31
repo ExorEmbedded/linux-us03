@@ -1,3 +1,4 @@
+#error CVE-2022-44032
  /*
   * A driver for the PCMCIA Smartcard Reader "Omnikey CardMan Mobile 4000"
   *

@@ -1,3 +1,4 @@
+#error CVE-2022-3108
 /*
  * Copyright 2014 Advanced Micro Devices, Inc.
  *

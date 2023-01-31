@@ -1,3 +1,4 @@
+#error CVE-2022-3111
 /*
  * Battery driver for wm8350 PMIC
  *

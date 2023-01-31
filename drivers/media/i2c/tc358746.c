@@ -719,6 +719,7 @@ static int fpga_smart_reset(struct tc358746_state *state, bool b_long_delay)
 {
        // save original rotation
        int i_old_rotation = state->i_fpga_rotation;
+
        // calc temporary new rotation
        state->i_fpga_rotation += 90;
        if (state->i_fpga_rotation == 360)
@@ -752,6 +753,7 @@ int tc358746_s_ctrl(struct v4l2_ctrl* ctrl)
 	struct v4l2_subdev* sd = to_tc358746_sd(ctrl);
 	struct tc358746_state* state = to_state(sd);
 	int ret = 0;
+	int i_old_rotation = 0;
 
 	if (state->controls_initialized)
 	{
@@ -772,16 +774,16 @@ int tc358746_s_ctrl(struct v4l2_ctrl* ctrl)
 		 * notice anything at all.
 		 * */
 		 
-		// save original rotation
-		int i_old_rotation = state->i_fpga_rotation;
-		// calc temporary new rotation
-		state->i_fpga_rotation += 90;
-		if (state->i_fpga_rotation == 360)
-			state->i_fpga_rotation = 0;
-			
 		// we need the workaround only on changing input
 		if (ctrl->id == V4L2_CID_ADV_SET_INPUT)
 		{
+			// save original rotation
+			i_old_rotation = state->i_fpga_rotation;
+			// calc temporary new rotation
+			state->i_fpga_rotation += 90;
+			if (state->i_fpga_rotation == 360)
+				state->i_fpga_rotation = 0;
+
 			// set new rotation
 			fpga_apply_rotation(state);
 		}
@@ -2389,11 +2391,14 @@ static int tc358746_probe(struct i2c_client *client,
 		goto err_work_queues;
 	}
 
+	// FPGA is already initialized while setting up controls
+#if 0
 	err = wu10cam_read_reg32_device(
 		state,
 		state->i2c_client_fpga->addr,
 		FPGA_ROTATION_CONTROL_REG,
 		&state->i_fpga_control_register);
+
 	if (err)
 	{
 		// failed to read from fpga, fpga not connected?
@@ -2423,6 +2428,7 @@ static int tc358746_probe(struct i2c_client *client,
 			FPGA_SCALER_HEIGHT_REG,
 			&state->i_fpga_height);
 	}
+#endif
 
 	err = wu10cam_write_reg32_device(
 		state,

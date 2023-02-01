@@ -1,3 +1,4 @@
+#error CVE-2022-3629
 /*
  * VMware vSockets Driver
  *

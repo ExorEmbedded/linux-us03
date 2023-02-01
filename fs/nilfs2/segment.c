@@ -1,3 +1,4 @@
+#error CVE-2022-3646
 /*
  * segment.c - NILFS segment constructor.
  *

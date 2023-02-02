@@ -98,8 +98,13 @@
  *1.41			SS							27.09.2021	Changed pwm freq. for code #75: 5kHz and min duty to 1% to match datasheet minimum backlight spec and still drive keyboard leds
  *1.42			SS							04.03.2022	Added display code #78: DMB T070102600-B3WMN-001 for DAH21 (1024x600).
  *1.43			SS							22.08.2022	Added display code #79: Futurelabs FLC070DML02 (800x480 serie700).
+ *1.44			SS							26.09.2022	Added display code #80: Futurelabs FLR-101HML00PUFA2#02 (1280x800 WE20-10).
+ *1.45			SS							27.09.2022	Added display code #81: same as display #76 but dimming positive (new carrier WU10A1)
+ *			 								27.09.2022	Added display code #82: Futurelabs FLD-121GML20PC001#00 (Innolux G121XCE-L01) for GE22 (1024x768) 
+ *1.46			SS							05.10.2022	Added display code #83: 
+ *1.47			GP							02.02.2023	Added display code #84: DMB KD101WXFLD038-C045B (10.1", 1280x800) for SE21 X10 handheld 
  *
- * NEXT AVAILABLE DISPLAY CODE: 80
+ * NEXT AVAILABLE DISPLAY CODE: 85
  */
  
 #ifndef DISPLAYCONFIG_H
@@ -1296,6 +1301,136 @@ static struct t_DisplayParams displayconfig[] = {
         .brightness_min = 0x6400, 		/* BSP-1559 : Brightness min=1% */
         .brightness_max = 100,
     }, 
+    /* 80: Futurelabs  FLR-101HML00PUFA2#02 1280x800 for WE20-10inch new carrier (WU10A1) */
+    {
+        .dispid    = 80,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 66600,         //US04 supporta un numero limitato di freq (fare sempre check con tabella PLL)
+        .pclk_inv  = 1,							//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 12,            
+        .hs_bp     = 86,            
+        .hs_w      = 2,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 1,             
+        .vs_bp     = 3,            
+        .vs_w      = 20,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 6500,			//27.09.2022 keyboard led dimming driven by TPS61165 (avoid EasyScale min freq)
+        .brightness_min = 0x3200,		//27.09.2022 min duty cycle 0.5%
+        .brightness_max = 40,
+    },    
+    /* 81: Innolux  G121ICE-L01 1280x800 for WE20-12 PWM polarity=positive, new carrier (WU10A1) */
+    {
+        .dispid    = 81,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 71000,     //US04 supporta un numero limitato di freq (fare sempre check con tabella PLL)   
+        .pclk_inv  = 1,					//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 70,            
+        .hs_bp     = 70,            
+        .hs_w      = 20,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 10,             
+        .vs_bp     = 10,            
+        .vs_w      = 3,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,
+        .brightness_min = 5,
+        .brightness_max = 70, 	//polarità PWM dimming positiva
+    },
+    /* 82: Futurelabs FLD-121GML20PC001#00 (Innolux G121XCE-L01) for GE22 */
+    {
+        .dispid    = 82,
+        .rezx      = 1024, 
+        .rezy      = 768, 
+        .bpp       = 24,
+        
+        .pclk_freq = 71000,         //US04 supporta un numero limitato di freq (fare sempre check con tabella PLL)
+        .pclk_inv  = 1,							//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 150,            
+        .hs_bp     = 150,            
+        .hs_w      = 20,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 15,             
+        .vs_bp     = 15,            
+        .vs_w      = 8,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 200,			
+        .brightness_min = 1,		
+        .brightness_max = 100,
+    },
+    /* 83: FutureLabs FLC-070FMLG000002#00 for WE22*/
+    {
+        .dispid    = 83,
+        .rezx      = 1024, 
+        .rezy      = 600, 
+        .bpp       = 24,
+        
+        .pclk_freq = 51000, 
+        .pclk_inv  = 1,  // inverted clock polarity due SN65LVDS93 CLKSEL high (sample on rising edge)
+        
+        .hs_fp     = 10, 
+        .hs_bp     = 320, 
+        .hs_w      = 10, 
+        .hs_inv    = 1,
+        
+        .vs_fp     = 10, 
+        .vs_bp     = 35, 
+        .vs_w      = 10, 
+        .vs_inv    = 1,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 6500,			//keyboard led dimming driven by TPS61165 (avoid EasyScale min freq)
+        .brightness_min = 0x3200,		//min duty cycle 0.5%
+        .brightness_max = 80,
+    },    
+    /* 84: DMB KD101WXFLD038-C045B (10.1", 1280x800) for SE21 X10 handheld  */
+    {
+        .dispid    = 84,
+        .rezx      = 1280, 
+        .rezy      = 800, 
+        .bpp       = 24,
+        
+        .pclk_freq = 66600,         //US04 supporta un numero limitato di freq (fare sempre check con tabella PLL)
+        .pclk_inv  = 1,							//inverted clock polarity (compatibility with IMX.6 bug)
+        
+        .hs_fp     = 12,            
+        .hs_bp     = 86,            
+        .hs_w      = 2,             
+        .hs_inv    = 0,
+        
+        .vs_fp     = 1,             
+        .vs_bp     = 3,            
+        .vs_w      = 20,             
+        .vs_inv    = 0,
+        
+        .blank_inv      = 0,
+        
+        .pwmfreq        = 5000,		//Backlight controller is TPS61500PWPR, analog mode. 5Khz is TI suggested freq. for 1uF Cdimc value.
+        .brightness_min = 1,		//min duty cycle 1% as per TI recommendation
+        .brightness_max = 100,
+    },    
     /* END OF LIST */
     {
       .dispid    = NODISPLAY,

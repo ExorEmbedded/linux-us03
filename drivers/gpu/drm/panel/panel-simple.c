@@ -105,9 +105,13 @@ int dispid_get_videomode(struct videomode* vm, int dispid)
 	}
 	vm->pixelclock = 1000 * eff_pclk;
 	
-	// Clamp min val of hsync_len 
-	if(vm->hsync_len < 8)
-		vm->hsync_len = 8;
+	// Clamp min val of hsync_len (but not in the case of hbp+hsw=88 which is
+	// the special value required by the EK79202 controller, so we need to left it untouched)
+	if((vm->hsync_len + vm->hback_porch) != 88)
+	{
+		if(vm->hsync_len < 8)
+			vm->hsync_len = 8;
+	}
 
 	vm->flags = 0;
 	if(displayconfig[i].hs_inv == 0)

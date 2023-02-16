@@ -197,6 +197,7 @@
 &ecspi3 {
 	/delete-property/dmas;
 	/delete-property/dma-names;
+	spi-imx,rt;
 };
 
 &i2c3 {

@@ -1712,6 +1712,11 @@ static int spi_imx_probe(struct platform_device *pdev)
 		master->num_chipselect = val;
 	else
 		master->num_chipselect = 3;
+	
+	/*
+	 * Get flag to set the message pump to RT priority; this is to reduce message latency.
+	 */
+	master->rt = device_property_read_bool(&pdev->dev, "spi-imx,rt");
 
 	spi_imx->bitbang.setup_transfer = spi_imx_setupxfer;
 	spi_imx->bitbang.txrx_bufs = spi_imx_transfer;

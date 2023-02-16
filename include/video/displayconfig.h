@@ -1429,7 +1429,7 @@ static struct t_DisplayParams displayconfig[] = {
         
         .pwmfreq        = 5000,		//Backlight controller is TPS61500PWPR, analog mode. 5Khz is TI suggested freq. for 1uF Cdimc value.
         .brightness_min = 1,		//min duty cycle 1% as per TI recommendation
-        .brightness_max = 100,
+        .brightness_max = 65,
     },    
     /* END OF LIST */
     {

@@ -104,6 +104,7 @@
  *1.46			SS							05.10.2022	Added display code #83: 
  *1.47			GP							02.02.2023	Added display code #84: DMB KD101WXFLD038-C045B (10.1", 1280x800) for SE21 X10 handheld 
  *1.48			SS							01.03.2023	Added display code #85: Futurelabs DISPJST-101N002#01 for new jSMART10x 
+ *1.49			SS							02.03.2023	Modified display code #71: changed porches to match latest display datasheet specs
  *
  * NEXT AVAILABLE DISPLAY CODE: 86
  */
@@ -1079,13 +1080,13 @@ static struct t_DisplayParams displayconfig[] = {
         .pclk_inv  = 1,				//inverted clock polarity due to IMX.6 bug
         
         .hs_fp     = 12,            //24.01.2019 SS
-        .hs_bp     = 88,            //24.01.2019 SS
-        .hs_w      = 1,             //24.01.2019 SS
+        .hs_bp     = 86,            //02.03.2023 SS
+        .hs_w      = 2,             //02.03.2023 SS
         .hs_inv    = 0,
         
         .vs_fp     = 1,             //24.01.2019 SS
-        .vs_bp     = 23,            //24.01.2019 SS
-        .vs_w      = 1,             //24.01.2019 SS
+        .vs_bp     = 3,             //02.03.2023 SS
+        .vs_w      = 20,            //02.03.2023 SS
         .vs_inv    = 0,
         
         .blank_inv      = 0,

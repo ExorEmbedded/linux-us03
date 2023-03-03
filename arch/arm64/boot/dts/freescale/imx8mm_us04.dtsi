@@ -577,7 +577,7 @@
 		clocks = <&clkcan20m>;
 		spi-max-frequency = <10000000>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <2 GPIO_ACTIVE_LOW>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	can1: can@3 {
@@ -586,7 +586,7 @@
 		clocks = <&clkcan20m>;
 		spi-max-frequency = <10000000>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <9 GPIO_ACTIVE_LOW>;
+		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
